@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Themis Bingo — Admin</title>
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<!-- ── Login ──────────────────────────────────────────────────────────── -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <h1>Themis Bingo</h1>
+      <p>Admin Panel</p>
+    </div>
+    <label>Username</label>
+    <input type="text" id="login-user" placeholder="admin" autocomplete="username">
+    <label>Password</label>
+    <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password">
+    <button class="btn-login" id="login-btn">Sign In</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- ── App ────────────────────────────────────────────────────────────── -->
+<div id="app" style="display:none">
+  <nav id="sidebar">
+    <div class="sidebar-logo">
+      <h2>Themis Bingo</h2>
+      <span>Administration</span>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-item active" data-panel="draws"><span class="icon">📅</span> Daily Draws</div>
+      <div class="nav-item" data-panel="tickets"><span class="icon">🎟</span> Winning Tickets</div>
+      <div class="nav-item" data-panel="jackpot"><span class="icon">💰</span> Jackpot</div>
+      <div class="nav-item" data-panel="users"><span class="icon">👥</span> Users</div>
+      <div class="nav-item" data-panel="agents"><span class="icon">🤝</span> Agents</div>
+      <div class="nav-item" data-panel="payouts"><span class="icon">💳</span> Payouts &amp; Accounts</div>
+    </div>
+    <div class="sidebar-footer">
+      <button class="btn-logout" id="logout-btn">Sign Out</button>
+    </div>
+  </nav>
+
+  <div id="main">
+    <div id="topbar">
+      <h3 id="panel-title">Daily Draws</h3>
+      <span class="topbar-admin" id="admin-name"></span>
+    </div>
+    <div id="content">
+
+      <!-- ── DRAWS ──────────────────────────────────────────────────── -->
+      <div class="panel active" id="panel-draws">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div>
+            <h2 style="font-size:1.2rem;margin-bottom:4px">Weekly Draw Schedule</h2>
+            <p class="text-muted">Set up recurring draws for each day of the week</p>
+          </div>
+          <button class="btn btn-primary" id="add-draw-btn">＋ Add Draw</button>
+        </div>
+        <div class="week-grid" id="week-grid"></div>
+      </div>
+
+      <!-- ── TICKETS ────────────────────────────────────────────────── -->
+      <div class="panel" id="panel-tickets">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div>
+            <h2 style="font-size:1.2rem;margin-bottom:4px">Winning Tickets</h2>
+            <p class="text-muted">All line and full house winners</p>
+          </div>
+          <div class="search-bar">
+            <select id="ticket-filter" class="form-group" style="margin:0;width:160px">
+              <option value="">All wins</option>
+              <option value="1line">1 Line</option>
+              <option value="2lines">2 Lines</option>
+              <option value="full_house">Full House</option>
+            </select>
+            <select id="ticket-paid-filter" style="padding:7px 12px;background:var(--surface);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:.85rem;outline:none">
+              <option value="">All</option>
+              <option value="0">Unpaid</option>
+              <option value="1">Paid Out</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th><th>Draw</th><th>Date</th><th>Player</th><th>Status</th><th>Prize</th><th>Paid</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tickets-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── JACKPOT ────────────────────────────────────────────────── -->
+      <div class="panel" id="panel-jackpot">
+        <h2 style="font-size:1.2rem;margin-bottom:20px">Jackpot Settings</h2>
+        <div class="card jackpot-card">
+          <div class="toggle-wrap" style="margin-bottom:20px">
+            <label class="toggle">
+              <input type="checkbox" id="jackpot-enabled">
+              <span class="toggle-slider"></span>
+            </label>
+            <span id="jackpot-status-label" style="font-weight:600">Jackpot Disabled</span>
+          </div>
+          <div class="jackpot-amount" id="jackpot-display">£0.00</div>
+          <div class="form-row mt-4">
+            <div class="form-group">
+              <label>Jackpot Amount (£)</label>
+              <input type="number" id="jackpot-amount" min="0" step="0.01" placeholder="1000.00">
+            </div>
+            <div class="form-group">
+              <label>Win within N balls</label>
+              <input type="number" id="jackpot-balls" min="1" max="90" placeholder="45">
+            </div>
+          </div>
+          <p class="text-muted" style="margin-bottom:16px">Player must achieve a full house within the set number of balls drawn to win the jackpot.</p>
+          <button class="btn btn-primary" id="save-jackpot-btn">Save Jackpot Settings</button>
+        </div>
+      </div>
+
+      <!-- ── USERS ──────────────────────────────────────────────────── -->
+      <div class="panel" id="panel-users">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div>
+            <h2 style="font-size:1.2rem;margin-bottom:4px">User Management</h2>
+            <p class="text-muted">All registered players and agents</p>
+          </div>
+          <div class="flex gap-2">
+            <div class="search-bar">
+              <input type="text" id="user-search" placeholder="Search name, email, phone…">
+            </div>
+            <button class="btn btn-primary" id="add-user-btn">＋ Add User</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Name</th><th>Email / Phone</th><th>Role</th><th>Balance</th><th>Tickets</th><th>Status</th><th>Joined</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── AGENTS ─────────────────────────────────────────────────── -->
+      <div class="panel" id="panel-agents">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div>
+            <h2 style="font-size:1.2rem;margin-bottom:4px">Agent System</h2>
+            <p class="text-muted">Manage agents and commission rates</p>
+          </div>
+          <button class="btn btn-primary" id="add-agent-btn">＋ Add Agent</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Name</th><th>Phone</th><th>Commission</th><th>Players</th><th>Total Sales</th><th>Commission Earned</th><th>Parent Agent</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="agents-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── PAYOUTS ────────────────────────────────────────────────── -->
+      <div class="panel" id="panel-payouts">
+        <h2 style="font-size:1.2rem;margin-bottom:20px">Payouts &amp; Accounts</h2>
+        <div class="stat-grid" id="payout-stats"></div>
+
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+          <button class="btn btn-primary" id="deposit-btn">＋ Deposit</button>
+          <button class="btn btn-ghost" id="withdraw-btn">− Withdraw</button>
+          <button class="btn btn-success" id="pay-prize-btn">✓ Pay Prize</button>
+        </div>
+
+        <div class="table-wrap">
+          <div class="table-header">
+            <h4>Transaction History</h4>
+            <select id="txn-type-filter" style="padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.82rem">
+              <option value="">All types</option>
+              <option value="deposit">Deposits</option>
+              <option value="withdrawal">Withdrawals</option>
+              <option value="prize_win">Prize Wins</option>
+              <option value="commission">Commission</option>
+              <option value="ticket_purchase">Ticket Purchase</option>
+            </select>
+          </div>
+          <table>
+            <thead>
+              <tr><th>#</th><th>User</th><th>Type</th><th>Amount</th><th>Balance After</th><th>Description</th><th>Date</th></tr>
+            </thead>
+            <tbody id="txn-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ── Draw modal ──────────────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="draw-modal">
+  <div class="modal">
+    <h3 id="draw-modal-title">Add Draw</h3>
+    <input type="hidden" id="draw-edit-id">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Day of Week</label>
+        <select id="dm-day">
+          <option value="0">Monday</option><option value="1">Tuesday</option>
+          <option value="2">Wednesday</option><option value="3">Thursday</option>
+          <option value="4">Friday</option><option value="5">Saturday</option>
+          <option value="6">Sunday</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Draw #</label>
+        <input type="number" id="dm-number" min="1" value="1">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Draw Time</label>
+        <input type="time" id="dm-time" value="19:00">
+      </div>
+      <div class="form-group">
+        <label>Ball Interval (s)</label>
+        <input type="number" id="dm-interval" min="1" max="8" value="5">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>Draw Title</label>
+        <input type="text" id="dm-title" placeholder="e.g. Monday Evening Draw">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Ticket Price (£)</label>
+        <input type="number" id="dm-ticket-price" min="0" step="0.01" value="1.00">
+      </div>
+      <div class="form-group">
+        <label>Full House Prize (£)</label>
+        <input type="number" id="dm-fh-prize" min="0" step="0.01" value="100.00">
+      </div>
+      <div class="form-group">
+        <label>Line Prize (£)</label>
+        <input type="number" id="dm-line-prize" min="0" step="0.01" value="10.00">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="draw-modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="draw-modal-save">Save Draw</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── User modal ──────────────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="user-modal">
+  <div class="modal">
+    <h3 id="user-modal-title">Add User</h3>
+    <input type="hidden" id="user-edit-id">
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>Full Name</label>
+        <input type="text" id="um-name" placeholder="John Smith">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="um-email" placeholder="john@example.com">
+      </div>
+      <div class="form-group">
+        <label>Phone</label>
+        <input type="tel" id="um-phone" placeholder="+44 7700 000000">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Role</label>
+        <select id="um-role">
+          <option value="player">Player</option>
+          <option value="agent">Agent</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Balance (£)</label>
+        <input type="number" id="um-balance" min="0" step="0.01" value="0">
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="um-status">
+          <option value="active">Active</option>
+          <option value="suspended">Suspended</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="user-modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="user-modal-save">Save User</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Agent modal ─────────────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="agent-modal">
+  <div class="modal">
+    <h3 id="agent-modal-title">Add Agent</h3>
+    <input type="hidden" id="agent-edit-id">
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>Select User</label>
+        <select id="am-user"></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Commission Rate (%)</label>
+        <input type="number" id="am-commission" min="0" max="100" step="0.1" value="5">
+      </div>
+      <div class="form-group">
+        <label>Parent Agent</label>
+        <select id="am-parent"><option value="">None</option></select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="am-status">
+          <option value="active">Active</option>
+          <option value="suspended">Suspended</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="agent-modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="agent-modal-save">Save Agent</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Payout modal ────────────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="payout-modal">
+  <div class="modal">
+    <h3 id="payout-modal-title">Deposit Funds</h3>
+    <input type="hidden" id="payout-type">
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>User</label>
+        <select id="pm-user"></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Amount (£)</label>
+        <input type="number" id="pm-amount" min="0.01" step="0.01" placeholder="0.00">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>Description</label>
+        <input type="text" id="pm-desc" placeholder="Optional note">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="payout-modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="payout-modal-save">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Prize modal ─────────────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="prize-modal">
+  <div class="modal">
+    <h3>Pay Out Prize</h3>
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>Ticket #</label>
+        <input type="number" id="prize-ticket-id" min="1" placeholder="Ticket ID">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="prize-modal-cancel">Cancel</button>
+      <button class="btn btn-success" id="prize-modal-save">Pay Prize</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast ───────────────────────────────────────────────────────────── -->
+<div id="toast"></div>
+
+<script src="admin.js"></script>
+</body>
+</html>

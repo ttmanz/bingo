@@ -1,21 +1,46 @@
 import express from 'express'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
+import { initDb } from './db.js'
 import { createGameState, drawNumber, resetGame, getState } from './gameState.js'
+import authRoutes     from './routes/auth.js'
+import scheduleRoutes from './routes/schedule.js'
+import ticketRoutes   from './routes/tickets.js'
+import jackpotRoutes  from './routes/jackpot.js'
+import userRoutes     from './routes/users.js'
+import agentRoutes    from './routes/agents.js'
+import payoutRoutes   from './routes/payouts.js'
 
-const app = express()
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
+const app        = express()
 const httpServer = createServer(app)
-const io = new Server(httpServer, {
-  cors: { origin: '*' },
-})
+const io         = new Server(httpServer, { cors: { origin: '*' } })
 
-const DRAW_INTERVAL_MS  = 7000
-const TICK_MS           = 100
+app.use(express.json())
 
-const game = createGameState()
-let drawTimer  = null
-let tickTimer  = null
-let countdown  = DRAW_INTERVAL_MS
+// ── Serve admin panel ─────────────────────────────────────────────────────
+app.use('/admin', express.static(join(__dirname, '../admin')))
+
+// ── API routes ────────────────────────────────────────────────────────────
+app.use('/api/auth',     authRoutes)
+app.use('/api/schedule', scheduleRoutes)
+app.use('/api/tickets',  ticketRoutes)
+app.use('/api/jackpot',  jackpotRoutes)
+app.use('/api/users',    userRoutes)
+app.use('/api/agents',   agentRoutes)
+app.use('/api/payouts',  payoutRoutes)
+
+// ── Live draw (Socket.io) ─────────────────────────────────────────────────
+const DRAW_INTERVAL_MS = 7000
+const TICK_MS          = 100
+
+const game      = createGameState()
+let drawTimer   = null
+let tickTimer   = null
+let countdown   = DRAW_INTERVAL_MS
 
 function startCycle() {
   clearTimeout(drawTimer)
@@ -55,9 +80,16 @@ io.on('connection', (socket) => {
   })
 })
 
-startCycle()
-
+// ── Boot ──────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001
-httpServer.listen(PORT, () => {
-  console.log(`Bingo server running on http://localhost:${PORT}`)
+
+initDb().then(() => {
+  startCycle()
+  httpServer.listen(PORT, () => {
+    console.log(`Bingo server  → http://localhost:${PORT}`)
+    console.log(`Admin panel   → http://localhost:${PORT}/admin`)
+  })
+}).catch(err => {
+  console.error('DB init failed:', err)
+  process.exit(1)
 })
