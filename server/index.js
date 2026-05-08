@@ -5,13 +5,15 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { initDb } from './db.js'
 import { createGameState, drawNumber, resetGame, getState } from './gameState.js'
-import authRoutes     from './routes/auth.js'
-import scheduleRoutes from './routes/schedule.js'
-import ticketRoutes   from './routes/tickets.js'
-import jackpotRoutes  from './routes/jackpot.js'
-import userRoutes     from './routes/users.js'
-import agentRoutes    from './routes/agents.js'
-import payoutRoutes   from './routes/payouts.js'
+import authRoutes        from './routes/auth.js'
+import scheduleRoutes    from './routes/schedule.js'
+import ticketRoutes      from './routes/tickets.js'
+import jackpotRoutes     from './routes/jackpot.js'
+import userRoutes        from './routes/users.js'
+import agentRoutes       from './routes/agents.js'
+import payoutRoutes      from './routes/payouts.js'
+import agentAuthRoutes   from './routes/agentAuth.js'
+import agentPortalRoutes from './routes/agentPortal.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -21,17 +23,20 @@ const io         = new Server(httpServer, { cors: { origin: '*' } })
 
 app.use(express.json())
 
-// ── Serve admin panel ─────────────────────────────────────────────────────
-app.use('/admin', express.static(join(__dirname, '../admin')))
+// ── Serve static panels ───────────────────────────────────────────────────
+app.use('/admin',        express.static(join(__dirname, '../admin')))
+app.use('/agent-portal', express.static(join(__dirname, '../agent-portal')))
 
 // ── API routes ────────────────────────────────────────────────────────────
-app.use('/api/auth',     authRoutes)
-app.use('/api/schedule', scheduleRoutes)
-app.use('/api/tickets',  ticketRoutes)
-app.use('/api/jackpot',  jackpotRoutes)
-app.use('/api/users',    userRoutes)
-app.use('/api/agents',   agentRoutes)
-app.use('/api/payouts',  payoutRoutes)
+app.use('/api/auth',         authRoutes)
+app.use('/api/schedule',     scheduleRoutes)
+app.use('/api/tickets',      ticketRoutes)
+app.use('/api/jackpot',      jackpotRoutes)
+app.use('/api/users',        userRoutes)
+app.use('/api/agents',       agentRoutes)
+app.use('/api/payouts',      payoutRoutes)
+app.use('/api/agent-auth',   agentAuthRoutes)
+app.use('/api/agent-portal', agentPortalRoutes)
 
 // ── Live draw (Socket.io) ─────────────────────────────────────────────────
 const DRAW_INTERVAL_MS = 7000
@@ -88,6 +93,7 @@ initDb().then(() => {
   httpServer.listen(PORT, () => {
     console.log(`Bingo server  → http://localhost:${PORT}`)
     console.log(`Admin panel   → http://localhost:${PORT}/admin`)
+    console.log(`Agent portal  → http://localhost:${PORT}/agent-portal`)
   })
 }).catch(err => {
   console.error('DB init failed:', err)

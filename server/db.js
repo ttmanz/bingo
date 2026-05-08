@@ -62,15 +62,17 @@ function createSchema() {
     );
 
     CREATE TABLE IF NOT EXISTS users (
-      id         INTEGER PRIMARY KEY AUTOINCREMENT,
-      name       TEXT NOT NULL,
-      email      TEXT UNIQUE,
-      phone      TEXT,
-      role       TEXT DEFAULT 'player',
-      balance    REAL DEFAULT 0,
-      agent_id   INTEGER REFERENCES users(id),
-      status     TEXT DEFAULT 'active',
-      created_at TEXT DEFAULT (datetime('now'))
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      name          TEXT NOT NULL,
+      email         TEXT UNIQUE,
+      phone         TEXT,
+      role          TEXT DEFAULT 'player',
+      balance       REAL DEFAULT 0,
+      points        REAL DEFAULT 0,
+      password_hash TEXT,
+      agent_id      INTEGER REFERENCES users(id),
+      status        TEXT DEFAULT 'active',
+      created_at    TEXT DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS agents (
@@ -153,12 +155,22 @@ function createSchema() {
 }
 
 function runMigrations() {
-  // Add agent_type if upgrading from older schema
-  const cols = db.exec("PRAGMA table_info(agents)")[0]?.values?.map(r => r[1]) ?? []
-  if (!cols.includes('agent_type')) {
+  // agents: add agent_type
+  const agentCols = db.exec("PRAGMA table_info(agents)")[0]?.values?.map(r => r[1]) ?? []
+  if (!agentCols.includes('agent_type')) {
     db.run("ALTER TABLE agents ADD COLUMN agent_type TEXT DEFAULT 'agent'")
-    save()
   }
+
+  // users: add password_hash and points
+  const userCols = db.exec("PRAGMA table_info(users)")[0]?.values?.map(r => r[1]) ?? []
+  if (!userCols.includes('password_hash')) {
+    db.run("ALTER TABLE users ADD COLUMN password_hash TEXT")
+  }
+  if (!userCols.includes('points')) {
+    db.run("ALTER TABLE users ADD COLUMN points REAL DEFAULT 0")
+  }
+
+  save()
 }
 
 async function seedDefaults() {

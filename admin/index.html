@@ -179,7 +179,7 @@
           <div class="table-wrap">
             <table>
               <thead>
-                <tr><th>#</th><th>Type</th><th>Name</th><th>Phone</th><th>Commission</th><th>Sub-Agents</th><th>Players</th><th>Parent</th><th>Status</th><th>Actions</th></tr>
+                <tr><th>#</th><th>Type</th><th>Name</th><th>Email / Phone</th><th>Commission</th><th>Sub-Agents</th><th>Players</th><th>Points</th><th>Parent</th><th>Status</th><th>Actions</th></tr>
               </thead>
               <tbody id="agents-tbody"></tbody>
             </table>
@@ -358,10 +358,41 @@
       <input type="hidden" id="am-type" value="agent">
     </div>
 
-    <div class="form-row" id="am-user-row">
+    <!-- Existing user selector (legacy path, hidden when using new fields) -->
+    <div class="form-row" id="am-user-row" style="display:none">
       <div class="form-group" style="flex:2">
-        <label>Select User</label>
+        <label>Select Existing User</label>
         <select id="am-user"></select>
+      </div>
+    </div>
+
+    <!-- New agent credentials (shown only on create) -->
+    <div id="am-credentials-row">
+      <div class="form-row">
+        <div class="form-group" style="flex:2">
+          <label>Full Name *</label>
+          <input type="text" id="am-name" placeholder="Agent full name">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Email *</label>
+          <input type="email" id="am-email" placeholder="agent@example.com">
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="tel" id="am-phone" placeholder="+1 234 567 8900">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Password *</label>
+          <input type="password" id="am-password" placeholder="Set login password">
+        </div>
+        <div class="form-group">
+          <label>Initial Points</label>
+          <input type="number" id="am-points" value="0" min="0" step="1">
+        </div>
       </div>
     </div>
 
@@ -385,6 +416,23 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" id="agent-modal-cancel">Cancel</button>
       <button class="btn btn-primary" id="agent-modal-save">Save Agent</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Allocate Points modal ────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="alloc-modal">
+  <div class="modal" style="max-width:400px">
+    <h3>Allocate Points</h3>
+    <input type="hidden" id="alloc-agent-user-id">
+    <p id="alloc-agent-name" style="color:var(--muted);font-size:.85rem;margin-bottom:16px"></p>
+    <div class="form-group">
+      <label>Points to Add</label>
+      <input type="number" id="alloc-amount" value="100" min="1" step="1">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="alloc-modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="alloc-modal-save">Add Points</button>
     </div>
   </div>
 </div>

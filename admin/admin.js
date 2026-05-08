@@ -437,14 +437,16 @@ async function renderAgentTable(filterType = '') {
         <td>#${a.id}</td>
         <td><span class="badge ${meta.badge}">${meta.icon} ${meta.label}</span></td>
         <td><strong>${a.name}</strong></td>
-        <td>${a.phone || '—'}</td>
+        <td>${a.email || a.phone || '—'}</td>
         <td>${Number(a.commission_rate).toFixed(1)}%</td>
         <td>${a.child_agent_count || 0}</td>
         <td>${a.player_count || 0}</td>
+        <td>💎 ${Number(a.points ?? 0).toLocaleString()}</td>
         <td>${a.parent_name ? `${a.parent_name} <span class="text-muted">(${a.parent_type})</span>` : '—'}</td>
         <td><span class="badge ${a.status === 'active' ? 'badge-success' : 'badge-danger'}">${a.status}</span></td>
-        <td style="display:flex;gap:4px">
+        <td style="display:flex;gap:4px;flex-wrap:wrap">
           <button class="btn btn-sm btn-ghost" onclick='openAgentEditModal(${JSON.stringify(a).replace(/"/g,"&quot;")})'>Edit</button>
+          <button class="btn btn-sm btn-secondary" onclick="openAllocModal(${a.id},'${a.name.replace(/'/g,"\\'")}',${a.points ?? 0})">+ Points</button>
           <button class="btn btn-sm btn-danger" onclick="deleteAgent(${a.id})">Remove</button>
         </td>
       </tr>`
@@ -502,20 +504,19 @@ document.getElementById('add-agent-btn').addEventListener('click', async () => {
   document.getElementById('agent-modal-title').textContent = 'Add Agent'
   document.getElementById('am-commission').value = 5
   document.getElementById('am-status').value = 'active'
-  document.getElementById('am-user-row').style.display = 'flex'
+  document.getElementById('am-user-row').style.display = 'none'
+  document.getElementById('am-credentials-row').style.display = ''
+
+  // Clear credential fields
+  ;['am-name','am-email','am-phone','am-password'].forEach(id => {
+    document.getElementById(id).value = ''
+  })
+  document.getElementById('am-points').value = 0
 
   // Default to 'agent' type
   document.querySelectorAll('.agent-type-card').forEach(c => c.classList.remove('selected'))
   document.querySelector('.agent-type-card[data-type="agent"]').classList.add('selected')
   document.getElementById('am-type').value = 'agent'
-
-  // Load users (non-agents only)
-  const users = await GET('/api/users?limit=500') || []
-  const agentUserIds = new Set((await GET('/api/agents') || []).map(a => a.user_id))
-  const eligible = users.filter(u => !agentUserIds.has(u.id))
-  document.getElementById('am-user').innerHTML = eligible.length
-    ? eligible.map(u => `<option value="${u.id}">${u.name} · ${u.phone || u.email || '#'+u.id}</option>`).join('')
-    : '<option value="">No eligible users — add a user first</option>'
 
   await updateParentSelector('agent')
   document.getElementById('agent-modal').classList.add('open')
@@ -527,6 +528,7 @@ async function openAgentEditModal(agent) {
   document.getElementById('am-commission').value = agent.commission_rate
   document.getElementById('am-status').value     = agent.status
   document.getElementById('am-user-row').style.display = 'none'
+  document.getElementById('am-credentials-row').style.display = 'none'
   document.getElementById('am-user').innerHTML = `<option value="${agent.user_id}">${agent.name}</option>`
 
   // Highlight current type
@@ -566,9 +568,15 @@ document.getElementById('agent-modal-save').addEventListener('click', async () =
   if (editId) {
     res = await PUT(`/api/agents/${editId}`, body)
   } else {
-    const userId = Number(document.getElementById('am-user').value)
-    if (!userId) { toast('Select a user', 'error'); return }
-    res = await POST('/api/agents', { ...body, user_id: userId })
+    const name     = document.getElementById('am-name').value.trim()
+    const email    = document.getElementById('am-email').value.trim()
+    const phone    = document.getElementById('am-phone').value.trim()
+    const password = document.getElementById('am-password').value
+    const points   = Number(document.getElementById('am-points').value) || 0
+    if (!name)     { toast('Name is required', 'error'); return }
+    if (!email)    { toast('Email is required', 'error'); return }
+    if (!password) { toast('Password is required', 'error'); return }
+    res = await POST('/api/agents', { ...body, name, email, phone: phone || null, password, points })
   }
 
   if (res?.error) { toast(res.error, 'error'); return }
@@ -583,6 +591,34 @@ async function deleteAgent(id) {
   toast('Agent removed')
   loadAgents()
 }
+
+// ── Allocate Points modal ─────────────────────────────────────────────────
+function openAllocModal(agentId, agentName, currentPoints) {
+  document.getElementById('alloc-agent-user-id').value = agentId
+  document.getElementById('alloc-agent-name').textContent =
+    `${agentName} · Current balance: ${Number(currentPoints ?? 0).toLocaleString()} pts`
+  document.getElementById('alloc-amount').value = 100
+  document.getElementById('alloc-modal').classList.add('open')
+}
+
+document.getElementById('alloc-modal-cancel').addEventListener('click', () =>
+  document.getElementById('alloc-modal').classList.remove('open'))
+
+document.getElementById('alloc-modal-save').addEventListener('click', async () => {
+  const agentId = Number(document.getElementById('alloc-agent-user-id').value)
+  const amount  = Number(document.getElementById('alloc-amount').value)
+  if (!amount || amount <= 0) { toast('Enter a valid amount', 'error'); return }
+
+  const btn = document.getElementById('alloc-modal-save')
+  btn.disabled = true
+  const res = await POST(`/api/agents/${agentId}/add-points`, { amount })
+  btn.disabled = false
+
+  if (res?.error) { toast(res.error, 'error'); return }
+  document.getElementById('alloc-modal').classList.remove('open')
+  toast(`${amount.toLocaleString()} points added`)
+  loadAgents()
+})
 
 // ══════════════════════════════════════════════════════════════════════════
 // PAYOUTS PANEL

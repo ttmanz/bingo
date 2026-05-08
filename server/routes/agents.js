@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import bcrypt from 'bcryptjs'
 import { query, queryOne, run, insert } from '../db.js'
 import { requireAuth } from '../middleware/auth.js'
 
@@ -14,7 +15,7 @@ router.get('/', requireAuth, (req, res) => {
   const where = agent_type ? 'WHERE a.agent_type = ?' : ''
   const params = agent_type ? [agent_type] : []
   const rows = query(
-    `SELECT a.*, u.name, u.email, u.phone, u.status as user_status,
+    `SELECT a.*, u.name, u.email, u.phone, u.points, u.status as user_status,
        (SELECT COUNT(*) FROM users uu WHERE uu.agent_id = u.id) as player_count,
        (SELECT COUNT(*) FROM agents ca WHERE ca.parent_agent_id = a.id) as child_agent_count,
        pu.name as parent_name, pa.agent_type as parent_type
@@ -64,20 +65,16 @@ router.get('/by-type/:type', requireAuth, (req, res) => {
 })
 
 // POST /api/agents — create agent (admin can specify any type)
-router.post('/', requireAuth, (req, res) => {
-  const { user_id, agent_type, commission_rate, parent_agent_id } = req.body
+router.post('/', requireAuth, async (req, res) => {
+  const { agent_type, commission_rate, parent_agent_id,
+          name, email, phone, password, points,
+          user_id } = req.body
 
   if (!HIERARCHY.includes(agent_type)) {
     return res.status(400).json({ error: `Invalid agent_type. Must be one of: ${HIERARCHY.join(', ')}` })
   }
 
-  const user = queryOne('SELECT * FROM users WHERE id = ?', [user_id])
-  if (!user) return res.status(404).json({ error: 'User not found' })
-
-  const existing = queryOne('SELECT id FROM agents WHERE user_id = ?', [user_id])
-  if (existing) return res.status(400).json({ error: 'User is already an agent' })
-
-  // Validate parent matches expected type
+  // Validate parent
   if (parent_agent_id) {
     const parent = queryOne('SELECT agent_type FROM agents WHERE id = ?', [parent_agent_id])
     if (!parent) return res.status(400).json({ error: 'Parent agent not found' })
@@ -90,13 +87,34 @@ router.post('/', requireAuth, (req, res) => {
   }
 
   const roleMap = { super: 'super_agent', master: 'master_agent', agent: 'agent' }
-  run('UPDATE users SET role = ? WHERE id = ?', [roleMap[agent_type], user_id])
+  let resolvedUserId = user_id
+
+  if (!resolvedUserId) {
+    // Create a new user account for this agent
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email and password are required' })
+    }
+    if (queryOne('SELECT id FROM users WHERE email = ?', [email.toLowerCase().trim()])) {
+      return res.status(400).json({ error: 'Email already in use' })
+    }
+    const hash = await bcrypt.hash(password, 10)
+    resolvedUserId = insert(
+      'INSERT INTO users (name, email, phone, role, points, password_hash) VALUES (?,?,?,?,?,?)',
+      [name, email.toLowerCase().trim(), phone ?? null, roleMap[agent_type], points ?? 0, hash]
+    )
+  } else {
+    const user = queryOne('SELECT * FROM users WHERE id = ?', [resolvedUserId])
+    if (!user) return res.status(404).json({ error: 'User not found' })
+    const existing = queryOne('SELECT id FROM agents WHERE user_id = ?', [resolvedUserId])
+    if (existing) return res.status(400).json({ error: 'User is already an agent' })
+    run('UPDATE users SET role = ? WHERE id = ?', [roleMap[agent_type], resolvedUserId])
+  }
 
   const id = insert(
     'INSERT INTO agents (user_id, agent_type, commission_rate, parent_agent_id) VALUES (?,?,?,?)',
-    [user_id, agent_type, commission_rate ?? 5.0, parent_agent_id ?? null]
+    [resolvedUserId, agent_type, commission_rate ?? 5.0, parent_agent_id ?? null]
   )
-  res.json({ id, agent_type })
+  res.json({ id, agent_type, user_id: resolvedUserId })
 })
 
 // PUT /api/agents/:id — update agent settings
@@ -124,6 +142,22 @@ router.delete('/:id', requireAuth, (req, res) => {
   if (agent) run("UPDATE users SET role = 'player' WHERE id = ?", [agent.user_id])
   run('DELETE FROM agents WHERE id = ?', [req.params.id])
   res.json({ ok: true })
+})
+
+// POST /api/agents/:id/add-points — admin tops up an agent's points balance
+router.post('/:id/add-points', requireAuth, (req, res) => {
+  const agent = queryOne('SELECT user_id FROM agents WHERE id = ?', [req.params.id])
+  if (!agent) return res.status(404).json({ error: 'Agent not found' })
+  const { amount } = req.body
+  if (!amount || amount <= 0) return res.status(400).json({ error: 'Amount must be > 0' })
+  const user = queryOne('SELECT points FROM users WHERE id = ?', [agent.user_id])
+  const newPoints = (user?.points ?? 0) + amount
+  run('UPDATE users SET points = ? WHERE id = ?', [newPoints, agent.user_id])
+  insert(
+    'INSERT INTO transactions (user_id, type, amount, balance_after, description) VALUES (?,?,?,?,?)',
+    [agent.user_id, 'points_received', amount, newPoints, 'Points added by admin']
+  )
+  res.json({ ok: true, points: newPoints })
 })
 
 // GET /api/agents/:id/downline — all agents and users under this agent

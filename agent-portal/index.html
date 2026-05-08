@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Themis Bingo – Agent Portal</title>
+  <link rel="stylesheet" href="portal.css" />
+</head>
+<body>
+
+<!-- ── LOGIN SCREEN ─────────────────────────────────────────────── -->
+<div id="loginScreen" class="screen active">
+  <div class="login-card">
+    <div class="login-logo">
+      <span class="logo-icon">🎱</span>
+      <h1>Themis Bingo</h1>
+      <p>Agent Portal</p>
+    </div>
+    <div id="loginError" class="alert alert-error hidden"></div>
+    <form id="loginForm">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="agent@example.com" required />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" required />
+      </div>
+      <button type="submit" class="btn btn-primary btn-full" id="loginBtn">Sign In</button>
+    </form>
+  </div>
+</div>
+
+<!-- ── DASHBOARD ────────────────────────────────────────────────── -->
+<div id="dashboard" class="screen">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="logo-icon-sm">🎱</span>
+      <span class="topbar-title">Themis Bingo</span>
+      <span id="agentTypeBadge" class="type-badge"></span>
+    </div>
+    <div class="topbar-right">
+      <div class="points-chip">
+        <span class="points-icon">💎</span>
+        <span id="myPoints">0</span> pts
+      </div>
+      <span id="agentName" class="agent-name-label"></span>
+      <button class="btn btn-ghost btn-sm" id="logoutBtn">Sign out</button>
+    </div>
+  </header>
+
+  <!-- Nav tabs -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="overview">Overview</button>
+    <button class="tab-btn" data-tab="downline">Downline</button>
+    <button class="tab-btn" data-tab="create">
+      <span id="createTabLabel">Create</span>
+    </button>
+    <button class="tab-btn" data-tab="allocate">Allocate Points</button>
+    <button class="tab-btn" data-tab="transactions">Transactions</button>
+  </nav>
+
+  <!-- ── OVERVIEW TAB ── -->
+  <section class="tab-panel active" id="tab-overview">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon">💎</div>
+        <div class="stat-value" id="statPoints">0</div>
+        <div class="stat-label">Points Balance</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon" id="statSubIcon">⭐</div>
+        <div class="stat-value" id="statSubCount">0</div>
+        <div class="stat-label" id="statSubLabel">Sub-Agents</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">👤</div>
+        <div class="stat-value" id="statPlayerCount">0</div>
+        <div class="stat-label">Players</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">%</div>
+        <div class="stat-value" id="statCommission">0</div>
+        <div class="stat-label">Commission %</div>
+      </div>
+    </div>
+    <div class="profile-card">
+      <h3>My Profile</h3>
+      <div class="profile-grid">
+        <div class="profile-row"><span>Name</span><span id="profName">–</span></div>
+        <div class="profile-row"><span>Email</span><span id="profEmail">–</span></div>
+        <div class="profile-row"><span>Phone</span><span id="profPhone">–</span></div>
+        <div class="profile-row"><span>Agent Type</span><span id="profType">–</span></div>
+        <div class="profile-row"><span>Status</span><span id="profStatus">–</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── DOWNLINE TAB ── -->
+  <section class="tab-panel" id="tab-downline">
+    <div class="panel-header">
+      <h2 id="downlineTitle">Downline</h2>
+      <button class="btn btn-secondary btn-sm" id="refreshDownline">↺ Refresh</button>
+    </div>
+    <div id="downlineList" class="card-list"></div>
+  </section>
+
+  <!-- ── CREATE TAB ── -->
+  <section class="tab-panel" id="tab-create">
+    <div class="form-card">
+      <h2 id="createFormTitle">Create</h2>
+      <div id="createError" class="alert alert-error hidden"></div>
+      <div id="createSuccess" class="alert alert-success hidden"></div>
+
+      <div class="field">
+        <label>Full Name *</label>
+        <input type="text" id="createName" placeholder="Full name" />
+      </div>
+      <div class="field">
+        <label>Email *</label>
+        <input type="email" id="createEmail" placeholder="email@example.com" />
+      </div>
+      <div class="field">
+        <label>Phone</label>
+        <input type="tel" id="createPhone" placeholder="+1 234 567 8900" />
+      </div>
+      <div class="field">
+        <label>Password *</label>
+        <input type="password" id="createPassword" placeholder="Set a password" />
+      </div>
+      <!-- Only for super/master creating sub-agents -->
+      <div class="field" id="commissionField">
+        <label>Commission Rate (%)</label>
+        <input type="number" id="createCommission" value="5" min="0" max="100" step="0.5" />
+      </div>
+      <div class="field">
+        <label>Initial Points (optional)</label>
+        <input type="number" id="createPoints" value="0" min="0" step="1" />
+        <small id="createPointsHint" class="field-hint">Your current balance: <span id="createBalanceHint">0</span> pts</small>
+      </div>
+      <button class="btn btn-primary" id="createBtn">Create</button>
+    </div>
+  </section>
+
+  <!-- ── ALLOCATE TAB ── -->
+  <section class="tab-panel" id="tab-allocate">
+    <div class="form-card">
+      <h2>Allocate Points</h2>
+      <div id="allocError" class="alert alert-error hidden"></div>
+      <div id="allocSuccess" class="alert alert-success hidden"></div>
+
+      <div class="field">
+        <label>Recipient</label>
+        <select id="allocRecipient">
+          <option value="">— select recipient —</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Points to Send</label>
+        <input type="number" id="allocPoints" value="0" min="1" step="1" />
+        <small class="field-hint">Your balance: <span id="allocBalance">0</span> pts</small>
+      </div>
+      <button class="btn btn-primary" id="allocBtn">Send Points</button>
+    </div>
+  </section>
+
+  <!-- ── TRANSACTIONS TAB ── -->
+  <section class="tab-panel" id="tab-transactions">
+    <div class="panel-header">
+      <h2>Transactions</h2>
+      <button class="btn btn-secondary btn-sm" id="refreshTxns">↺ Refresh</button>
+    </div>
+    <div id="txnList" class="txn-list"></div>
+  </section>
+
+</div><!-- /dashboard -->
+
+<script src="portal.js"></script>
+</body>
+</html>
