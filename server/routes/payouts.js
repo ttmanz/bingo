@@ -22,16 +22,70 @@ router.get('/', requireAuth, (req, res) => {
   res.json(rows)
 })
 
-// GET /api/payouts/summary — balance and totals
+// GET /api/payouts/summary — balance and totals (players + agents)
 router.get('/summary', requireAuth, (req, res) => {
   const totals = query(
     `SELECT type, SUM(amount) as total, COUNT(*) as count FROM transactions GROUP BY type`
   )
-  const userBalance = queryOne('SELECT SUM(balance) as total FROM users')
+
+  // Player stats — users with role = 'player'
+  const playerBalance = queryOne(
+    "SELECT SUM(points) as total FROM users WHERE role = 'player'"
+  )
   const pendingPayouts = queryOne(
     "SELECT COUNT(*) as count, SUM(prize_amount) as total FROM tickets WHERE paid_out = 0 AND status != 'active'"
   )
-  res.json({ totals, userBalance: userBalance?.total ?? 0, pendingPayouts })
+  const playerDeposits = queryOne(
+    `SELECT SUM(t.amount) as total FROM transactions t
+     JOIN users u ON u.id = t.user_id
+     WHERE t.type = 'points_received' AND u.role = 'player'`
+  )
+  const playerPrizes = queryOne(
+    `SELECT SUM(t.amount) as total FROM transactions t
+     JOIN users u ON u.id = t.user_id
+     WHERE t.type = 'prize' AND u.role = 'player'`
+  )
+
+  // Agent stats — users with role IN ('super_agent','master_agent','agent')
+  const agentBalance = queryOne(
+    "SELECT SUM(points) as total FROM users WHERE role IN ('super_agent','master_agent','agent')"
+  )
+  const agentPendingPayouts = queryOne(
+    `SELECT COUNT(*) as count, SUM(t.prize_amount) as total
+     FROM tickets t JOIN users u ON u.id = t.user_id
+     WHERE t.paid_out = 0 AND t.status != 'active'
+       AND u.role IN ('super_agent','master_agent','agent')`
+  )
+  const agentDeposits = queryOne(
+    `SELECT SUM(t.amount) as total FROM transactions t
+     JOIN users u ON u.id = t.user_id
+     WHERE t.type = 'points_received' AND u.role IN ('super_agent','master_agent','agent')`
+  )
+  const agentPrizes = queryOne(
+    `SELECT SUM(t.amount) as total FROM transactions t
+     JOIN users u ON u.id = t.user_id
+     WHERE t.type = 'prize' AND u.role IN ('super_agent','master_agent','agent')`
+  )
+  const agentSoldBack = queryOne(
+    `SELECT SUM(ABS(t.amount)) as total FROM transactions t
+     JOIN users u ON u.id = t.user_id
+     WHERE t.type = 'points_sold' AND u.role IN ('super_agent','master_agent','agent')`
+  )
+
+  res.json({
+    totals,
+    // Players
+    userBalance:    playerBalance?.total   ?? 0,
+    pendingPayouts,
+    playerDeposits: playerDeposits?.total  ?? 0,
+    playerPrizes:   playerPrizes?.total    ?? 0,
+    // Agents
+    agentBalance:        agentBalance?.total        ?? 0,
+    agentPendingPayouts: agentPendingPayouts,
+    agentDeposits:       agentDeposits?.total       ?? 0,
+    agentPrizes:         agentPrizes?.total         ?? 0,
+    agentSoldBack:       agentSoldBack?.total       ?? 0,
+  })
 })
 
 // POST /api/payouts/deposit — add balance to user

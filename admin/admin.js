@@ -633,16 +633,24 @@ async function loadPayouts() {
   ])
   if (!summary || !txns) return
 
-  // Stats
+  // Stats — Players row
   const statsEl = document.getElementById('payout-stats')
-  const totalsMap = {}
-  ;(summary.totals || []).forEach(t => totalsMap[t.type] = t)
   statsEl.innerHTML = `
-    <div class="card"><div class="card-title">Total User Balances</div><div class="card-value">£${Number(summary.userBalance || 0).toFixed(2)}</div></div>
+    <div class="card"><div class="card-title">Total User Balances</div><div class="card-value">${Number(summary.userBalance || 0).toLocaleString()} pts</div></div>
     <div class="card"><div class="card-title">Pending Payouts</div><div class="card-value text-warning">${summary.pendingPayouts?.count || 0}</div></div>
-    <div class="card"><div class="card-title">Pending Prize Value</div><div class="card-value text-danger">£${Number(summary.pendingPayouts?.total || 0).toFixed(2)}</div></div>
-    <div class="card"><div class="card-title">Total Deposits</div><div class="card-value text-success">£${Number(totalsMap.deposit?.total || 0).toFixed(2)}</div></div>
-    <div class="card"><div class="card-title">Total Prizes Paid</div><div class="card-value">£${Number(totalsMap.prize_win?.total || 0).toFixed(2)}</div></div>
+    <div class="card"><div class="card-title">Pending Prize Value</div><div class="card-value text-danger">${Number(summary.pendingPayouts?.total || 0).toLocaleString()} pts</div></div>
+    <div class="card"><div class="card-title">Total Deposits</div><div class="card-value text-success">${Number(summary.playerDeposits || 0).toLocaleString()} pts</div></div>
+    <div class="card"><div class="card-title">Total Prizes Paid</div><div class="card-value">${Number(summary.playerPrizes || 0).toLocaleString()} pts</div></div>
+  `
+
+  // Stats — Agents row
+  const agentStatsEl = document.getElementById('payout-stats-agents')
+  agentStatsEl.innerHTML = `
+    <div class="card"><div class="card-title">Total Agent Balances</div><div class="card-value">${Number(summary.agentBalance || 0).toLocaleString()} pts</div></div>
+    <div class="card"><div class="card-title">Pending Payouts</div><div class="card-value text-warning">${summary.agentPendingPayouts?.count || 0}</div></div>
+    <div class="card"><div class="card-title">Pending Prize Value</div><div class="card-value text-danger">${Number(summary.agentPendingPayouts?.total || 0).toLocaleString()} pts</div></div>
+    <div class="card"><div class="card-title">Total Deposits</div><div class="card-value text-success">${Number(summary.agentDeposits || 0).toLocaleString()} pts</div></div>
+    <div class="card"><div class="card-title">Total Prizes Paid</div><div class="card-value">${Number(summary.agentPrizes || 0).toLocaleString()} pts</div></div>
   `
 
   // Transactions
