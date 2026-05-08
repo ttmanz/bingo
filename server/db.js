@@ -170,6 +170,15 @@ function runMigrations() {
     db.run("ALTER TABLE users ADD COLUMN points REAL DEFAULT 0")
   }
 
+  // draws: add type and description for special draws
+  const drawCols = db.exec("PRAGMA table_info(draws)")[0]?.values?.map(r => r[1]) ?? []
+  if (!drawCols.includes('type')) {
+    db.run("ALTER TABLE draws ADD COLUMN type TEXT DEFAULT 'regular'")
+  }
+  if (!drawCols.includes('description')) {
+    db.run("ALTER TABLE draws ADD COLUMN description TEXT")
+  }
+
   save()
 }
 

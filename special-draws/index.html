@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Themis Bingo – Special Draws</title>
+  <link rel="stylesheet" href="special.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="/">🎱 Themis Bingo</a>
+    <nav class="header-nav">
+      <a href="/special-draws" class="nav-link active">Special Draws</a>
+      <a href="/user-portal" class="nav-link" id="accountLink">My Account</a>
+    </nav>
+  </div>
+</header>
+
+<main class="page">
+
+  <div class="page-hero">
+    <h1>✨ Special Draws</h1>
+    <p>One-off jackpot events — buy your tickets before they sell out!</p>
+  </div>
+
+  <div id="drawsGrid" class="draws-grid">
+    <div class="loading-state">
+      <div class="spin">🎱</div>
+      <p>Loading draws…</p>
+    </div>
+  </div>
+
+</main>
+
+<!-- ══ BUY TICKET MODAL ══════════════════════════════════════════════ -->
+<div class="modal-backdrop hidden" id="buyModal">
+  <div class="modal">
+    <button class="modal-close" id="modalClose">✕</button>
+    <div class="modal-draw-title" id="modalTitle"></div>
+    <div class="modal-draw-meta" id="modalMeta"></div>
+    <div class="modal-prizes" id="modalPrizes"></div>
+
+    <!-- Not logged in -->
+    <div id="buyAuthSection" class="hidden">
+      <p class="buy-login-msg">Sign in to buy tickets</p>
+      <div class="buy-auth-tabs">
+        <button class="buy-tab active" data-form="buyLoginForm">Sign In</button>
+        <button class="buy-tab" data-form="buyRegForm">Create Account</button>
+      </div>
+      <form id="buyLoginForm" class="buy-form active">
+        <div id="buyLoginErr" class="alert alert-error hidden"></div>
+        <input type="email" id="buyEmail" placeholder="Email" autocomplete="email" />
+        <input type="password" id="buyPassword" placeholder="Password" autocomplete="current-password" />
+        <button type="submit" class="btn btn-primary btn-full">Sign In & Continue</button>
+      </form>
+      <form id="buyRegForm" class="buy-form">
+        <div id="buyRegErr" class="alert alert-error hidden"></div>
+        <input type="text" id="buyRegName" placeholder="Full name" />
+        <input type="email" id="buyRegEmail" placeholder="Email" />
+        <input type="password" id="buyRegPassword" placeholder="Password (min 6)" />
+        <button type="submit" class="btn btn-primary btn-full">Create Account & Continue</button>
+      </form>
+    </div>
+
+    <!-- Logged in: buy tickets -->
+    <div id="buyTicketSection" class="hidden">
+      <div class="user-balance">
+        <span>💎 Your balance:</span>
+        <strong id="modalBalance">0 pts</strong>
+      </div>
+      <div class="qty-row">
+        <label>Number of tickets</label>
+        <div class="qty-ctrl">
+          <button class="qty-btn" id="qtyMinus">−</button>
+          <span id="qtyVal">1</span>
+          <button class="qty-btn" id="qtyPlus">+</button>
+        </div>
+      </div>
+      <div class="cost-row">
+        Total cost: <strong id="totalCost">0 pts</strong>
+      </div>
+      <div id="buyErr" class="alert alert-error hidden"></div>
+      <div id="buySuccess" class="hidden"></div>
+      <button class="btn btn-primary btn-full" id="confirmBuyBtn">Buy Tickets</button>
+      <button class="btn btn-ghost btn-full" id="signOutInModal">Sign out</button>
+    </div>
+  </div>
+</div>
+
+<script src="special.js"></script>
+</body>
+</html>

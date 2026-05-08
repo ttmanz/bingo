@@ -14,8 +14,9 @@ import agentRoutes       from './routes/agents.js'
 import payoutRoutes      from './routes/payouts.js'
 import agentAuthRoutes   from './routes/agentAuth.js'
 import agentPortalRoutes from './routes/agentPortal.js'
-import userAuthRoutes    from './routes/userAuth.js'
-import userPortalRoutes  from './routes/userPortal.js'
+import userAuthRoutes      from './routes/userAuth.js'
+import userPortalRoutes    from './routes/userPortal.js'
+import specialDrawsRoutes  from './routes/specialDraws.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -28,7 +29,8 @@ app.use(express.json())
 // ── Serve static panels ───────────────────────────────────────────────────
 app.use('/admin',        express.static(join(__dirname, '../admin')))
 app.use('/agent-portal', express.static(join(__dirname, '../agent-portal')))
-app.use('/user-portal',  express.static(join(__dirname, '../user-portal')))
+app.use('/user-portal',     express.static(join(__dirname, '../user-portal')))
+app.use('/special-draws',   express.static(join(__dirname, '../special-draws')))
 
 // ── API routes ────────────────────────────────────────────────────────────
 app.use('/api/auth',         authRoutes)
@@ -40,8 +42,9 @@ app.use('/api/agents',       agentRoutes)
 app.use('/api/payouts',      payoutRoutes)
 app.use('/api/agent-auth',   agentAuthRoutes)
 app.use('/api/agent-portal', agentPortalRoutes)
-app.use('/api/user-auth',    userAuthRoutes)
-app.use('/api/user-portal',  userPortalRoutes)
+app.use('/api/user-auth',      userAuthRoutes)
+app.use('/api/user-portal',    userPortalRoutes)
+app.use('/api/special-draws',  specialDrawsRoutes)
 
 // ── Live draw (Socket.io) ─────────────────────────────────────────────────
 const DRAW_INTERVAL_MS = 7000

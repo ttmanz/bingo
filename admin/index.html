@@ -38,6 +38,7 @@
       <div class="nav-item" data-panel="users"><span class="icon">👥</span> Users</div>
       <div class="nav-item" data-panel="agents"><span class="icon">🤝</span> Agents</div>
       <div class="nav-item" data-panel="payouts"><span class="icon">💳</span> Payouts &amp; Accounts</div>
+      <div class="nav-item" data-panel="special"><span class="icon">✨</span> Special Draws</div>
     </div>
     <div class="sidebar-footer">
       <button class="btn-logout" id="logout-btn">Sign Out</button>
@@ -217,6 +218,18 @@
             <tbody id="txn-tbody"></tbody>
           </table>
         </div>
+      </div>
+
+      <!-- ── SPECIAL DRAWS ──────────────────────────────────────────── -->
+      <div class="panel" id="panel-special" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <h2 style="font-size:1.2rem">✨ Special Draws</h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <a href="/special-draws" target="_blank" class="btn btn-ghost btn-sm">↗ View Public Page</a>
+            <button class="btn btn-primary btn-sm" id="add-special-btn">+ New Special Draw</button>
+          </div>
+        </div>
+        <div id="special-draws-list" class="stat-grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px"></div>
       </div>
 
     </div><!-- /content -->
@@ -416,6 +429,71 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" id="agent-modal-cancel">Cancel</button>
       <button class="btn btn-primary" id="agent-modal-save">Save Agent</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Special Draw modal ──────────────────────────────────────────────── -->
+<div class="modal-backdrop" id="special-modal">
+  <div class="modal" style="max-width:520px">
+    <h3 id="special-modal-title">New Special Draw</h3>
+    <input type="hidden" id="special-edit-id">
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
+        <label>Title *</label>
+        <input type="text" id="sp-title" placeholder="e.g. Christmas Mega Draw">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:3">
+        <label>Description</label>
+        <input type="text" id="sp-desc" placeholder="Short description shown on the public page">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Draw Date *</label>
+        <input type="date" id="sp-date">
+      </div>
+      <div class="form-group">
+        <label>Draw Time *</label>
+        <input type="time" id="sp-time" value="20:00">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Ticket Price (pts)</label>
+        <input type="number" id="sp-ticket-price" value="10" min="1" step="1">
+      </div>
+      <div class="form-group">
+        <label>Ball Interval (s)</label>
+        <input type="number" id="sp-ball-interval" value="5" min="1" max="8" step="1">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Full House Prize (pts)</label>
+        <input type="number" id="sp-fh-prize" value="5000" min="0" step="100">
+      </div>
+      <div class="form-group">
+        <label>Line Prize (pts)</label>
+        <input type="number" id="sp-line-prize" value="500" min="0" step="50">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Status</label>
+        <select id="sp-status">
+          <option value="scheduled">Scheduled (open for tickets)</option>
+          <option value="running">Running</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="special-modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="special-modal-save">Save Draw</button>
     </div>
   </div>
 </div>

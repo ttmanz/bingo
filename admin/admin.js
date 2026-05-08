@@ -33,6 +33,7 @@ function toast(msg, type = 'success') {
 const PANEL_TITLES = {
   draws: 'Daily Draws', tickets: 'Winning Tickets', jackpot: 'Jackpot',
   users: 'Users', agents: 'Agents', payouts: 'Payouts & Accounts',
+  special: '✨ Special Draws',
 }
 
 function showPanel(name) {
@@ -51,6 +52,7 @@ async function loadPanel(name) {
   if (name === 'users')   loadUsers()
   if (name === 'agents')  loadAgents()
   if (name === 'payouts') loadPayouts()
+  if (name === 'special') loadSpecialDraws()
 }
 
 // ── Login / Logout ────────────────────────────────────────────────────────
@@ -684,6 +686,119 @@ document.getElementById('txn-type-filter').addEventListener('change', async func
     </tr>
   `).join('')
 })
+
+// ══════════════════════════════════════════════════════════════════════════
+// SPECIAL DRAWS PANEL
+// ══════════════════════════════════════════════════════════════════════════
+
+async function loadSpecialDraws() {
+  const list = document.getElementById('special-draws-list')
+  list.innerHTML = '<p style="color:var(--muted);padding:20px">Loading…</p>'
+  const draws = await GET('/api/special-draws')
+  if (!draws) return
+
+  if (!draws.length) {
+    list.innerHTML = '<p style="color:var(--muted);padding:20px">No special draws yet. Click "+ New Special Draw" to create one.</p>'
+    return
+  }
+
+  list.innerHTML = draws.map(d => {
+    const statusColor = d.status === 'scheduled' ? 'badge-success'
+                      : d.status === 'running'   ? 'badge-warning'
+                      : 'badge-info'
+    return `
+      <div class="card" style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <div>
+            <div style="font-weight:700;font-size:15px;margin-bottom:4px">${d.title}</div>
+            ${d.description ? `<div style="font-size:12px;color:var(--muted)">${d.description}</div>` : ''}
+          </div>
+          <span class="badge ${statusColor}" style="flex-shrink:0">${d.status}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">
+          <div style="color:var(--muted)">📅 ${d.draw_date} ${d.draw_time}</div>
+          <div style="color:var(--muted)">🎟️ ${d.ticket_price} pts/ticket</div>
+          <div style="color:var(--warning)">🏆 Full house: ${Number(d.full_house_prize).toLocaleString()} pts</div>
+          <div style="color:var(--accent)">➡️ Line: ${Number(d.line_prize).toLocaleString()} pts</div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:4px">
+          <button class="btn btn-ghost btn-sm" onclick="openSpecialEditModal(${JSON.stringify(d).replace(/"/g,'&quot;')})">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSpecialDraw(${d.id})">Delete</button>
+        </div>
+      </div>`
+  }).join('')
+}
+
+// ── Open modal for new draw ───────────────────────────────────────────────
+document.getElementById('add-special-btn').addEventListener('click', () => {
+  document.getElementById('special-edit-id').value = ''
+  document.getElementById('special-modal-title').textContent = 'New Special Draw'
+  document.getElementById('sp-title').value         = ''
+  document.getElementById('sp-desc').value          = ''
+  document.getElementById('sp-date').value          = new Date().toISOString().slice(0,10)
+  document.getElementById('sp-time').value          = '20:00'
+  document.getElementById('sp-ticket-price').value  = 10
+  document.getElementById('sp-ball-interval').value = 5
+  document.getElementById('sp-fh-prize').value      = 5000
+  document.getElementById('sp-line-prize').value    = 500
+  document.getElementById('sp-status').value        = 'scheduled'
+  document.getElementById('special-modal').classList.add('open')
+})
+
+// ── Open modal for editing ────────────────────────────────────────────────
+function openSpecialEditModal(d) {
+  document.getElementById('special-edit-id').value       = d.id
+  document.getElementById('special-modal-title').textContent = 'Edit Special Draw'
+  document.getElementById('sp-title').value              = d.title
+  document.getElementById('sp-desc').value               = d.description || ''
+  document.getElementById('sp-date').value               = d.draw_date
+  document.getElementById('sp-time').value               = d.draw_time
+  document.getElementById('sp-ticket-price').value       = d.ticket_price
+  document.getElementById('sp-ball-interval').value      = d.ball_interval
+  document.getElementById('sp-fh-prize').value           = d.full_house_prize
+  document.getElementById('sp-line-prize').value         = d.line_prize
+  document.getElementById('sp-status').value             = d.status
+  document.getElementById('special-modal').classList.add('open')
+}
+
+document.getElementById('special-modal-cancel').addEventListener('click', () =>
+  document.getElementById('special-modal').classList.remove('open'))
+
+// ── Save ──────────────────────────────────────────────────────────────────
+document.getElementById('special-modal-save').addEventListener('click', async () => {
+  const editId = document.getElementById('special-edit-id').value
+  const title  = document.getElementById('sp-title').value.trim()
+  if (!title) { toast('Title is required', 'error'); return }
+
+  const body = {
+    title,
+    description:      document.getElementById('sp-desc').value.trim() || null,
+    draw_date:        document.getElementById('sp-date').value,
+    draw_time:        document.getElementById('sp-time').value,
+    ticket_price:     Number(document.getElementById('sp-ticket-price').value),
+    ball_interval:    Number(document.getElementById('sp-ball-interval').value),
+    full_house_prize: Number(document.getElementById('sp-fh-prize').value),
+    line_prize:       Number(document.getElementById('sp-line-prize').value),
+    status:           document.getElementById('sp-status').value,
+  }
+
+  const res = editId
+    ? await PUT(`/api/special-draws/${editId}`, body)
+    : await POST('/api/special-draws', body)
+
+  if (res?.error) { toast(res.error, 'error'); return }
+  document.getElementById('special-modal').classList.remove('open')
+  toast(editId ? 'Draw updated' : 'Special draw created!')
+  loadSpecialDraws()
+})
+
+// ── Delete ────────────────────────────────────────────────────────────────
+async function deleteSpecialDraw(id) {
+  if (!confirm('Delete this special draw? This cannot be undone.')) return
+  await DELETE(`/api/special-draws/${id}`)
+  toast('Draw deleted')
+  loadSpecialDraws()
+}
 
 // Payout modal (deposit / withdraw)
 async function openPayoutModal(type) {
