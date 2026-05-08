@@ -101,7 +101,7 @@ function drawCard(d) {
         <button class="buy-btn" ${!isOpen ? 'disabled' : ''}>
           ${isOpen ? '🎟️ Buy Ticket' : isRunning ? '🔴 Draw in Progress' : '✅ Draw Completed'}
         </button>
-        <div class="ticket-price-note">${Number(d.ticket_price).toLocaleString()} pts per ticket · max 10 per player</div>
+        <div class="ticket-price-note">${Number(d.ticket_price).toLocaleString()} pts per ticket</div>
       </div>
     </div>`
 }
@@ -269,7 +269,7 @@ document.getElementById('buyRegForm').addEventListener('submit', async e => {
 
 /* ── Quantity control ── */
 function updateQty() {
-  document.getElementById('qtyVal').textContent = qty
+  document.getElementById('qtyVal').value = qty
   const cost = (activeDraw?.ticket_price ?? 0) * qty
   document.getElementById('totalCost').textContent = `${cost.toLocaleString()} pts`
 }
@@ -278,7 +278,11 @@ document.getElementById('qtyMinus').addEventListener('click', () => {
   if (qty > 1) { qty--; updateQty() }
 })
 document.getElementById('qtyPlus').addEventListener('click', () => {
-  if (qty < 10) { qty++; updateQty() }
+  qty++; updateQty()
+})
+document.getElementById('qtyVal').addEventListener('input', e => {
+  const v = parseInt(e.target.value)
+  if (v >= 1) { qty = v; updateQty() }
 })
 
 /* ── Confirm buy ── */

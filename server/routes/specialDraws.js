@@ -100,7 +100,7 @@ router.post('/:id/buy', requireUserAuth, (req, res) => {
   if (!draw) return res.status(404).json({ error: 'Draw not available for ticket purchase' })
 
   const { quantity = 1 } = req.body
-  const qty = Math.max(1, Math.min(10, parseInt(quantity) || 1))
+  const qty = Math.max(1, parseInt(quantity) || 1)
   const totalCost = draw.ticket_price * qty
 
   const user = queryOne('SELECT id, points FROM users WHERE id = ?', [req.user.user_id])
