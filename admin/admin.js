@@ -352,80 +352,233 @@ document.getElementById('user-search').addEventListener('input', () => {
 // ══════════════════════════════════════════════════════════════════════════
 // AGENTS PANEL
 // ══════════════════════════════════════════════════════════════════════════
+// ── Agent type labels / colors ────────────────────────────────────────────
+const AGENT_TYPE_META = {
+  super:  { label: 'Super Agent',  badge: 'badge-warning', icon: '👑', avatarClass: 'avatar-super',  parentType: null,     parentLabel: 'None (top level)' },
+  master: { label: 'Master Agent', badge: 'badge-info',    icon: '⭐', avatarClass: 'avatar-master', parentType: 'super',  parentLabel: 'Super Agent' },
+  agent:  { label: 'Agent',        badge: 'badge-purple',  icon: '🤝', avatarClass: 'avatar-agent',  parentType: 'master', parentLabel: 'Master Agent' },
+}
+
 async function loadAgents() {
-  const data = await GET('/api/agents')
-  if (!data) return
-  const tbody = document.getElementById('agents-tbody')
-  if (!data.length) { tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:24px">No agents found</td></tr>'; return }
-  tbody.innerHTML = data.map(a => `
-    <tr>
-      <td>#${a.id}</td>
-      <td><strong>${a.name}</strong></td>
-      <td>${a.phone || '—'}</td>
-      <td>${Number(a.commission_rate).toFixed(1)}%</td>
-      <td>${a.player_count}</td>
-      <td>£${Number(a.total_sales || 0).toFixed(2)}</td>
-      <td>£${Number(a.total_commission || 0).toFixed(2)}</td>
-      <td>${a.parent_name || '—'}</td>
-      <td><span class="badge ${a.status === 'active' ? 'badge-success' : 'badge-danger'}">${a.status}</span></td>
-      <td style="display:flex;gap:4px">
-        <button class="btn btn-sm btn-ghost" onclick="openAgentEditModal(${JSON.stringify(a).replace(/"/g,'&quot;')})">Edit</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteAgent(${a.id})">Remove</button>
-      </td>
-    </tr>
+  const view = document.getElementById('agent-view-toggle').value
+  document.getElementById('agent-tree-view').style.display  = view === 'tree'  ? 'block' : 'none'
+  document.getElementById('agent-table-view').style.display = view === 'table' ? 'block' : 'none'
+
+  if (view === 'tree') {
+    await renderAgentTree()
+  } else {
+    await renderAgentTable()
+  }
+}
+
+async function renderAgentTree() {
+  const tree = await GET('/api/agents/tree')
+  if (!tree) return
+  const el = document.getElementById('agent-tree')
+
+  if (!tree.length) {
+    el.innerHTML = `<div style="text-align:center;color:var(--muted);padding:48px">No agents yet. Click <strong>+ Add Agent</strong> to create your first Super Agent.</div>`
+    return
+  }
+
+  function renderNode(node, depth = 0) {
+    const meta = AGENT_TYPE_META[node.agent_type] || AGENT_TYPE_META.agent
+    const dataAttr = `data-agent='${JSON.stringify(node).replace(/'/g, '&#39;')}'`
+    return `
+      <div class="agent-node">
+        <div class="agent-node-header">
+          <div class="agent-node-avatar ${meta.avatarClass}">${meta.icon}</div>
+          <div class="agent-node-info">
+            <div class="agent-node-name">${node.name} <span class="badge ${meta.badge}" style="margin-left:6px">${meta.label}</span></div>
+            <div class="agent-node-meta">${node.phone || node.email || '—'} · Commission: ${Number(node.commission_rate).toFixed(1)}%</div>
+          </div>
+          <div class="agent-node-stats">
+            ${node.children?.length ? `<span><strong>${node.children.length}</strong> sub-agents</span>` : ''}
+            <span><strong>${node.player_count || 0}</strong> players</span>
+          </div>
+          <div class="agent-node-actions">
+            <button class="btn btn-sm btn-ghost" onclick='openAgentEditModal(${JSON.stringify(node).replace(/"/g,"&quot;")})'>Edit</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteAgent(${node.id})">Remove</button>
+          </div>
+        </div>
+        ${node.children?.length ? `<div class="agent-children">${node.children.map(c => renderNode(c, depth + 1)).join('')}</div>` : ''}
+      </div>
+    `
+  }
+
+  // Group top-level nodes by type
+  const sections = [
+    { type: 'super',  label: 'Super Agents',  nodes: tree.filter(n => n.agent_type === 'super') },
+    { type: 'master', label: 'Master Agents', nodes: tree.filter(n => n.agent_type === 'master') },
+    { type: 'agent',  label: 'Agents',        nodes: tree.filter(n => n.agent_type === 'agent') },
+  ].filter(s => s.nodes.length)
+
+  el.innerHTML = sections.map(s => `
+    <div class="agent-tree-section">
+      <div class="agent-tree-section-title">${AGENT_TYPE_META[s.type].icon} ${s.label}</div>
+      ${s.nodes.map(n => renderNode(n)).join('')}
+    </div>
   `).join('')
 }
 
+async function renderAgentTable(filterType = '') {
+  const url = filterType ? `/api/agents?agent_type=${filterType}` : '/api/agents'
+  const data = await GET(url)
+  if (!data) return
+  const tbody = document.getElementById('agents-tbody')
+  if (!data.length) {
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:24px">No agents found</td></tr>'
+    return
+  }
+  tbody.innerHTML = data.map(a => {
+    const meta = AGENT_TYPE_META[a.agent_type] || AGENT_TYPE_META.agent
+    return `
+      <tr>
+        <td>#${a.id}</td>
+        <td><span class="badge ${meta.badge}">${meta.icon} ${meta.label}</span></td>
+        <td><strong>${a.name}</strong></td>
+        <td>${a.phone || '—'}</td>
+        <td>${Number(a.commission_rate).toFixed(1)}%</td>
+        <td>${a.child_agent_count || 0}</td>
+        <td>${a.player_count || 0}</td>
+        <td>${a.parent_name ? `${a.parent_name} <span class="text-muted">(${a.parent_type})</span>` : '—'}</td>
+        <td><span class="badge ${a.status === 'active' ? 'badge-success' : 'badge-danger'}">${a.status}</span></td>
+        <td style="display:flex;gap:4px">
+          <button class="btn btn-sm btn-ghost" onclick='openAgentEditModal(${JSON.stringify(a).replace(/"/g,"&quot;")})'>Edit</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteAgent(${a.id})">Remove</button>
+        </td>
+      </tr>`
+  }).join('')
+}
+
+// View toggle
+document.getElementById('agent-view-toggle').addEventListener('change', loadAgents)
+
+// Type filter buttons (table view)
+document.querySelectorAll('.agent-type-filter').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.agent-type-filter').forEach(b => b.classList.remove('active'))
+    this.classList.add('active')
+    renderAgentTable(this.dataset.type)
+  })
+})
+
+// ── Agent modal ───────────────────────────────────────────────────────────
+// Type card selection
+document.querySelectorAll('.agent-type-card').forEach(card => {
+  card.addEventListener('click', async function() {
+    document.querySelectorAll('.agent-type-card').forEach(c => c.classList.remove('selected'))
+    this.classList.add('selected')
+    const type = this.dataset.type
+    document.getElementById('am-type').value = type
+    await updateParentSelector(type)
+  })
+})
+
+async function updateParentSelector(type) {
+  const meta = AGENT_TYPE_META[type]
+  const parentGroup = document.getElementById('am-parent-group')
+  const parentSel   = document.getElementById('am-parent')
+  const parentLabel = document.getElementById('am-parent-label')
+
+  if (!meta.parentType) {
+    // Super agents have no required parent
+    parentLabel.textContent = 'Parent (optional bypass)'
+    parentSel.innerHTML = '<option value="">None (Admin creates directly)</option>'
+    const allAgents = await GET('/api/agents') || []
+    allAgents.forEach(a => {
+      parentSel.innerHTML += `<option value="${a.id}">${AGENT_TYPE_META[a.agent_type]?.icon} ${a.name}</option>`
+    })
+  } else {
+    parentLabel.textContent = `${meta.parentLabel} (required)`
+    const parents = await GET(`/api/agents/by-type/${meta.parentType}`) || []
+    parentSel.innerHTML = `<option value="">— Select ${meta.parentLabel} —</option>` +
+      parents.map(p => `<option value="${p.id}">${p.name} ${p.phone ? '· ' + p.phone : ''}</option>`).join('')
+  }
+}
+
 document.getElementById('add-agent-btn').addEventListener('click', async () => {
-  const [users, agents] = await Promise.all([GET('/api/users?role=player&limit=200'), GET('/api/agents')])
-  const userSel  = document.getElementById('am-user')
-  const parentSel = document.getElementById('am-parent')
-  userSel.innerHTML  = (users || []).map(u => `<option value="${u.id}">${u.name} (${u.phone || u.email || '#'+u.id})</option>`).join('')
-  parentSel.innerHTML = '<option value="">None</option>' + (agents || []).map(a => `<option value="${a.id}">${a.name}</option>`).join('')
+  document.getElementById('agent-edit-id').value = ''
+  document.getElementById('agent-modal-title').textContent = 'Add Agent'
   document.getElementById('am-commission').value = 5
   document.getElementById('am-status').value = 'active'
-  document.getElementById('agent-modal-title').textContent = 'Add Agent'
-  document.getElementById('agent-edit-id').value = ''
+  document.getElementById('am-user-row').style.display = 'flex'
+
+  // Default to 'agent' type
+  document.querySelectorAll('.agent-type-card').forEach(c => c.classList.remove('selected'))
+  document.querySelector('.agent-type-card[data-type="agent"]').classList.add('selected')
+  document.getElementById('am-type').value = 'agent'
+
+  // Load users (non-agents only)
+  const users = await GET('/api/users?limit=500') || []
+  const agentUserIds = new Set((await GET('/api/agents') || []).map(a => a.user_id))
+  const eligible = users.filter(u => !agentUserIds.has(u.id))
+  document.getElementById('am-user').innerHTML = eligible.length
+    ? eligible.map(u => `<option value="${u.id}">${u.name} · ${u.phone || u.email || '#'+u.id}</option>`).join('')
+    : '<option value="">No eligible users — add a user first</option>'
+
+  await updateParentSelector('agent')
   document.getElementById('agent-modal').classList.add('open')
 })
 
 async function openAgentEditModal(agent) {
-  const agents = await GET('/api/agents')
-  const parentSel = document.getElementById('am-parent')
-  parentSel.innerHTML = '<option value="">None</option>' + (agents || []).filter(a => a.id !== agent.id).map(a => `<option value="${a.id}" ${a.id === agent.parent_agent_id ? 'selected' : ''}>${a.name}</option>`).join('')
+  document.getElementById('agent-edit-id').value = agent.id
+  document.getElementById('agent-modal-title').textContent = 'Edit Agent'
   document.getElementById('am-commission').value = agent.commission_rate
   document.getElementById('am-status').value     = agent.status
-  document.getElementById('agent-edit-id').value = agent.id
-  document.getElementById('am-user').innerHTML   = `<option value="${agent.user_id}">${agent.name}</option>`
-  document.getElementById('agent-modal-title').textContent = 'Edit Agent'
+  document.getElementById('am-user-row').style.display = 'none'
+  document.getElementById('am-user').innerHTML = `<option value="${agent.user_id}">${agent.name}</option>`
+
+  // Highlight current type
+  document.querySelectorAll('.agent-type-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.type === agent.agent_type)
+  })
+  document.getElementById('am-type').value = agent.agent_type
+
+  await updateParentSelector(agent.agent_type)
+  // Set current parent
+  const parentSel = document.getElementById('am-parent')
+  if (agent.parent_agent_id) {
+    const opt = parentSel.querySelector(`option[value="${agent.parent_agent_id}"]`)
+    if (opt) opt.selected = true
+  }
   document.getElementById('agent-modal').classList.add('open')
 }
 
-document.getElementById('agent-modal-cancel').addEventListener('click', () => document.getElementById('agent-modal').classList.remove('open'))
+document.getElementById('agent-modal-cancel').addEventListener('click', () =>
+  document.getElementById('agent-modal').classList.remove('open'))
 
 document.getElementById('agent-modal-save').addEventListener('click', async () => {
-  const editId = document.getElementById('agent-edit-id').value
-  if (editId) {
-    await PUT(`/api/agents/${editId}`, {
-      commission_rate:  Number(document.getElementById('am-commission').value),
-      parent_agent_id:  document.getElementById('am-parent').value || null,
-      status:           document.getElementById('am-status').value,
-    })
-    toast('Agent updated')
-  } else {
-    await POST('/api/agents', {
-      user_id:         Number(document.getElementById('am-user').value),
-      commission_rate: Number(document.getElementById('am-commission').value),
-      parent_agent_id: document.getElementById('am-parent').value || null,
-    })
-    toast('Agent added')
+  const editId     = document.getElementById('agent-edit-id').value
+  const agent_type = document.getElementById('am-type').value
+  const parentVal  = document.getElementById('am-parent').value
+
+  if (!agent_type) { toast('Select an agent type', 'error'); return }
+
+  const body = {
+    agent_type,
+    commission_rate: Number(document.getElementById('am-commission').value),
+    parent_agent_id: parentVal ? Number(parentVal) : null,
+    status:          document.getElementById('am-status').value,
   }
+
+  let res
+  if (editId) {
+    res = await PUT(`/api/agents/${editId}`, body)
+  } else {
+    const userId = Number(document.getElementById('am-user').value)
+    if (!userId) { toast('Select a user', 'error'); return }
+    res = await POST('/api/agents', { ...body, user_id: userId })
+  }
+
+  if (res?.error) { toast(res.error, 'error'); return }
   document.getElementById('agent-modal').classList.remove('open')
+  toast(editId ? 'Agent updated' : `${AGENT_TYPE_META[agent_type]?.label} created`)
   loadAgents()
 })
 
 async function deleteAgent(id) {
-  if (!confirm('Remove this agent? Their user account will remain.')) return
+  if (!confirm('Remove this agent? Their user account will remain as a player.')) return
   await DELETE(`/api/agents/${id}`)
   toast('Agent removed')
   loadAgents()

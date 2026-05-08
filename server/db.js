@@ -16,6 +16,7 @@ export async function initDb() {
     ? new SQL.Database(readFileSync(DB_PATH))
     : new SQL.Database()
   createSchema()
+  runMigrations()
   await seedDefaults()
   return db
 }
@@ -75,6 +76,7 @@ function createSchema() {
     CREATE TABLE IF NOT EXISTS agents (
       id               INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id          INTEGER UNIQUE NOT NULL REFERENCES users(id),
+      agent_type       TEXT DEFAULT 'agent',
       commission_rate  REAL DEFAULT 5.0,
       parent_agent_id  INTEGER REFERENCES agents(id),
       total_sales      REAL DEFAULT 0,
@@ -148,6 +150,15 @@ function createSchema() {
       created_at   TEXT DEFAULT (datetime('now'))
     );
   `)
+}
+
+function runMigrations() {
+  // Add agent_type if upgrading from older schema
+  const cols = db.exec("PRAGMA table_info(agents)")[0]?.values?.map(r => r[1]) ?? []
+  if (!cols.includes('agent_type')) {
+    db.run("ALTER TABLE agents ADD COLUMN agent_type TEXT DEFAULT 'agent'")
+    save()
+  }
 }
 
 async function seedDefaults() {

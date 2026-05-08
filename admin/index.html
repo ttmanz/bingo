@@ -152,17 +152,38 @@
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
           <div>
             <h2 style="font-size:1.2rem;margin-bottom:4px">Agent System</h2>
-            <p class="text-muted">Manage agents and commission rates</p>
+            <p class="text-muted">4-level hierarchy: Admin → Super Agent → Master Agent → Agent → Users</p>
           </div>
-          <button class="btn btn-primary" id="add-agent-btn">＋ Add Agent</button>
+          <div class="flex gap-2">
+            <select id="agent-view-toggle" style="padding:7px 12px;background:var(--surface);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:.85rem">
+              <option value="tree">Tree View</option>
+              <option value="table">Table View</option>
+            </select>
+            <button class="btn btn-primary" id="add-agent-btn">＋ Add Agent</button>
+          </div>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr><th>#</th><th>Name</th><th>Phone</th><th>Commission</th><th>Players</th><th>Total Sales</th><th>Commission Earned</th><th>Parent Agent</th><th>Status</th><th>Actions</th></tr>
-            </thead>
-            <tbody id="agents-tbody"></tbody>
-          </table>
+
+        <!-- Tree view -->
+        <div id="agent-tree-view">
+          <div id="agent-tree"></div>
+        </div>
+
+        <!-- Table view (hidden by default) -->
+        <div id="agent-table-view" style="display:none">
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <button class="btn btn-ghost btn-sm agent-type-filter active" data-type="">All</button>
+            <button class="btn btn-ghost btn-sm agent-type-filter" data-type="super">Super Agents</button>
+            <button class="btn btn-ghost btn-sm agent-type-filter" data-type="master">Master Agents</button>
+            <button class="btn btn-ghost btn-sm agent-type-filter" data-type="agent">Agents</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>#</th><th>Type</th><th>Name</th><th>Phone</th><th>Commission</th><th>Sub-Agents</th><th>Players</th><th>Parent</th><th>Status</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="agents-tbody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -313,20 +334,45 @@
   <div class="modal">
     <h3 id="agent-modal-title">Add Agent</h3>
     <input type="hidden" id="agent-edit-id">
-    <div class="form-row">
+
+    <!-- Agent type selector — full row of type cards -->
+    <div id="am-type-selector" style="margin-bottom:18px">
+      <label style="display:block;font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Agent Type</label>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        <div class="agent-type-card" data-type="super">
+          <div class="atc-icon">👑</div>
+          <div class="atc-label">Super Agent</div>
+          <div class="atc-desc">Top level. Creates master agents.</div>
+        </div>
+        <div class="agent-type-card" data-type="master">
+          <div class="atc-icon">⭐</div>
+          <div class="atc-label">Master Agent</div>
+          <div class="atc-desc">Under super. Creates agents.</div>
+        </div>
+        <div class="agent-type-card" data-type="agent">
+          <div class="atc-icon">🤝</div>
+          <div class="atc-label">Agent</div>
+          <div class="atc-desc">Under master. Recruits players.</div>
+        </div>
+      </div>
+      <input type="hidden" id="am-type" value="agent">
+    </div>
+
+    <div class="form-row" id="am-user-row">
       <div class="form-group" style="flex:2">
         <label>Select User</label>
         <select id="am-user"></select>
       </div>
     </div>
+
     <div class="form-row">
       <div class="form-group">
         <label>Commission Rate (%)</label>
         <input type="number" id="am-commission" min="0" max="100" step="0.1" value="5">
       </div>
-      <div class="form-group">
-        <label>Parent Agent</label>
-        <select id="am-parent"><option value="">None</option></select>
+      <div class="form-group" id="am-parent-group">
+        <label id="am-parent-label">Parent Agent</label>
+        <select id="am-parent"><option value="">None (Admin bypass)</option></select>
       </div>
       <div class="form-group">
         <label>Status</label>
