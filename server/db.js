@@ -51,6 +51,29 @@ export function insert(sql, params = []) {
   return res[0].values[0][0]
 }
 
+// Run many operations in one transaction, save once at the end.
+// callback receives { run, query } that do NOT auto-save.
+export function transaction(callback) {
+  db.run('BEGIN TRANSACTION')
+  try {
+    const rawRun = (sql, params = []) => db.run(sql, params)
+    const rawQuery = (sql, params = []) => {
+      const stmt = db.prepare(sql)
+      stmt.bind(params)
+      const rows = []
+      while (stmt.step()) rows.push(stmt.getAsObject())
+      stmt.free()
+      return rows
+    }
+    callback({ run: rawRun, query: rawQuery })
+    db.run('COMMIT')
+  } catch (e) {
+    db.run('ROLLBACK')
+    throw e
+  }
+  save()
+}
+
 // ── Schema ────────────────────────────────────────────────────────────────
 function createSchema() {
   db.exec(`
@@ -161,6 +184,18 @@ function createSchema() {
       draw_id      INTEGER REFERENCES draws(id),
       reference    TEXT,
       created_at   TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS preset_bingo_cards (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      card_code           TEXT NOT NULL UNIQUE,
+      ticket_number       INTEGER NOT NULL,
+      position_in_ticket  INTEGER NOT NULL,
+      row1                TEXT NOT NULL,
+      row2                TEXT NOT NULL,
+      row3                TEXT NOT NULL,
+      assigned            INTEGER DEFAULT 0,
+      assigned_ticket_id  INTEGER REFERENCES tickets(id)
     );
   `)
 }

@@ -18,6 +18,8 @@ import userAuthRoutes      from './routes/userAuth.js'
 import userPortalRoutes    from './routes/userPortal.js'
 import specialDrawsRoutes  from './routes/specialDraws.js'
 import systemTicketsRoutes from './routes/systemTickets.js'
+import importCardsRoutes   from './routes/importCards.js'
+import presetCardsRoutes  from './routes/presetCards.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -47,6 +49,8 @@ app.use('/api/user-auth',      userAuthRoutes)
 app.use('/api/user-portal',    userPortalRoutes)
 app.use('/api/special-draws',   specialDrawsRoutes)
 app.use('/api/system-tickets',  systemTicketsRoutes)
+app.use('/api/import-cards',    importCardsRoutes)
+app.use('/api/preset-cards',   presetCardsRoutes)
 
 // ── Live draw (Socket.io) ─────────────────────────────────────────────────
 const DRAW_INTERVAL_MS = 7000
