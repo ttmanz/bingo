@@ -299,7 +299,7 @@ async function loadUsers() {
       <td><strong>${u.name}</strong></td>
       <td>${u.email || '—'}<br><span class="text-muted">${u.phone || ''}</span></td>
       <td><span class="badge ${u.role === 'agent' ? 'badge-purple' : u.role === 'admin' ? 'badge-info' : 'badge-success'}">${u.role}</span></td>
-      <td>£${Number(u.balance || 0).toFixed(2)}</td>
+      <td>💎 ${Number(u.points || 0).toLocaleString()}</td>
       <td>${u.ticket_count}</td>
       <td><span class="badge ${u.status === 'active' ? 'badge-success' : 'badge-danger'}">${u.status}</span></td>
       <td style="color:var(--muted);font-size:.78rem">${u.created_at?.slice(0,10) || ''}</td>

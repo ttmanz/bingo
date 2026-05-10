@@ -41,7 +41,7 @@ router.post('/', requireAuth, (req, res) => {
 router.put('/:id', requireAuth, (req, res) => {
   const { name, email, phone, role, status, balance, agent_id } = req.body
   run(
-    'UPDATE users SET name=?, email=?, phone=?, role=?, status=?, balance=?, agent_id=? WHERE id=?',
+    'UPDATE users SET name=?, email=?, phone=?, role=?, status=?, points=?, agent_id=? WHERE id=?',
     [name, email, phone, role, status, balance, agent_id ?? null, req.params.id]
   )
   res.json({ ok: true })
