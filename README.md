@@ -1,4 +1,4 @@
-# Themis Bingo — Design System
+# Bingo24-7 — Design System
 
 Fully animated browser-based bingo game. Built for maximum visual impact with near-instant load times.
 

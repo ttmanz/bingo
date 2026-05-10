@@ -1,7 +1,7 @@
 {
   "name": "bingodesign2",
   "version": "1.0.0",
-  "description": "Themis Bingo — Animated Design System",
+  "description": "Bingo24-7 — Animated Design System",
   "type": "module",
   "scripts": {
     "dev": "vite",
