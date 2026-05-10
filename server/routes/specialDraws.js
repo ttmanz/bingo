@@ -117,14 +117,16 @@ router.post('/:id/buy', requireUserAuth, (req, res) => {
     })
   }
 
-  // Check we have enough preset tickets available
-  const presetTotal = queryOne('SELECT COUNT(*) as n FROM preset_bingo_cards')?.n ?? 0
-  const presetAvail = presetTotal > 0
-    ? (queryOne('SELECT COUNT(DISTINCT ticket_number) as n FROM preset_bingo_cards WHERE assigned = 0')?.n ?? 0)
-    : 0
-
-  if (presetTotal > 0 && presetAvail < qty) {
-    return res.status(400).json({ error: `Only ${presetAvail} preset tickets remaining in pool` })
+  // Per-draw pool: each draw has its own independent set of 2000 tickets
+  const presetTotal = queryOne('SELECT COUNT(DISTINCT ticket_number) as n FROM preset_bingo_cards')?.n ?? 0
+  if (presetTotal > 0) {
+    const soldForDraw = queryOne(
+      'SELECT COUNT(*) as n FROM tickets WHERE draw_id = ? AND ticket_number IS NOT NULL',
+      [draw.id]
+    )?.n ?? 0
+    if (presetTotal - soldForDraw < qty) {
+      return res.status(400).json({ error: `Only ${presetTotal - soldForDraw} tickets remaining for this draw` })
+    }
   }
 
   const tickets = []
@@ -136,23 +138,25 @@ router.post('/:id/buy', requireUserAuth, (req, res) => {
         let ticketNumbers
 
         if (presetTotal > 0) {
-          // Pick lowest available ticket_number where all 6 cards are unassigned
+          // Pick lowest ticket_number not yet sold for THIS draw
           const avail = tQuery(
-            `SELECT ticket_number FROM preset_bingo_cards
-             WHERE assigned = 0
-             GROUP BY ticket_number
-             HAVING COUNT(*) = 6
-             ORDER BY ticket_number ASC LIMIT 1`
+            `SELECT pc.ticket_number
+             FROM preset_bingo_cards pc
+             WHERE pc.ticket_number NOT IN (
+               SELECT t.ticket_number FROM tickets t
+               WHERE t.draw_id = ? AND t.ticket_number IS NOT NULL
+             )
+             GROUP BY pc.ticket_number HAVING COUNT(*) = 6
+             ORDER BY pc.ticket_number ASC LIMIT 1`,
+            [draw.id]
           )
-          if (!avail.length) throw new Error('No more preset tickets available')
+          if (!avail.length) throw new Error('No tickets available for this draw')
           const tNum = avail[0].ticket_number
           cards = tQuery(
-            `SELECT * FROM preset_bingo_cards
-             WHERE ticket_number = ? ORDER BY position_in_ticket ASC`,
+            `SELECT * FROM preset_bingo_cards WHERE ticket_number = ? ORDER BY position_in_ticket ASC`,
             [tNum]
           )
 
-          // Build card objects for storage
           const cardData = cards.map(c => ({
             code:     c.card_code,
             position: c.position_in_ticket,
@@ -161,21 +165,13 @@ router.post('/:id/buy', requireUserAuth, (req, res) => {
             row3:     JSON.parse(c.row3),
           }))
 
-          // Insert ticket row
           tRun(
-            `INSERT INTO tickets (user_id, draw_id, numbers, purchase_price, status)
-             VALUES (?,?,?,'${draw.ticket_price}','active')`,
-            [user.id, draw.id, JSON.stringify(cardData)]
+            `INSERT INTO tickets (user_id, draw_id, ticket_number, numbers, purchase_price, status)
+             VALUES (?,?,?,?,?,'active')`,
+            [user.id, draw.id, tNum, JSON.stringify(cardData), draw.ticket_price]
           )
           const tidRes = tQuery('SELECT last_insert_rowid() as id')
           const tid = tidRes[0].id
-
-          // Mark cards as assigned
-          tRun(
-            `UPDATE preset_bingo_cards SET assigned = 1, assigned_ticket_id = ?
-             WHERE ticket_number = ?`,
-            [tid, tNum]
-          )
 
           tickets.push({ id: tid, ticket_number: tNum, cards: cardData })
         } else {

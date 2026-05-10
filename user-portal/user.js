@@ -559,17 +559,40 @@ async function loadTodayDraws() {
       const badgeLabel = d.status === 'running'   ? '● Live'
                        : d.status === 'scheduled' ? '⏳ Upcoming'
                        : '✓ Completed'
-      const time = fmtDrawTime(d.draw_date, d.draw_time, d.timezone ?? 'UTC')
+      const time  = fmtDrawTime(d.draw_date, d.draw_time, d.timezone ?? 'UTC')
       const price = Number(d.ticket_price ?? 1).toLocaleString()
+      const avail = d.available_tickets != null ? d.available_tickets : null
+      const canBuy = d.status === 'scheduled' && (avail === null || avail > 0)
+      const availLabel = avail != null
+        ? `${Number(avail).toLocaleString()} / ${Number(d.total_tickets).toLocaleString()} tickets left`
+        : ''
       return `
-        <div class="draw-card">
+        <div class="draw-card" data-draw-id="${d.id}">
           <div class="draw-card-info">
             <div class="draw-card-title">${esc(d.title)}</div>
             <div class="draw-card-meta">${esc(time)}${d.description ? ' — ' + esc(d.description) : ''}</div>
+            ${availLabel ? `<div class="draw-card-avail">${esc(availLabel)}</div>` : ''}
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
             <span class="draw-card-badge ${badgeCls}">${badgeLabel}</span>
             <span class="draw-card-price">${price} pt${price === '1' ? '' : 's'} / ticket</span>
+            ${canBuy
+              ? `<button class="btn btn-primary btn-sm buy-draw-btn" data-draw-id="${d.id}" data-price="${d.ticket_price}">Buy Ticket</button>`
+              : avail === 0 ? `<span class="draw-card-sold">Sold Out</span>` : ''}
+          </div>
+        </div>
+        <div class="buy-inline-form hidden" id="buy-form-${d.id}">
+          <div id="buy-err-${d.id}" class="alert alert-error hidden"></div>
+          <div id="buy-ok-${d.id}"  class="alert alert-success hidden"></div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <label style="font-size:13px;color:var(--muted)">Qty:</label>
+            <input type="number" class="buy-qty-input" id="buy-qty-${d.id}"
+              value="1" min="1" max="10" step="1" style="width:60px" />
+            <span class="buy-total-label" id="buy-total-${d.id}">
+              Cost: <strong>${price}</strong> pts
+            </span>
+            <button class="btn btn-primary btn-sm" id="buy-confirm-${d.id}">Confirm</button>
+            <button class="btn btn-ghost btn-sm" id="buy-cancel-${d.id}">Cancel</button>
           </div>
         </div>`
     }
@@ -587,6 +610,63 @@ async function loadTodayDraws() {
     }
 
     el.innerHTML = html
+
+    // Wire buy buttons
+    el.querySelectorAll('.buy-draw-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.drawId
+        el.querySelectorAll('.buy-inline-form').forEach(f => f.classList.add('hidden'))
+        document.getElementById(`buy-form-${id}`)?.classList.remove('hidden')
+      })
+    })
+
+    el.querySelectorAll('.buy-qty-input').forEach(input => {
+      input.addEventListener('input', () => {
+        const id    = input.id.replace('buy-qty-', '')
+        const price = Number(el.querySelector(`.buy-draw-btn[data-draw-id="${id}"]`)?.dataset.price ?? 1)
+        const qty   = Math.max(1, Math.min(10, parseInt(input.value) || 1))
+        const lbl   = document.getElementById(`buy-total-${id}`)
+        if (lbl) lbl.innerHTML = `Cost: <strong>${(price * qty).toLocaleString()}</strong> pts`
+      })
+    })
+
+    el.querySelectorAll('[id^="buy-cancel-"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.id.replace('buy-cancel-', '')
+        document.getElementById(`buy-form-${id}`)?.classList.add('hidden')
+      })
+    })
+
+    el.querySelectorAll('[id^="buy-confirm-"]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id  = btn.id.replace('buy-confirm-', '')
+        const qty = parseInt(document.getElementById(`buy-qty-${id}`)?.value) || 1
+        const errEl = document.getElementById(`buy-err-${id}`)
+        const okEl  = document.getElementById(`buy-ok-${id}`)
+        errEl.classList.add('hidden'); okEl.classList.add('hidden')
+        btn.disabled = true; btn.textContent = 'Buying…'
+
+        try {
+          const result = await apiFetch(`/api/user-portal/buy/${id}`, {
+            method: 'POST',
+            body: JSON.stringify({ quantity: qty }),
+          })
+          okEl.textContent = `${qty} ticket${qty > 1 ? 's' : ''} purchased! Balance: ${Number(result.remaining_points).toLocaleString()} pts`
+          okEl.classList.remove('hidden')
+
+          // Refresh profile balance in topbar
+          profile = await apiFetch('/api/user-portal/me')
+          renderTopbar()
+
+          // Re-load draws to update availability count
+          setTimeout(loadTodayDraws, 1500)
+        } catch (err) {
+          errEl.textContent = err.message
+          errEl.classList.remove('hidden')
+          btn.disabled = false; btn.textContent = 'Confirm'
+        }
+      })
+    })
 
   } catch (err) {
     el.innerHTML = `<div class="empty-state"><p>Error: ${esc(err.message)}</p></div>`

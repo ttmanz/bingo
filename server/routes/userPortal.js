@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { query, queryOne, run, insert } from '../db.js'
+import { query, queryOne, run, insert, transaction } from '../db.js'
 import { requireUserAuth } from '../middleware/userAuth.js'
 
 const router = Router()
@@ -48,7 +48,17 @@ router.get('/available-draws', requireUserAuth, (req, res) => {
      LIMIT 50`
   )
 
-  res.json({ regular, special })
+  // Add per-draw available ticket count (each draw has its own independent pool)
+  const presetTotal = queryOne('SELECT COUNT(DISTINCT ticket_number) as n FROM preset_bingo_cards')?.n ?? 0
+  const soldRows = query('SELECT draw_id, COUNT(*) as sold FROM tickets WHERE ticket_number IS NOT NULL GROUP BY draw_id')
+  const soldMap = Object.fromEntries(soldRows.map(r => [r.draw_id, r.sold]))
+  const addAvail = draws => draws.map(d => ({
+    ...d,
+    available_tickets: presetTotal > 0 ? presetTotal - (soldMap[d.id] ?? 0) : null,
+    total_tickets: presetTotal || null,
+  }))
+
+  res.json({ regular: addAvail(regular), special: addAvail(special) })
 })
 
 // GET /api/user-portal/tickets
@@ -102,6 +112,105 @@ router.post('/sell-points', requireUserAuth, (req, res) => {
      `Points bought back from player`])
 
   res.json({ ok: true, remaining_points: newBalance, agent_name: agentUser.name })
+})
+
+// POST /api/user-portal/buy/:drawId — buy ticket(s) for any draw (regular or special)
+// Each draw has its own independent pool of 2000 tickets; sold tickets are never reused within a draw.
+router.post('/buy/:drawId', requireUserAuth, (req, res) => {
+  const drawId = parseInt(req.params.drawId)
+  const qty    = Math.max(1, Math.min(10, parseInt(req.body.quantity) || 1))
+
+  const draw = queryOne("SELECT * FROM draws WHERE id = ? AND status = 'scheduled'", [drawId])
+  if (!draw) return res.status(404).json({ error: 'Draw not available for purchase' })
+
+  const totalCost = (draw.ticket_price ?? 1) * qty
+  const user = queryOne('SELECT id, points FROM users WHERE id = ?', [req.user.user_id])
+  if (!user) return res.status(404).json({ error: 'User not found' })
+  if ((user.points ?? 0) < totalCost) {
+    return res.status(400).json({ error: `Insufficient points. Need ${totalCost}, have ${user.points ?? 0}` })
+  }
+
+  const presetTotal = queryOne('SELECT COUNT(DISTINCT ticket_number) as n FROM preset_bingo_cards')?.n ?? 0
+
+  if (presetTotal > 0) {
+    const soldForDraw = queryOne(
+      'SELECT COUNT(*) as n FROM tickets WHERE draw_id = ? AND ticket_number IS NOT NULL',
+      [drawId]
+    )?.n ?? 0
+    if (presetTotal - soldForDraw < qty) {
+      return res.status(400).json({ error: `Only ${presetTotal - soldForDraw} tickets remaining for this draw` })
+    }
+  }
+
+  const tickets = []
+
+  try {
+    transaction(({ run: tRun, query: tQuery }) => {
+      for (let i = 0; i < qty; i++) {
+        if (presetTotal > 0) {
+          // Pick lowest ticket_number not yet used for THIS draw
+          const avail = tQuery(
+            `SELECT pc.ticket_number
+             FROM preset_bingo_cards pc
+             WHERE pc.ticket_number NOT IN (
+               SELECT t.ticket_number FROM tickets t
+               WHERE t.draw_id = ? AND t.ticket_number IS NOT NULL
+             )
+             GROUP BY pc.ticket_number HAVING COUNT(*) = 6
+             ORDER BY pc.ticket_number ASC LIMIT 1`,
+            [drawId]
+          )
+          if (!avail.length) throw new Error('No tickets available for this draw')
+
+          const tNum  = avail[0].ticket_number
+          const cards = tQuery(
+            `SELECT * FROM preset_bingo_cards WHERE ticket_number = ? ORDER BY position_in_ticket ASC`,
+            [tNum]
+          )
+          const cardData = cards.map(c => ({
+            code:     c.card_code,
+            position: c.position_in_ticket,
+            row1:     JSON.parse(c.row1),
+            row2:     JSON.parse(c.row2),
+            row3:     JSON.parse(c.row3),
+          }))
+
+          tRun(
+            `INSERT INTO tickets (user_id, draw_id, ticket_number, numbers, purchase_price, status)
+             VALUES (?,?,?,?,?,'active')`,
+            [user.id, drawId, tNum, JSON.stringify(cardData), draw.ticket_price]
+          )
+          const tid = tQuery('SELECT last_insert_rowid() as id')[0].id
+          tickets.push({ id: tid, ticket_number: tNum, cards: cardData })
+        } else {
+          // Fallback: random 15-number ticket when no preset pool exists
+          const pool = Array.from({ length: 90 }, (_, k) => k + 1)
+          for (let j = pool.length - 1; j > 0; j--) {
+            const k = Math.floor(Math.random() * (j + 1));
+            [pool[j], pool[k]] = [pool[k], pool[j]]
+          }
+          const numbers = pool.slice(0, 15).sort((a, b) => a - b)
+          tRun(
+            `INSERT INTO tickets (user_id, draw_id, numbers, purchase_price, status) VALUES (?,?,?,?,'active')`,
+            [user.id, drawId, JSON.stringify(numbers), draw.ticket_price]
+          )
+          const tid = tQuery('SELECT last_insert_rowid() as id')[0].id
+          tickets.push({ id: tid, numbers })
+        }
+      }
+
+      tRun('UPDATE users SET points = points - ? WHERE id = ?', [totalCost, user.id])
+      tRun(
+        'INSERT INTO transactions (user_id, type, amount, balance_after, description) VALUES (?,?,?,?,?)',
+        [user.id, 'ticket_purchase', -totalCost, (user.points - totalCost),
+         `${qty} ticket${qty > 1 ? 's' : ''} for "${draw.title}"`]
+      )
+    })
+  } catch (e) {
+    return res.status(400).json({ error: e.message })
+  }
+
+  res.json({ ok: true, tickets, cost: totalCost, remaining_points: user.points - totalCost })
 })
 
 export default router

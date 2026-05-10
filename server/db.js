@@ -240,6 +240,12 @@ function runMigrations() {
     db.run("ALTER TABLE draw_schedule ADD COLUMN timezone TEXT DEFAULT 'UTC'")
   }
 
+  // tickets: add ticket_number for per-draw pool tracking
+  const ticketCols = db.exec("PRAGMA table_info(tickets)")[0]?.values?.map(r => r[1]) ?? []
+  if (!ticketCols.includes('ticket_number')) {
+    db.run("ALTER TABLE tickets ADD COLUMN ticket_number INTEGER")
+  }
+
   save()
 }
 
