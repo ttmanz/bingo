@@ -85,39 +85,63 @@ body {
 /* ── Hero ── */
 .hero {
   position: relative;
-  text-align: center;
-  padding: 0 24px 22vh;
   overflow: hidden;
-  min-height: 88vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
+  min-height: 100vh;
 
   background-image: url('studio-bg.jpg');
   background-size: cover;
   background-position: 60% 45%;
   background-repeat: no-repeat;
 }
-/* subtle gradient — only darken the very bottom so text is readable */
+/* subtle gradient — darken bottom edge for readability */
 .hero::before {
   content: '';
   position: absolute; inset: 0;
   background:
     linear-gradient(to bottom,
-      rgba(0,0,0,.0)  0%,
-      rgba(0,0,0,.0)  50%,
-      rgba(8,8,18,.6) 85%,
-      rgba(8,8,18,.92) 100%);
+      rgba(0,0,0,.0)   0%,
+      rgba(0,0,0,.0)   50%,
+      rgba(8,8,18,.55) 82%,
+      rgba(8,8,18,.90) 100%);
   z-index: 0;
 }
 .hero > * { position: relative; z-index: 1; }
 .hero-glow {
-  position: absolute; top: -60px; left: 50%; transform: translateX(-50%);
-  width: 600px; height: 400px;
-  background: radial-gradient(ellipse, rgba(124,58,237,.2) 0%, transparent 70%);
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: none;
   pointer-events: none;
-  z-index: 0;
+}
+
+/* draws panel — left side of stage */
+.hero-draws {
+  position: absolute;
+  left: 3%;
+  bottom: 10%;
+  width: 38%;
+  max-width: 480px;
+}
+.hero-draws-title {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: rgba(255,255,255,.7);
+  margin-bottom: 10px;
+}
+.hero-draws .draws-grid {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+/* tagline + CTAs — bottom centre */
+.hero-bottom {
+  position: absolute;
+  bottom: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  width: 420px;
+  max-width: 90vw;
 }
 .hero-title {
   font-size: clamp(72px, 14vw, 140px);
