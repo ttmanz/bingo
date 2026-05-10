@@ -133,10 +133,10 @@ body {
   gap: 8px;
 }
 
-/* tagline + CTAs — bottom centre */
+/* tagline + CTAs — centre, above stage */
 .hero-bottom {
   position: absolute;
-  bottom: 8%;
+  bottom: 22%;
   left: 50%;
   transform: translateX(-50%);
   text-align: center;
