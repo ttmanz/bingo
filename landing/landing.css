@@ -136,7 +136,7 @@ body {
 /* CTAs — centre, table level */
 .hero-bottom {
   position: absolute;
-  bottom: 10%;
+  bottom: 22%;
   left: 50%;
   transform: translateX(-50%);
   text-align: center;
