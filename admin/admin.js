@@ -89,10 +89,35 @@ function logout() {
 
 document.getElementById('logout-btn').addEventListener('click', logout)
 
+// ── Profile dropdown ──────────────────────────────────────────────────────
+const profileBtn      = document.getElementById('profileBtn')
+const profileDropdown = document.getElementById('profileDropdown')
+const profileDropName = document.getElementById('profileDropName')
+const profileInitials = document.getElementById('profileInitials')
+
+profileBtn.addEventListener('click', e => {
+  e.stopPropagation()
+  profileDropdown.classList.toggle('hidden')
+})
+document.addEventListener('click', () => profileDropdown.classList.add('hidden'))
+
+document.getElementById('ddLogout').addEventListener('click', logout)
+
+document.getElementById('ddProfile').addEventListener('click', () => {
+  profileDropdown.classList.add('hidden')
+  alert(`Logged in as: ${ADMIN_NAME}`)
+})
+
+document.getElementById('ddSettings').addEventListener('click', () => {
+  profileDropdown.classList.add('hidden')
+  alert('Settings — coming soon.')
+})
+
 function showApp() {
   document.getElementById('login-screen').style.display = 'none'
   document.getElementById('app').style.display = 'flex'
-  document.getElementById('admin-name').textContent = ADMIN_NAME
+  profileDropName.textContent = ADMIN_NAME
+  profileInitials.textContent = (ADMIN_NAME || 'A')[0].toUpperCase()
   showPanel('draws')
 }
 

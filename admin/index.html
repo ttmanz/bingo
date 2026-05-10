@@ -51,7 +51,19 @@
   <div id="main">
     <div id="topbar">
       <h3 id="panel-title">Daily Draws</h3>
-      <span class="topbar-admin" id="admin-name"></span>
+      <div class="profile-menu-wrap" id="profileWrap">
+        <button class="profile-avatar" id="profileBtn" title="Account">
+          <span class="profile-initials" id="profileInitials">A</span>
+        </button>
+        <div class="profile-dropdown hidden" id="profileDropdown">
+          <div class="profile-dropdown-name" id="profileDropName"></div>
+          <div class="profile-dropdown-divider"></div>
+          <button class="profile-dd-item" id="ddProfile">👤 Profile</button>
+          <button class="profile-dd-item" id="ddSettings">⚙️ Settings</button>
+          <div class="profile-dropdown-divider"></div>
+          <button class="profile-dd-item profile-dd-danger" id="ddLogout">🚪 Log Out</button>
+        </div>
+      </div>
     </div>
     <div id="content">
 
