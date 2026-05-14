@@ -363,7 +363,7 @@ function connectSocket() {
   // Countdown tick from server
   socket.on('countdown', ({ remaining, total }) => {
     const pct = remaining / total
-    countdownFill.style.width = (pct * 100) + '%'
+    if (countdownFill) countdownFill.style.width = (pct * 100) + '%'
   })
 
   // A number is drawn — animate the specific ball
@@ -371,9 +371,8 @@ function connectSocket() {
     if (drawing || paused) return
     drawing   = true
     calledSet = new Set(called)
-    lastNumEl.textContent = number
-
-    countdownFill.style.width = '100%'
+    if (lastNumEl) lastNumEl.textContent = number
+    if (countdownFill) countdownFill.style.width = '100%'
 
     drum.exitBall(
       number,
@@ -396,7 +395,7 @@ function connectSocket() {
 
   socket.on('game-over', () => {
     statusTextEl.textContent = 'Draw complete'
-    countdownFill.style.width = '0'
+    if (countdownFill) countdownFill.style.width = '0'
   })
 
   socket.on('game-reset', () => {
@@ -406,7 +405,7 @@ function connectSocket() {
     drawing    = false
     paused     = false
     winBannerEl.classList.add('hidden')
-    lastNumEl.textContent = '—'
+    if (lastNumEl) lastNumEl.textContent = '—'
     renderPlayerCard()
     drum.reset(Array.from({ length: 90 }, (_, i) => i + 1))
   })

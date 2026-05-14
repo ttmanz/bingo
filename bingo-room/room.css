@@ -118,49 +118,18 @@ body {
   z-index: 1;
 }
 
-/* ── Call card content ── */
-.rcc-label {
-  font-size: 10px;
-  font-weight: 800;
-  color: var(--room-muted);
-  text-transform: uppercase;
-  letter-spacing: .14em;
+/* ── Recent calls in callcard column: match grid cell size ── */
+.room-callcard-col .cc-recent-chip {
+  width: 28px;
+  height: 28px;
+  font-size: 0.7rem;
 }
-.rcc-number {
-  font-size: 88px;
-  font-weight: 900;
-  color: var(--room-primary);
-  line-height: 1;
-  text-align: center;
-  letter-spacing: -.02em;
+.room-callcard-col .cc-recent-row {
+  flex-wrap: wrap;
+  gap: 5px;
 }
-.rcc-history-label {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--room-muted);
-  text-transform: uppercase;
-  letter-spacing: .1em;
-  padding-top: 4px;
-  border-top: 1px solid var(--room-border);
-}
-
-/* ── Countdown bar (inside callcard col) ── */
-.room-countdown-wrap {
-  padding: 0;
-  margin: 0;
-}
-.room-countdown-bar {
-  height: 4px;
-  background: var(--room-surface2);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.room-countdown-fill {
-  height: 100%;
-  width: 100%;
-  background: linear-gradient(90deg, var(--room-primary), var(--room-accent));
-  border-radius: 2px;
-  transition: width .1s linear;
+.room-callcard-col .call-card-grid {
+  margin-bottom: 0.5rem;
 }
 
 /* ── Tickets section (below top row) ── */
