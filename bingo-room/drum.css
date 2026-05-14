@@ -1,0 +1,579 @@
+:root {
+  --gold:       #f5c542;
+  --gold-glow:  rgba(245,197,66,0.6);
+  --bg-card:    rgba(8, 10, 30, 0.82);
+  --border-glow: rgba(120,80,255,0.4);
+  --marked-bg:  rgba(90,50,210,0.9);
+
+  /* 9-group palette */
+  --c1: #4aa3ff;
+  --c2: #ff5e7d;
+  --c3: #4dffb4;
+  --c4: #ffe24d;
+  --c5: #c77dff;
+  --c6: #ff9a3c;
+  --c7: #00d4aa;
+  --c8: #ff6eb4;
+  --c9: #b0ff5e;
+
+  --cell-size-90: clamp(38px, 5.2vw, 54px);
+  --radius: 12px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #030d1e;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  height: var(--real-vh, 100vh);
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── Studio backdrop ─────────────────────────────────────────────────────── */
+.stars {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-image: url('/bingo-room/studio-bg.jpg');
+  background-size: cover;
+  background-position: 50% -80px;
+  /* Subtle dark vignette so UI elements stay readable */
+}
+/* Dark overlay so UI elements are readable over the photo */
+.stars::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom,
+      rgba(0,0,0,0.38) 0%,
+      rgba(0,0,0,0.10) 40%,
+      rgba(0,0,0,0.20) 100%);
+}
+
+/* ── App shell ───────────────────────────────────────────────────────────── */
+.app {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 920px;
+  padding: 0 1rem 1.5rem;
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2rem;
+}
+
+/* ── Title ───────────────────────────────────────────────────────────────── */
+.title {
+  display: flex;
+  gap: 0.04em;
+  font-size: clamp(3rem, 11vw, 6rem);
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  text-shadow: 0 2px 30px rgba(0,0,0,0.8);
+}
+.title span { display: inline-block; }
+.title .b { color: var(--c1); text-shadow: 0 0 40px var(--c1), 0 2px 10px rgba(0,0,0,0.8); }
+.title .i { color: var(--c3); text-shadow: 0 0 40px var(--c3), 0 2px 10px rgba(0,0,0,0.8); }
+.title .n { color: var(--c5); text-shadow: 0 0 40px var(--c5), 0 2px 10px rgba(0,0,0,0.8); }
+.title .g { color: var(--c7); text-shadow: 0 0 40px var(--c7), 0 2px 10px rgba(0,0,0,0.8); }
+.title .o { color: var(--c9); text-shadow: 0 0 40px var(--c9), 0 2px 10px rgba(0,0,0,0.8); }
+
+/* ── Draw stage ──────────────────────────────────────────────────────────── */
+.draw-stage {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.6rem;
+  width: 100%;
+  max-width: 880px;
+  justify-content: center;
+}
+
+/* ── Right: call ball — sits on the gold table ───────────────────────────── */
+.call-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  margin-bottom: 28px;
+}
+
+.call-label { display: none; }
+
+.current-ball {
+  /* Centred between drum right edge (x=300) and inner vertical tube (x=375) */
+  position: absolute;
+  left: 295px;
+  top:  277px;
+  width:  86px;
+  height: 86px;
+  z-index: 10;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.18);
+  background:
+    radial-gradient(circle at 32% 32%, rgba(255,255,255,0.22) 0%, transparent 50%),
+    rgba(5,8,30,0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  color: rgba(255,255,255,0.28);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.75), 0 18px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.08);
+}
+.ball-number {
+  font-size: 1.9rem;
+  line-height: 1;
+  color: inherit;
+}
+
+.call-sublabel,
+.drum-timer-bar,
+.drum-status { display: none; }
+
+/* ── Right: lottery machine ───────────────────────────────────────────────── */
+.lottery-machine {
+  position: relative;
+  width: 580px;
+  min-height: 460px;
+  overflow: visible;
+}
+
+.tube-svg {
+  position: absolute;
+  left: 0; top: 0;
+  width: 580px;
+  height: 460px;
+  pointer-events: none;
+  z-index: 8;
+}
+
+.drum-wrapper {
+  position: absolute;
+  left: 10px;
+  top: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── Glass sphere (clear acrylic, like reference image) ──────────────────── */
+.drum-sphere {
+  position: relative;
+  width: 290px;
+  height: 290px;
+  border-radius: 50%;
+  overflow: hidden;
+
+  /* Clear acrylic look — very transparent, strong highlights */
+  background:
+    /* Primary top-left reflection streak */
+    radial-gradient(ellipse 60% 30% at 20% 18%,
+      rgba(255,255,255,0.42) 0%, transparent 60%),
+    /* Secondary bottom-right reflection */
+    radial-gradient(ellipse 30% 18% at 78% 80%,
+      rgba(255,255,255,0.12) 0%, transparent 70%),
+    /* Slight purple LED tint from base */
+    radial-gradient(circle at 50% 92%,
+      rgba(200,80,255,0.14) 0%, transparent 60%),
+    /* Very light interior fill — almost clear */
+    radial-gradient(circle at 50% 50%,
+      rgba(230,220,255,0.06) 0%,
+      rgba(140,80,240,0.05) 60%,
+      rgba(0,0,15,0.18) 100%);
+
+  border: 1.5px solid rgba(255,255,255,0.72);
+  box-shadow:
+    /* Outer purple glow */
+    0 0 70px rgba(180,80,255,0.55),
+    0 0 25px rgba(180,80,255,0.30),
+    /* Very light inner darkening */
+    inset 0 0 30px rgba(0,0,0,0.12),
+    /* Purple underglow from LED base */
+    inset 0 -30px 60px rgba(180,80,255,0.10);
+}
+
+/* Strong left-side reflection streak (characteristic of polished acrylic) */
+.drum-highlight-top {
+  position: absolute;
+  top: 5%; left: 5%;
+  width: 52%; height: 38%;
+  background:
+    linear-gradient(
+      130deg,
+      rgba(255,255,255,0.48) 0%,
+      rgba(255,255,255,0.18) 35%,
+      transparent 65%
+    );
+  border-radius: 50%;
+  transform: rotate(-25deg);
+  pointer-events: none;
+}
+/* Smaller bottom-right shine */
+.drum-highlight-bottom {
+  position: absolute;
+  bottom: 8%; right: 10%;
+  width: 28%; height: 18%;
+  background: radial-gradient(ellipse,
+    rgba(255,255,255,0.10) 0%, transparent 100%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Horizontal cage rings — visible through clear sphere */
+.drum-baffles {
+  position: absolute;
+  inset: 16px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px, transparent 14px,
+    rgba(200,180,255,0.08) 14px, rgba(200,180,255,0.08) 15px
+  );
+}
+
+.drum-inner-tube, .drum-inner-tube-cap { display: none; }
+
+/* Glass sphere edge vignette — very subtle since sphere is clear */
+.drum-cage-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 5;
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.14);
+  background: radial-gradient(circle at 50% 50%,
+    transparent 58%,
+    rgba(0,0,0,0.06) 75%,
+    rgba(0,0,0,0.22) 90%,
+    rgba(0,0,0,0.40) 100%);
+}
+
+/* Purple LED collar at drum top */
+.drum-collar {
+  width: 38px; height: 16px;
+  background: linear-gradient(to bottom, rgba(240,180,255,0.35), rgba(200,80,255,0.20));
+  border: 1.5px solid rgba(230,160,255,0.80);
+  border-radius: 6px 6px 0 0;
+  margin-top: -2px;
+  position: relative;
+  z-index: 9;
+  box-shadow:
+    0 0 18px rgba(200,80,255,0.70),
+    inset 0 0 6px rgba(230,160,255,0.25);
+}
+
+/* Thin stand */
+.drum-stand {
+  width: 50px; height: 18px;
+  background: linear-gradient(to bottom, rgba(200,160,255,0.22), rgba(150,80,220,0.10));
+  border-left:  1px solid rgba(220,180,255,0.35);
+  border-right: 1px solid rgba(220,180,255,0.35);
+}
+
+/* Bright purple LED base glow */
+.drum-base-glow {
+  width: 200px; height: 12px;
+  background: rgba(200,70,255,0.95);
+  border-radius: 50%;
+  filter: blur(16px);
+  margin-top: -5px;
+}
+
+/* Dark acrylic platform with pink LED border */
+.drum-base-platform {
+  width: 230px; height: 14px;
+  background: linear-gradient(to bottom, rgba(60,20,80,0.70), rgba(20,5,40,0.80));
+  border: 2px solid rgba(220,80,255,0.65);
+  border-radius: 8px;
+  box-shadow:
+    0 0 30px rgba(200,60,255,0.65),
+    0 0 8px  rgba(200,60,255,0.40),
+    inset 0 0 8px rgba(200,80,255,0.15);
+}
+
+/* ── Drum balls ───────────────────────────────────────────────────────────── */
+.drum-ball,
+.drum-ball--clone,
+.rest-ball {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;     /* clip ::before glint to the circle */
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Specular glint — bright ellipse at top-left simulating a light source */
+.drum-ball::before,
+.drum-ball--clone::before,
+.rest-ball::before {
+  content: '';
+  position: absolute;
+  top: 7%;
+  left: 11%;
+  width: 40%;
+  height: 28%;
+  background: radial-gradient(ellipse,
+    rgba(255,255,255,0.92) 0%,
+    rgba(255,255,255,0.60) 45%,
+    transparent 100%);
+  border-radius: 50%;
+  transform: rotate(-28deg);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.drum-ball         { will-change: left, top; }
+.drum-ball--clone  { z-index: 60; }
+.rest-ball         { z-index: 65; }   /* above tube SVG so stacked balls are visible */
+
+.drum-ball span,
+.drum-ball--clone span,
+.rest-ball span {
+  position: relative;
+  z-index: 2;       /* always above the ::before glint */
+  font-family: 'Inter', sans-serif;
+  font-size: 8px;
+  font-weight: 800;
+  color: rgba(255,255,255,0.95);
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+}
+
+.rest-ball--latest {
+  filter: brightness(1.35);
+  box-shadow: 0 0 14px 4px currentColor !important;
+}
+
+/* ── Called numbers (legacy container) ───────────────────────────────────── */
+.called-numbers { width: 100%; max-width: 620px; }
+
+/* ── Call card ────────────────────────────────────────────────────────────── */
+.call-card {
+  background: rgba(18, 10, 46, 0.82);
+  border: 1px solid rgba(130, 80, 220, 0.35);
+  border-radius: 18px;
+  padding: 1rem 1rem 0.9rem;
+  width: 100%;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.call-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.call-card-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.02em;
+}
+.call-card-counter {
+  background: rgba(120, 60, 230, 0.9);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 800;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+}
+
+/* 10-column grid for 1–90 */
+.call-card-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 5px;
+  margin-bottom: 0.8rem;
+}
+.cc-cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: clamp(0.55rem, 1.3vw, 0.78rem);
+  font-weight: 700;
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.28);
+  transition: background 0.25s, color 0.25s;
+  will-change: transform;
+}
+.cc-cell.cc-called {
+  background: rgba(105, 55, 200, 0.75);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(120,60,230,0.4);
+}
+.cc-cell.cc-last {
+  background: rgba(130, 65, 240, 0.95);
+  color: #fff;
+  box-shadow: 0 0 0 2.5px rgba(200,160,255,0.9), 0 0 18px rgba(160,80,255,0.7);
+}
+
+/* Recent calls strip */
+.call-card-recent {
+  border-top: 1px solid rgba(130, 80, 220, 0.2);
+  padding-top: 0.65rem;
+}
+.cc-recent-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.38);
+  margin-bottom: 0.5rem;
+}
+.cc-recent-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.cc-recent-chip {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: rgba(105, 55, 200, 0.7);
+  color: #fff;
+}
+.cc-recent-chip.cc-recent-new {
+  box-shadow: 0 0 0 2.5px rgba(200,160,255,0.9), 0 0 16px rgba(160,80,255,0.65);
+}
+
+/* ── 90-ball Bingo card ───────────────────────────────────────────────────── */
+.bingo-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius);
+  padding: 0.85rem;
+  backdrop-filter: blur(16px);
+  box-shadow:
+    0 0 60px rgba(120,80,255,0.10),
+    0 20px 60px rgba(0,0,0,0.65);
+}
+
+.card-grid-90 {
+  display: grid;
+  grid-template-columns: repeat(9, var(--cell-size-90));
+  grid-template-rows: repeat(3, var(--cell-size-90));
+  gap: 0.28rem;
+}
+
+.cell90 {
+  width: var(--cell-size-90);
+  height: var(--cell-size-90);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(0.72rem, 1.4vw, 0.98rem);
+  font-weight: 700;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--accent, rgba(255,255,255,0.70));
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.cell90--blank {
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+}
+.cell90.marked {
+  background: var(--marked-bg);
+  border-color: var(--accent, rgba(120,80,255,0.5));
+  box-shadow: 0 0 10px var(--accent, rgba(120,80,255,0.4)),
+              inset 0 0 5px rgba(255,255,255,0.08);
+  cursor: default;
+  color: #fff;
+}
+.cell90:hover:not(.marked):not(.cell90--blank) {
+  background: rgba(255,255,255,0.10);
+}
+
+.new-card-btn {
+  background: rgba(0,0,0,0.45);
+  border: 1px solid rgba(255,255,255,0.22);
+  color: rgba(255,255,255,0.55);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.5rem 1.6rem;
+  border-radius: 50px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s;
+}
+.new-card-btn:hover {
+  border-color: rgba(255,255,255,0.50);
+  color: #fff;
+  background: rgba(0,0,0,0.60);
+}
+
+
+/* ── Win overlay ──────────────────────────────────────────────────────────── */
+.win-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.88);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+}
+.win-overlay.active { pointer-events: all; }
+.win-text {
+  font-size: clamp(5rem, 18vw, 11rem);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  background: linear-gradient(135deg, var(--gold), #ff8c00, var(--gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 40px rgba(245,197,66,0.7));
+}
+.play-again-btn {
+  margin-top: 2rem;
+  background: linear-gradient(135deg, var(--gold), #ff8c00);
+  border: none;
+  color: #1a0800;
+  font-family: 'Inter', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 800;
+  padding: 1rem 3.5rem;
+  border-radius: 50px;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  box-shadow: 0 4px 30px rgba(245,197,66,0.4);
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.play-again-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 40px rgba(245,197,66,0.6);
+}

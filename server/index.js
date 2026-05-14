@@ -35,6 +35,7 @@ app.use('/admin',        express.static(join(__dirname, '../admin')))
 app.use('/agent-portal', express.static(join(__dirname, '../agent-portal')))
 app.use('/user-portal',     express.static(join(__dirname, '../user-portal')))
 app.use('/special-draws',   express.static(join(__dirname, '../special-draws')))
+app.use('/bingo-room',      express.static(join(__dirname, '../bingo-room')))
 
 // ── API routes ────────────────────────────────────────────────────────────
 app.use('/api/auth',         authRoutes)
@@ -79,6 +80,9 @@ function startCycle() {
     if (number !== null) {
       io.emit('number-drawn', { number, called: [...game.called] })
       startCycle()
+    } else {
+      game.gameOver = true
+      io.emit('game-over')
     }
   }, DRAW_INTERVAL_MS)
 }

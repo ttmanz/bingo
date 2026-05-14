@@ -1,0 +1,413 @@
+import { gsap }          from 'gsap'
+import { DrumPhysics3D } from '/bingo-room/DrumPhysics3D.js'
+import { CallCard }      from '/bingo-room/CallCard.js'
+import { Announcer }     from '/bingo-room/Announcer.js'
+import { COL_COLORS }    from '/bingo-room/bingoLogic.js'
+
+// ── DOM refs ──────────────────────────────────────────────────────────────
+const drumEl        = document.getElementById('drum')
+const machineEl     = document.getElementById('lottery-machine')
+const ballEl        = document.getElementById('current-ball')
+const calledEl      = document.getElementById('called-numbers')
+const timerBarEl    = document.getElementById('drum-timer-bar')
+const countdownFill = document.getElementById('room-countdown-fill')
+const statusTextEl  = document.getElementById('status-text')
+const liveDot       = document.getElementById('live-dot')
+const cardGridEl    = document.getElementById('room-card-grid')
+const cardDrawEl    = document.getElementById('room-card-draw')
+const noTicketEl    = document.getElementById('room-no-ticket')
+const lastNumEl     = document.getElementById('room-last-number')
+const winBannerEl   = document.getElementById('room-win-banner')
+
+// ── Init ──────────────────────────────────────────────────────────────────
+const drum      = new DrumPhysics3D(drumEl, machineEl)
+const callCard  = new CallCard(calledEl, ballEl)
+const announcer = new Announcer()
+
+let drawing    = false
+let paused     = false
+let calledSet  = new Set()
+let lineWon    = false
+let bingoWon   = false
+let _socket    = null   // module-level ref set in connectSocket
+
+// ── Viewport height fix ───────────────────────────────────────────────────
+function setVh() {
+  document.documentElement.style.setProperty('--real-vh', window.innerHeight + 'px')
+}
+setVh()
+window.addEventListener('resize', setVh)
+
+// ── Load player card from sessionStorage (set by user-portal on redirect) ─
+// Format: { cards: [{row1,row2,row3,code},...], drawTitle: "..." }
+let playerCards = null
+try {
+  const raw = sessionStorage.getItem('bingoRoomTicket')
+  if (raw) playerCards = JSON.parse(raw)
+} catch {}
+
+function renderPlayerCard() {
+  if (!playerCards || !playerCards.cards?.length) {
+    noTicketEl.classList.remove('hidden')
+    cardGridEl.innerHTML = ''
+    return
+  }
+  noTicketEl.classList.add('hidden')
+  cardDrawEl.textContent = playerCards.drawTitle ?? ''
+  cardGridEl.innerHTML = playerCards.cards.map((card, i) => {
+    const sep = i > 0 ? `<div class="card-sep-room">— — —</div>` : ''
+    return sep + buildCardTable(card)
+  }).join('')
+}
+
+function buildCardTable(card) {
+  const rows = [card.row1, card.row2, card.row3]
+  const trs = rows.map(row => {
+    const tds = row.map(n => {
+      if (n === null) return `<td class="blank"></td>`
+      const cls = calledSet.has(n) ? 'called' : 'num'
+      return `<td class="${cls}" data-n="${n}">${n}</td>`
+    }).join('')
+    return `<tr>${tds}</tr>`
+  }).join('')
+  return `<table class="room-card-grid-table">${trs}</table>`
+}
+
+function refreshCardMarks() {
+  if (!playerCards) return
+  document.querySelectorAll('.room-card-grid-table td[data-n]').forEach(td => {
+    const n = Number(td.dataset.n)
+    if (calledSet.has(n)) {
+      td.className = 'called'
+    }
+  })
+}
+
+function checkWins() {
+  if (!playerCards || bingoWon) return
+  for (const card of playerCards.cards) {
+    if (!lineWon) {
+      const rows = [card.row1, card.row2, card.row3]
+      for (let ri = 0; ri < rows.length; ri++) {
+        const nums = rows[ri].filter(n => n !== null)
+        if (nums.every(n => calledSet.has(n))) {
+          lineWon = true
+          runLineCheck(card, ri)
+          return
+        }
+      }
+    }
+    const allNums = [...card.row1, ...card.row2, ...card.row3].filter(n => n !== null)
+    if (allNums.every(n => calledSet.has(n))) {
+      bingoWon = true
+      _socket?.emit('bingo')
+      runBingoCheck(card)
+      return
+    }
+  }
+}
+
+function buildOverlayTable(card, winRowIdx) {
+  const rows = [card.row1, card.row2, card.row3]
+  const trs = rows.map((row, ri) => {
+    const tds = row.map(n => {
+      if (n === null) return `<td class="blank"></td>`
+      // winning row starts neutral so the check is dramatic
+      if (ri === winRowIdx) return `<td class="num" data-n="${n}">${n}</td>`
+      const cls = calledSet.has(n) ? 'called' : 'num'
+      return `<td class="${cls}" data-n="${n}">${n}</td>`
+    }).join('')
+    return `<tr>${tds}</tr>`
+  }).join('')
+  return `<table class="room-card-grid-table overlay-card-table">${trs}</table>`
+}
+
+async function runLineCheck(card, rowIdx) {
+  paused = true
+
+  // ── Step 1: Flash "LINE!" over the drum ──────────────────────────────────
+  const flash = document.createElement('div')
+  flash.id = 'line-flash'
+  flash.textContent = 'LINE!'
+  document.body.appendChild(flash)
+
+  await new Promise(r =>
+    gsap.fromTo(flash,
+      { opacity: 0, scale: 0.5 },
+      { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(1.6)', onComplete: r }
+    )
+  )
+
+  announcer.sayText('LINE!')
+  await new Promise(r => setTimeout(r, 1600))
+
+  await new Promise(r =>
+    gsap.to(flash, { opacity: 0, scale: 1.25, duration: 0.3, ease: 'power2.in', onComplete: () => { flash.remove(); r() } })
+  )
+
+  // ── Step 2: Slide card overlay up over the drum ───────────────────────────
+  const overlay = document.createElement('div')
+  overlay.id = 'line-check-overlay'
+  overlay.innerHTML =
+    `<div class="lco-title">Checking your card…</div>` +
+    buildOverlayTable(card, rowIdx)
+  document.body.appendChild(overlay)
+
+  gsap.fromTo(overlay,
+    { opacity: 0, y: 40 },
+    { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' }
+  )
+
+  await new Promise(r => setTimeout(r, 300))
+
+  // ── Animate winning row cells in overlay ─────────────────────────────────
+  const overlayRows  = overlay.querySelectorAll('.overlay-card-table tr')
+  const overlayWinTds = [...overlayRows[rowIdx].querySelectorAll('td')]
+    .filter(td => !td.classList.contains('blank'))
+
+  // Also mark the original right-panel cells
+  const tables  = document.querySelectorAll('.room-card-grid-table')
+  const cardIdx = playerCards.cards.indexOf(card)
+  const origTds = tables[cardIdx]
+    ? [...tables[cardIdx].querySelectorAll('tr')[rowIdx].querySelectorAll('td')]
+        .filter(td => !td.classList.contains('blank'))
+    : []
+
+  for (let i = 0; i < overlayWinTds.length; i++) {
+    overlayWinTds[i].classList.add('checking')
+    await new Promise(r => setTimeout(r, 430))
+    overlayWinTds[i].classList.remove('checking')
+    overlayWinTds[i].className = 'line-win'
+    if (origTds[i]) { origTds[i].classList.remove('checking'); origTds[i].className = 'line-win' }
+  }
+
+  // ── Show LINE! banner, then fade overlay out ─────────────────────────────
+  await new Promise(r => setTimeout(r, 350))
+  showWin('LINE!', 'line')
+
+  await new Promise(r => setTimeout(r, 900))
+  await new Promise(r =>
+    gsap.to(overlay, { opacity: 0, y: -30, duration: 0.5, ease: 'power2.in', onComplete: r })
+  )
+  overlay.remove()
+
+  // ── Announcer says "Continuing" then resume ──────────────────────────────
+  announcer.sayText('Continuing.', () => { paused = false })
+}
+
+// ── Bingo check ceremony ──────────────────────────────────────────────────
+
+function buildBingoOverlayTable(card) {
+  const rows = [card.row1, card.row2, card.row3]
+  const trs = rows.map(row => {
+    const tds = row.map(n => {
+      if (n === null) return `<td class="blank"></td>`
+      return `<td class="num" data-n="${n}">${n}</td>`
+    }).join('')
+    return `<tr>${tds}</tr>`
+  }).join('')
+  return `<table class="room-card-grid-table overlay-card-table">${trs}</table>`
+}
+
+async function runBingoCheck(card) {
+  paused = true
+
+  // ── Step 1: BINGO! flash ─────────────────────────────────────────────────
+  const flash = document.createElement('div')
+  flash.id = 'line-flash'
+  flash.classList.add('bingo-flash')
+  flash.textContent = 'BINGO!'
+  document.body.appendChild(flash)
+
+  await new Promise(r =>
+    gsap.fromTo(flash,
+      { opacity: 0, scale: 0.5 },
+      { opacity: 1, scale: 1, duration: 0.45, ease: 'back.out(1.6)', onComplete: r }
+    )
+  )
+  announcer.sayText('BINGO!')
+  await new Promise(r => setTimeout(r, 1800))
+  await new Promise(r =>
+    gsap.to(flash, { opacity: 0, scale: 1.3, duration: 0.3, ease: 'power2.in', onComplete: () => { flash.remove(); r() } })
+  )
+
+  // ── Step 2: Card overlay on drum ─────────────────────────────────────────
+  const overlay = document.createElement('div')
+  overlay.id = 'line-check-overlay'
+  overlay.innerHTML = `<div class="lco-title">Full house — checking card…</div>` + buildBingoOverlayTable(card)
+  document.body.appendChild(overlay)
+
+  gsap.fromTo(overlay,
+    { opacity: 0, y: 40 },
+    { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' }
+  )
+  await new Promise(r => setTimeout(r, 300))
+
+  // ── Step 3: Check all 3 rows cell by cell ────────────────────────────────
+  const cardIdx   = playerCards.cards.indexOf(card)
+  const origTable = document.querySelectorAll('.room-card-grid-table')[cardIdx]
+  const overlayRows = overlay.querySelectorAll('.overlay-card-table tr')
+
+  for (let ri = 0; ri < 3; ri++) {
+    const oTds = [...overlayRows[ri].querySelectorAll('td')].filter(td => !td.classList.contains('blank'))
+    const rTds = origTable
+      ? [...origTable.querySelectorAll('tr')[ri].querySelectorAll('td')].filter(td => !td.classList.contains('blank'))
+      : []
+    for (let i = 0; i < oTds.length; i++) {
+      oTds[i].classList.add('checking')
+      await new Promise(r => setTimeout(r, 320))
+      oTds[i].classList.remove('checking')
+      oTds[i].className = 'bingo-win'
+      if (rTds[i]) rTds[i].className = 'bingo-win'
+    }
+  }
+
+  // ── Step 4: Show banner, hold 10 s ───────────────────────────────────────
+  await new Promise(r => setTimeout(r, 350))
+  showWin('BINGO!', 'bingo')
+  await new Promise(r => setTimeout(r, 10000))
+
+  // ── Step 5: Congratulations speech ───────────────────────────────────────
+  await new Promise(resolve => announcer.sayText('Congratulations to the winners!', resolve))
+  await new Promise(r => setTimeout(r, 400))
+
+  // ── Step 6: Fade out overlay ─────────────────────────────────────────────
+  winBannerEl.classList.add('hidden')
+  await new Promise(r =>
+    gsap.to(overlay, { opacity: 0, y: -30, duration: 0.5, ease: 'power2.in', onComplete: () => { overlay.remove(); r() } })
+  )
+
+  // ── Step 7: Next-draw countdown (30 s) ───────────────────────────────────
+  showNextDrawCountdown(30)
+}
+
+function showNextDrawCountdown(seconds) {
+  const el = document.createElement('div')
+  el.id = 'bingo-next-draw'
+  el.innerHTML = `
+    <div class="bnd-label">NEXT DRAW IN</div>
+    <div class="bnd-num" id="bnd-num">${seconds}</div>
+    <div class="bnd-sublabel">seconds</div>
+  `
+  document.body.appendChild(el)
+  gsap.fromTo(el, { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.55, ease: 'back.out(1.4)' })
+
+  let remaining = seconds
+  const tick = setInterval(() => {
+    remaining--
+    const numEl = document.getElementById('bnd-num')
+    if (numEl) {
+      numEl.textContent = remaining
+      gsap.fromTo(numEl, { scale: 1.25, color: '#c4b5fd' }, { scale: 1, color: '#a78bfa', duration: 0.35, ease: 'back.out' })
+    }
+    if (remaining <= 0) {
+      clearInterval(tick)
+      gsap.to(el, { opacity: 0, scale: 0.9, duration: 0.5, onComplete: () => {
+        el.remove()
+        _socket?.emit('reset')
+      }})
+    }
+  }, 1000)
+}
+
+function highlightRow(card, rowIdx, cls) {
+  const tables = document.querySelectorAll('.room-card-grid-table')
+  const cardIdx = playerCards.cards.indexOf(card)
+  const table = tables[cardIdx]
+  if (!table) return
+  const rows = table.querySelectorAll('tr')
+  if (rowIdx === -1) {
+    rows.forEach(r => r.querySelectorAll('td').forEach(td => { if (!td.classList.contains('blank')) td.className = cls }))
+  } else {
+    rows[rowIdx]?.querySelectorAll('td').forEach(td => { if (!td.classList.contains('blank')) td.className = cls })
+  }
+}
+
+function showWin(text, type) {
+  winBannerEl.textContent = text
+  winBannerEl.className   = `room-win-banner ${type}`
+  winBannerEl.classList.remove('hidden')
+}
+
+// ── Boot drum ─────────────────────────────────────────────────────────────
+setTimeout(() => {
+  drum.init(Array.from({ length: 90 }, (_, i) => i + 1))
+  renderPlayerCard()
+  connectSocket()
+}, 500)
+
+// ── Socket.io ─────────────────────────────────────────────────────────────
+function connectSocket() {
+  const socket = io({ transports: ['websocket', 'polling'] })
+  _socket = socket
+
+  socket.on('connect', () => {
+    liveDot.className = 'live-dot on'
+    statusTextEl.textContent = 'Live'
+  })
+  socket.on('disconnect', () => {
+    liveDot.className = 'live-dot off'
+    statusTextEl.textContent = 'Reconnecting…'
+  })
+
+  // Initial state — sync already-called numbers
+  socket.on('state', ({ called, gameOver }) => {
+    calledSet = new Set(called)
+    refreshCardMarks()
+    checkWins()
+    if (gameOver) {
+      statusTextEl.textContent = 'Draw ended'
+    }
+  })
+
+  // Countdown tick from server
+  socket.on('countdown', ({ remaining, total }) => {
+    const pct = remaining / total
+    countdownFill.style.width = (pct * 100) + '%'
+  })
+
+  // A number is drawn — animate the specific ball
+  socket.on('number-drawn', ({ number, called }) => {
+    if (drawing || paused) return
+    drawing   = true
+    calledSet = new Set(called)
+    lastNumEl.textContent = number
+
+    countdownFill.style.width = '100%'
+
+    drum.exitBall(
+      number,
+      // onReveal — ball reaches tube peak
+      (num, group, color) => {
+        callCard.display(num)
+        announcer.announce(num)
+        gsap.fromTo(ballEl,
+          { scale: 1.4, filter: `drop-shadow(0 0 28px ${color})` },
+          { scale: 1,   filter: 'none', duration: 0.55, ease: 'elastic.out(1,0.5)' })
+      },
+      // onSettle — ball at rest
+      () => {
+        refreshCardMarks()
+        checkWins()
+        drawing = false
+      }
+    )
+  })
+
+  socket.on('game-over', () => {
+    statusTextEl.textContent = 'Draw complete'
+    countdownFill.style.width = '0'
+  })
+
+  socket.on('game-reset', () => {
+    calledSet  = new Set()
+    lineWon    = false
+    bingoWon   = false
+    drawing    = false
+    paused     = false
+    winBannerEl.classList.add('hidden')
+    lastNumEl.textContent = '—'
+    renderPlayerCard()
+    drum.reset(Array.from({ length: 90 }, (_, i) => i + 1))
+  })
+}

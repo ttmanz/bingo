@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bingo Room – Live Draw</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/bingo-room/drum.css">
+  <link rel="stylesheet" href="/bingo-room/room.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "gsap":      "https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm",
+      "cannon-es": "https://esm.sh/cannon-es@0.20.0",
+      "three":     "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div class="stars"></div>
+
+  <!-- ── Top bar ───────────────────────────────────────────────────── -->
+  <header class="room-topbar">
+    <a href="/user-portal" class="room-back">← My Account</a>
+    <div class="room-title">
+      <span class="b">B</span><span class="i">I</span><span class="n">N</span><span class="g">G</span><span class="o">O</span>
+      <span class="room-label">Room</span>
+    </div>
+    <div class="room-status" id="room-status">
+      <span class="live-dot" id="live-dot"></span>
+      <span id="status-text">Connecting…</span>
+    </div>
+  </header>
+
+  <!-- ── Main layout ──────────────────────────────────────────────── -->
+  <div class="room-layout">
+
+    <!-- LEFT: draw machine -->
+    <div class="room-machine-col">
+      <div class="app" style="padding-top:0">
+
+        <div class="draw-stage">
+          <div class="lottery-machine" id="lottery-machine">
+
+            <svg class="tube-svg" viewBox="0 0 580 460" xmlns="http://www.w3.org/2000/svg" overflow="visible">
+              <defs>
+                <filter id="tube-glow" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="4" result="blur"/>
+                  <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+                <filter id="tube-soft" x="-10%" y="-10%" width="120%" height="120%">
+                  <feGaussianBlur stdDeviation="1.5"/>
+                </filter>
+              </defs>
+              <path d="M155,100 L155,12 L530,12 L530,135 L375,135 L375,255 L530,255 L530,385 L120,385"
+                fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="36"
+                stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M155,100 L155,12 L530,12 L530,135 L375,135 L375,255 L530,255 L530,385 L120,385"
+                fill="none" stroke="rgba(3,13,30,0.45)" stroke-width="33"
+                stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M137,100 L112,124 L198,124 L173,100"
+                fill="rgba(3,13,30,0.45)" stroke="rgba(255,255,255,0.55)"
+                stroke-width="1.5" stroke-linejoin="miter" stroke-linecap="square"/>
+              <rect x="139" y="87" width="32" height="26" rx="7"
+                fill="rgba(160,60,240,0.35)" stroke="rgba(230,160,255,0.90)" stroke-width="2"/>
+              <rect x="143" y="91" width="24" height="18" rx="4"
+                fill="rgba(20,5,50,0.70)" stroke="rgba(200,140,255,0.40)" stroke-width="1"/>
+            </svg>
+
+            <div class="drum-wrapper">
+              <div class="drum-sphere" id="drum">
+                <div class="drum-highlight-top"></div>
+                <div class="drum-highlight-bottom"></div>
+                <div class="drum-baffles"></div>
+                <div class="drum-inner-tube">
+                  <div class="drum-inner-tube-cap top"></div>
+                  <div class="drum-inner-tube-cap bottom"></div>
+                </div>
+                <div class="drum-cage-overlay"></div>
+              </div>
+              <div class="drum-collar"></div>
+              <div class="drum-stand"></div>
+              <div class="drum-base-glow"></div>
+              <div class="drum-base-platform"></div>
+            </div>
+
+            <div id="current-ball" class="current-ball">
+              <div class="ball-number">--</div>
+            </div>
+
+          </div><!-- end .lottery-machine -->
+
+          <!-- hidden compat elements -->
+          <div class="call-panel" style="display:none">
+            <div class="call-label">Last Called</div>
+            <div class="call-sublabel" id="call-sublabel">&nbsp;</div>
+            <div class="drum-timer-bar" id="drum-timer-bar"></div>
+            <div class="drum-status" id="drum-status">
+              <span id="drum-status-text"></span><span id="drum-countdown"></span><span id="drum-status-suffix"></span>
+            </div>
+          </div>
+        </div><!-- end .draw-stage -->
+
+        <!-- countdown bar -->
+        <div class="room-countdown-wrap">
+          <div class="room-countdown-bar" id="room-countdown-bar">
+            <div class="room-countdown-fill" id="room-countdown-fill"></div>
+          </div>
+        </div>
+
+        <!-- called numbers history -->
+        <div id="called-numbers" class="called-numbers"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: player card panel -->
+    <div class="room-card-col">
+      <div class="room-card-panel">
+        <div class="room-card-header">
+          <span class="room-card-title">Your Card</span>
+          <span class="room-card-draw" id="room-card-draw">—</span>
+        </div>
+
+        <!-- no-ticket state -->
+        <div id="room-no-ticket" class="room-no-ticket hidden">
+          <div class="room-no-ticket-icon">🎟️</div>
+          <p>You don't have a ticket for the current draw.</p>
+          <a href="/user-portal" class="btn-room-buy">Buy Tickets →</a>
+        </div>
+
+        <!-- card grid injected by room.js -->
+        <div id="room-card-grid"></div>
+
+        <!-- last number called -->
+        <div class="room-last-called">
+          <div class="room-last-label">Last called</div>
+          <div class="room-last-number" id="room-last-number">—</div>
+        </div>
+
+        <!-- win notification -->
+        <div id="room-win-banner" class="room-win-banner hidden"></div>
+      </div>
+    </div>
+
+  </div><!-- end .room-layout -->
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module" src="/bingo-room/room.js"></script>
+</body>
+</html>

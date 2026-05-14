@@ -1,0 +1,378 @@
+/* ── Override drum.css body centering for the room layout ── */
+body {
+  align-items: stretch !important;
+  overflow: hidden;
+}
+
+/* ── Bingo Room layout ──────────────────────────────────────────────────── */
+
+:root {
+  --room-bg:      #080812;
+  --room-surface: #0f0f1e;
+  --room-surface2:#16162a;
+  --room-border:  #1e1e3a;
+  --room-primary: #7c3aed;
+  --room-accent:  #06b6d4;
+  --room-success: #10b981;
+  --room-danger:  #ef4444;
+  --room-text:    #e2e8f0;
+  --room-muted:   #64748b;
+}
+
+/* ── Top bar ── */
+.room-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--room-surface);
+  border-bottom: 1px solid var(--room-border);
+  padding: 0 24px;
+  height: 52px;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+.room-back {
+  color: var(--room-muted);
+  font-size: 13px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color .15s;
+}
+.room-back:hover { color: var(--room-text); }
+.room-title {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.room-title .b { color: #ff6b6b; }
+.room-title .i { color: #ffd93d; }
+.room-title .n { color: #6bcb77; }
+.room-title .g { color: #4d96ff; }
+.room-title .o { color: #c77dff; }
+.room-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--room-muted);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  padding: 2px 8px;
+  background: var(--room-surface2);
+  border: 1px solid var(--room-border);
+  border-radius: 6px;
+  margin-left: 4px;
+}
+.room-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--room-muted);
+  font-weight: 600;
+}
+.live-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--room-muted);
+  transition: background .3s;
+}
+.live-dot.on  { background: var(--room-success); animation: pulse 1.4s infinite; }
+.live-dot.off { background: var(--room-danger); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── Two-column layout ── */
+.room-layout {
+  display: flex;
+  gap: 0;
+  height: calc(100vh - 52px);
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+.room-machine-col {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 16px 0 16px 16px;
+}
+.room-card-col {
+  flex: 0 0 320px;
+  border-left: 1px solid var(--room-border);
+  background: var(--room-surface);
+  overflow-y: auto;
+  padding: 20px 16px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Countdown bar ── */
+.room-countdown-wrap {
+  padding: 0 12px;
+  margin-top: -8px;
+  margin-bottom: 12px;
+}
+.room-countdown-bar {
+  height: 4px;
+  background: var(--room-surface2);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.room-countdown-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, var(--room-primary), var(--room-accent));
+  border-radius: 2px;
+  transition: width .1s linear;
+}
+.room-countdown-label {
+  font-size: 12px;
+  color: var(--room-muted);
+  text-align: center;
+}
+.room-countdown-label strong { color: var(--room-text); }
+
+/* ── Card panel ── */
+.room-card-panel { display: flex; flex-direction: column; gap: 16px; }
+.room-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--room-border);
+}
+.room-card-title { font-size: 14px; font-weight: 800; color: var(--room-text); }
+.room-card-draw  { font-size: 11px; color: var(--room-muted); }
+
+/* ── No ticket ── */
+.room-no-ticket {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--room-muted);
+  font-size: 13px;
+}
+.room-no-ticket-icon { font-size: 40px; margin-bottom: 12px; }
+.room-no-ticket p    { margin-bottom: 16px; }
+.btn-room-buy {
+  display: inline-block;
+  background: var(--room-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 20px;
+  border-radius: 8px;
+  text-decoration: none;
+}
+
+/* ── Bingo card grid (3 rows × 9 cols) ── */
+.room-card-grid-table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+}
+.room-card-grid-table td {
+  border: 1px solid #2a2a4a;
+  text-align: center;
+  height: 32px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--room-text);
+  transition: background .25s, color .25s;
+}
+.room-card-grid-table td.blank  { background: #0a0a18; }
+.room-card-grid-table td.num    { background: var(--room-surface2); }
+.room-card-grid-table td.called {
+  background: #1e1e3a;
+  color: var(--room-muted);
+  text-decoration: line-through;
+}
+.room-card-grid-table td.line-win {
+  background: rgba(16,185,129,.28);
+  color: #6ee7b7;
+  font-weight: 900;
+}
+.room-card-grid-table td.bingo-win {
+  background: rgba(124,58,237,.35);
+  color: #c4b5fd;
+  font-weight: 900;
+}
+.card-sep-room {
+  text-align: center;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .2em;
+  color: #1e3a5f;
+  background: #0d1f30;
+  padding: 3px 0;
+  margin: 4px 0;
+}
+
+/* ── Last called ── */
+.room-last-called {
+  text-align: center;
+  padding: 12px;
+  background: var(--room-surface2);
+  border: 1px solid var(--room-border);
+  border-radius: 10px;
+}
+.room-last-label  { font-size: 10px; font-weight: 700; color: var(--room-muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
+.room-last-number { font-size: 36px; font-weight: 900; color: var(--room-primary); }
+
+/* ── Win banner ── */
+.room-win-banner {
+  padding: 14px 16px;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  animation: popIn .35s cubic-bezier(.175,.885,.32,1.275);
+}
+.room-win-banner.line  { background: rgba(16,185,129,.2);  color: #34d399; border: 2px solid #34d399; }
+.room-win-banner.bingo { background: rgba(124,58,237,.25); color: #c4b5fd; border: 2px solid #a78bfa; }
+@keyframes popIn { from{transform:scale(.8);opacity:0} to{transform:scale(1);opacity:1} }
+
+/* ── LINE! flash (step 1 of check ceremony) ── */
+#line-flash {
+  position: fixed;
+  inset: 52px 320px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 96px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  color: #6ee7b7;
+  text-shadow: 0 0 40px #10b981, 0 0 90px rgba(16,185,129,.5);
+  background: rgba(3, 5, 20, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 150;
+  pointer-events: none;
+}
+
+/* ── Line-check overlay (shown on drum side) ── */
+#line-check-overlay {
+  position: fixed;
+  inset: 52px 320px 0 0;       /* sits over the drum column only */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  background: rgba(3, 5, 20, 0.86);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 150;
+  pointer-events: none;
+}
+.lco-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--room-muted);
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+.overlay-card-table {
+  border-collapse: collapse;
+  width: min(480px, 80%);
+  table-layout: fixed;
+}
+.overlay-card-table td {
+  border: 1px solid #2a2a4a;
+  text-align: center;
+  height: 54px;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--room-text);
+  transition: background .2s, color .2s;
+}
+.overlay-card-table td.blank  { background: #0a0a18; }
+.overlay-card-table td.num    { background: var(--room-surface2); }
+.overlay-card-table td.called { background: #1e1e3a; color: var(--room-muted); text-decoration: line-through; }
+.overlay-card-table td.line-win {
+  background: rgba(16,185,129,.28);
+  color: #6ee7b7;
+  font-weight: 900;
+}
+.overlay-card-table td.checking {
+  animation: cellCheck 0.4s ease forwards;
+  font-weight: 900;
+}
+
+/* ── Bingo flash variant ── */
+#line-flash.bingo-flash {
+  font-size: 108px;
+  color: #c4b5fd;
+  text-shadow: 0 0 50px #7c3aed, 0 0 100px rgba(124,58,237,.6), 0 0 6px #fff;
+  background: rgba(8, 4, 28, 0.8);
+}
+
+/* ── Bingo-win cell in overlay ── */
+.overlay-card-table td.bingo-win {
+  background: rgba(124,58,237,.35);
+  color: #c4b5fd;
+  font-weight: 900;
+}
+
+/* ── Next-draw countdown ── */
+#bingo-next-draw {
+  position: fixed;
+  inset: 52px 320px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(3, 5, 20, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 150;
+  pointer-events: none;
+}
+.bnd-label {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .18em;
+  color: var(--room-muted);
+  text-transform: uppercase;
+}
+.bnd-num {
+  font-size: 120px;
+  font-weight: 900;
+  color: #a78bfa;
+  line-height: 1;
+  letter-spacing: -.02em;
+}
+.bnd-sublabel {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  color: var(--room-muted);
+  text-transform: uppercase;
+}
+
+/* ── Line-check ceremony ── */
+@keyframes cellCheck {
+  0%   { transform: scale(1);    background: var(--room-surface2); color: var(--room-text); }
+  25%  { transform: scale(1.18); background: rgba(16,185,129,.75); color: #fff; box-shadow: 0 0 14px #10b981; }
+  65%  { transform: scale(1.08); background: rgba(16,185,129,.55); color: #fff; }
+  100% { transform: scale(1);    background: rgba(16,185,129,.28); color: #6ee7b7; }
+}
+.room-card-grid-table td.checking {
+  animation: cellCheck 0.4s ease forwards;
+  font-weight: 900;
+  position: relative;
+  z-index: 2;
+}
+
+/* Spotlight border on card panel during check */
+@keyframes panelPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); border-color: var(--room-border); }
+  50%      { box-shadow: 0 0 22px 4px rgba(16,185,129,.35); border-color: #10b981; }
+}
+.room-card-col.line-checking { animation: panelPulse 0.85s ease-in-out infinite; }
+
+.hidden { display: none !important; }
