@@ -133,10 +133,10 @@ document.getElementById('formLogin').addEventListener('submit', async e => {
     })
     TOKEN = data.token
     localStorage.setItem('userToken', TOKEN)
-    window.location.href = "/user-portal?play=1"
+    await loadDashboard()
+    switchToTodayTab()
   } catch (err2) {
     showErr(err, err2.message)
-  } finally {
     btn.disabled = false; btn.textContent = 'Sign In'
   }
 })
