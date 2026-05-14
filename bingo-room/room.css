@@ -118,18 +118,17 @@ body {
   z-index: 1;
 }
 
-/* ── Recent calls in callcard column: match grid cell size ── */
-.room-callcard-col .cc-recent-chip {
-  width: 28px;
-  height: 28px;
-  font-size: 0.7rem;
-}
+/* ── Recent calls in callcard column: same grid as call board ── */
 .room-callcard-col .cc-recent-row {
-  flex-wrap: wrap;
-  gap: 5px;
+  display: grid !important;
+  grid-template-columns: repeat(10, 1fr) !important;
+  gap: 4px !important;
 }
-.room-callcard-col .call-card-grid {
-  margin-bottom: 0.5rem;
+.room-callcard-col .cc-recent-chip {
+  width: auto !important;
+  height: auto !important;
+  aspect-ratio: 1;
+  font-size: clamp(0.55rem, 1.3vw, 0.78rem) !important;
 }
 
 /* ── Tickets section (below top row) ── */

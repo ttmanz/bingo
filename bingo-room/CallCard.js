@@ -2,7 +2,7 @@ import { gsap } from 'gsap'
 import { COL_COLORS, getColumn } from '/bingo-room/bingoLogic.js'
 import { animateBallDrop } from '/bingo-room/numberBall.js'
 
-const RECENT_MAX = 8
+const RECENT_MAX = 10
 
 export class CallCard {
   constructor(containerEl, ballEl) {
