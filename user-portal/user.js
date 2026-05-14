@@ -133,7 +133,7 @@ document.getElementById('formLogin').addEventListener('submit', async e => {
     })
     TOKEN = data.token
     localStorage.setItem('userToken', TOKEN)
-    window.location.href = "/"
+    window.location.href = "/user-portal?play=1"
   } catch (err2) {
     showErr(err, err2.message)
   } finally {
@@ -168,6 +168,7 @@ document.getElementById('formRegister').addEventListener('submit', async e => {
     TOKEN = data.token
     localStorage.setItem('userToken', TOKEN)
     await loadDashboard()
+    switchToTodayTab()
     showToast('Account created — welcome to Bingo24-7! 🎉', '🎉')
   } catch (err2) {
     showErr(err, err2.message)
@@ -802,12 +803,22 @@ async function loadTransactions() {
 }
 
 /* ── Init ── */
+function switchToTodayTab() {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'))
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'))
+  document.querySelector('.tab-btn[data-tab="today"]').classList.add('active')
+  document.getElementById('tab-today').classList.add('active')
+  loadTodayDraws()
+}
+
 if (TOKEN) {
-  loadDashboard().catch(() => {
-    TOKEN = null
-    localStorage.removeItem('userToken')
-    showScreen('loginScreen')
-  })
+  loadDashboard()
+    .then(() => { if (new URLSearchParams(location.search).get('play')) switchToTodayTab() })
+    .catch(() => {
+      TOKEN = null
+      localStorage.removeItem('userToken')
+      showScreen('loginScreen')
+    })
 } else {
   showScreen('loginScreen')
 }
