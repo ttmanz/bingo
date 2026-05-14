@@ -29,12 +29,30 @@ export class Announcer {
     this._voice    = null
     this._mouthTl  = null
     this._speaking = false
+    this._unlocked = false
 
     speechSynthesis.onvoiceschanged = () => { this._voice = pickVoice() }
     this._voice = pickVoice()
 
     this._build()
     this._idleAnim()
+    this._unlock()
+  }
+
+  _unlock() {
+    const handler = () => {
+      if (this._unlocked) return
+      this._unlocked = true
+      const utt = new SpeechSynthesisUtterance('')
+      utt.volume = 0
+      speechSynthesis.speak(utt)
+      document.removeEventListener('click',      handler)
+      document.removeEventListener('keydown',    handler)
+      document.removeEventListener('touchstart', handler)
+    }
+    document.addEventListener('click',      handler)
+    document.addEventListener('keydown',    handler)
+    document.addEventListener('touchstart', handler)
   }
 
   _build() {
