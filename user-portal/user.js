@@ -24,6 +24,19 @@ function showScreen(id) {
 function showErr(el, msg)  { el.textContent = msg; el.classList.remove('hidden') }
 function hideErr(el)       { el.classList.add('hidden') }
 
+// ── Toast ──
+const _toastEl = document.createElement('div')
+_toastEl.id = 'toast'
+document.body.appendChild(_toastEl)
+let _toastTimer
+function showToast(msg, icon = '✓') {
+  _toastEl.innerHTML = `<span class="toast-icon">${icon}</span>${msg}`
+  clearTimeout(_toastTimer)
+  _toastEl.classList.add('show')
+  _toastTimer = setTimeout(() => _toastEl.classList.remove('show'), 4000)
+}
+
+
 // Parse a date-only string ("YYYY-MM-DD") as UTC midnight to avoid local-timezone date shift.
 function parseDateUTC(str) {
   if (!str) return null
@@ -155,6 +168,7 @@ document.getElementById('formRegister').addEventListener('submit', async e => {
     TOKEN = data.token
     localStorage.setItem('userToken', TOKEN)
     await loadDashboard()
+    showToast('Account created — welcome to Bingo24-7! 🎉', '🎉')
   } catch (err2) {
     showErr(err, err2.message)
   } finally {

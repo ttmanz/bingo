@@ -669,3 +669,32 @@ body {
 .win-card-grid td.called { background: #1e1e3a; color: var(--muted); text-decoration: line-through; }
 .win-card-grid td.line-win  { background: rgba(16,185,129,.3); color: #6ee7b7; font-weight: 900; }
 .win-card-grid td.bingo-win { background: rgba(124,58,237,.35); color: #c4b5fd; font-weight: 900; }
+
+/* ── Toast notification ── */
+#toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-80px);
+  background: #0f0f1e;
+  border: 1px solid rgba(16,185,129,.4);
+  color: #6ee7b7;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 14px 24px 14px 18px;
+  border-radius: 10px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.5), 0 0 0 1px rgba(16,185,129,.2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 9999;
+  pointer-events: none;
+  transition: transform .35s cubic-bezier(.175,.885,.32,1.275), opacity .35s;
+  opacity: 0;
+  white-space: nowrap;
+}
+#toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+#toast .toast-icon { font-size: 18px; }
