@@ -3,212 +3,187 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bingo24-7 – My Account</title>
-  <link rel="stylesheet" href="user.css?v=5" />
+  <title>Bingo24-7</title>
+  <link rel="stylesheet" href="portal.css" />
 </head>
 <body>
 
-<!-- ══ LOGIN SCREEN ════════════════════════════════════════════════════ -->
-<div id="loginScreen" class="screen active">
-  <div class="auth-card">
-    <div class="auth-logo">
-      <span class="logo-ball">🎱</span>
-      <h1>Bingo24-7</h1>
+<div class="stars"></div>
+
+<!-- ══ HOME SCREEN ═══════════════════════════════════════════════════════ -->
+<div id="screen-home" class="screen active">
+  <header class="topbar">
+    <div class="brand"><span class="brand-ball">🎱</span><span class="brand-name">Bingo24-7</span></div>
+  </header>
+  <div class="hero">
+    <div class="hero-glow"></div>
+    <div class="hero-content">
+      <div class="hero-badge">🎯 Live 90-Ball Bingo</div>
+      <h1 class="hero-title">
+        <span class="b">B</span><span class="i">I</span><span class="n">N</span><span class="g">G</span><span class="o">O</span>
+        <br>24-7
+      </h1>
+      <p class="hero-sub">Real draws · Live wins · Always on</p>
+      <div class="home-btns">
+        <button class="btn btn-outline" id="btnNewCustomer">New Customer</button>
+        <button class="btn btn-primary" id="btnLogin">Login</button>
+        <button class="btn btn-accent" id="btnPlay">▶ Play Now</button>
+      </div>
     </div>
-
-    <!-- Tab switcher -->
-    <div class="auth-tabs">
-      <button class="auth-tab active" id="tabLogin"    data-target="formLogin">Sign In</button>
-      <button class="auth-tab"        id="tabRegister" data-target="formRegister">Create Account</button>
-    </div>
-
-    <!-- ── Login form ── -->
-    <form id="formLogin" class="auth-form active">
-      <div id="loginErr" class="alert alert-error hidden"></div>
-      <div class="field">
-        <label>Email</label>
-        <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email" required />
-      </div>
-      <div class="field">
-        <label>Password</label>
-        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" required />
-      </div>
-      <button type="submit" class="btn btn-primary btn-full">Sign In</button>
-      <p class="auth-hint">Don't have an account? <a href="#" id="goRegister">Create one →</a></p>
-    </form>
-
-    <!-- ── Register form ── -->
-    <form id="formRegister" class="auth-form">
-      <div class="register-type-notice">
-        <span class="register-icon">🆕</span>
-        <span>Creating a new account — you'll be able to log in right away.</span>
-      </div>
-      <div id="registerErr" class="alert alert-error hidden"></div>
-      <div class="field">
-        <label>Full Name *</label>
-        <input type="text" id="regName" placeholder="Your full name" autocomplete="name" required />
-      </div>
-      <div class="field">
-        <label>Email *</label>
-        <input type="email" id="regEmail" placeholder="you@example.com" autocomplete="email" required />
-      </div>
-      <div class="field">
-        <label>Phone <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
-        <input type="tel" id="regPhone" placeholder="+1 234 567 8900" autocomplete="tel" />
-      </div>
-      <div class="field">
-        <label>Password *</label>
-        <input type="password" id="regPassword" placeholder="Min 6 characters" autocomplete="new-password" required />
-      </div>
-      <button type="submit" class="btn btn-primary btn-full">Create Account</button>
-      <p class="auth-hint">Already have an account? <a href="#" id="goLogin">Sign in →</a></p>
-    </form>
   </div>
 </div>
 
-<!-- ══ DASHBOARD ════════════════════════════════════════════════════════ -->
-<div id="dashboard" class="screen">
+<!-- ══ REGISTER MODAL ════════════════════════════════════════════════════ -->
+<div id="screen-register" class="modal-overlay hidden">
+  <div class="modal-card">
+    <button class="modal-close" id="closeRegister">✕</button>
+    <div class="modal-logo">🎱 Bingo24-7</div>
+    <h2 class="modal-title">Create Account</h2>
+    <div id="regErr" class="alert-err hidden"></div>
+    <div class="field"><label>Full Name</label>
+      <input type="text" id="regName" placeholder="Your full name" autocomplete="name" /></div>
+    <div class="field"><label>Email</label>
+      <input type="email" id="regEmail" placeholder="you@example.com" autocomplete="email" /></div>
+    <div class="field"><label>Phone <span class="opt">(optional)</span></label>
+      <input type="tel" id="regPhone" placeholder="+1 234 567 8900" /></div>
+    <div class="field"><label>Password</label>
+      <input type="password" id="regPassword" placeholder="Min 6 characters" /></div>
+    <button class="btn btn-primary btn-full" id="btnRegSubmit">Create Account</button>
+  </div>
+</div>
 
+<!-- ══ SUCCESS TOAST ═════════════════════════════════════════════════════ -->
+<div id="reg-success" class="success-toast hidden">
+  <span class="toast-icon">🎉</span>
+  <span id="reg-success-msg">Account created — welcome to Bingo24-7!</span>
+</div>
+
+<!-- ══ LOGIN MODAL ═══════════════════════════════════════════════════════ -->
+<div id="screen-login" class="modal-overlay hidden">
+  <div class="modal-card">
+    <button class="modal-close" id="closeLogin">✕</button>
+    <div class="modal-logo">🎱 Bingo24-7</div>
+    <h2 class="modal-title">Sign In</h2>
+    <div id="loginErr" class="alert-err hidden"></div>
+    <div class="field"><label>Email</label>
+      <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email" /></div>
+    <div class="field"><label>Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" /></div>
+    <button class="btn btn-primary btn-full" id="btnLoginSubmit">Sign In</button>
+    <p class="modal-hint">No account? <a href="#" id="switchToRegister">Create one →</a></p>
+  </div>
+</div>
+
+<!-- ══ GAME SCREEN ═══════════════════════════════════════════════════════ -->
+<div id="screen-game" class="screen hidden">
   <header class="topbar">
-    <div class="topbar-left">
-      <span class="logo-ball-sm">🎱</span>
-      <span class="topbar-brand">Bingo24-7</span>
-      <span id="regTypeBadge" class="reg-badge"></span>
-    </div>
+    <div class="brand"><span class="brand-ball">🎱</span><span class="brand-name">Bingo24-7</span></div>
     <div class="topbar-right">
-      <div class="points-pill">
-        <span>💎</span><span id="topPoints">0</span> pts
-      </div>
-      <span id="topName" class="top-name"></span>
-      <button class="btn btn-ghost btn-sm" id="logoutBtn">Sign out</button>
+      <div class="points-pill">💎 <span id="topPoints">0</span> pts</div>
+      <button class="profile-btn" id="profileBtn" title="Profile / Sign out">👤</button>
     </div>
   </header>
 
-  <nav class="tab-nav">
-    <button class="tab-btn active" data-tab="overview">Overview</button>
-    <button class="tab-btn" data-tab="today">Today's Draws</button>
-    <button class="tab-btn" data-tab="tickets">My Tickets</button>
-    <button class="tab-btn" data-tab="live">Live Draw</button>
-    <button class="tab-btn" data-tab="sell">Sell Points</button>
-    <button class="tab-btn" data-tab="transactions">Transactions</button>
+  <!-- Profile dropdown -->
+  <div id="profileMenu" class="profile-menu hidden">
+    <div class="pm-name" id="pmName"></div>
+    <div class="pm-email" id="pmEmail"></div>
+    <hr class="pm-hr">
+    <button class="pm-item" id="btnSignOut">Sign out</button>
+  </div>
+
+  <!-- Tab nav -->
+  <nav class="game-tabs">
+    <button class="gtab active" data-tab="next-draw">⏱ Next Draw</button>
+    <button class="gtab" data-tab="special">⭐ Special Draws</button>
+    <button class="gtab" data-tab="buy">🎟 Buy Tickets</button>
+    <button class="gtab" data-tab="room">🎯 Bingo Room</button>
   </nav>
 
-  <!-- ── OVERVIEW ── -->
-  <section class="tab-panel active" id="tab-overview">
-    <div class="stats-row">
-      <div class="stat-card">
-        <div class="stat-icon">💎</div>
-        <div class="stat-val" id="ovPoints">0</div>
-        <div class="stat-lbl">Points Balance</div>
+  <!-- ── NEXT DRAW ── -->
+  <section class="tab-panel active" id="tab-next-draw">
+    <div class="panel-inner">
+      <div class="countdown-card">
+        <div class="cc-label">Next Draw</div>
+        <div class="cc-title" id="nextDrawTitle">Loading…</div>
+        <div class="cc-time" id="nextDrawTime"></div>
+        <div class="countdown" id="countdown">
+          <div class="cd-unit"><span class="cd-val" id="cd-h">--</span><span class="cd-lbl">HRS</span></div>
+          <div class="cd-sep">:</div>
+          <div class="cd-unit"><span class="cd-val" id="cd-m">--</span><span class="cd-lbl">MIN</span></div>
+          <div class="cd-sep">:</div>
+          <div class="cd-unit"><span class="cd-val" id="cd-s">--</span><span class="cd-lbl">SEC</span></div>
+        </div>
+        <div class="cc-sub" id="nextDrawSub"></div>
+        <button class="btn btn-primary" id="btnBuyFromCountdown">Buy Ticket for This Draw</button>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon">🎟️</div>
-        <div class="stat-val" id="ovTickets">0</div>
-        <div class="stat-lbl">Total Tickets</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">🏆</div>
-        <div class="stat-val" id="ovWins">0</div>
-        <div class="stat-lbl">Wins</div>
-      </div>
-    </div>
-
-    <!-- Quick draws on overview -->
-    <div class="profile-card" id="ovDrawsCard">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h3 style="margin:0">Today's Draws</h3>
-        <button class="btn btn-primary btn-sm" id="ovBuyBtn">Buy Tickets →</button>
-      </div>
-      <div id="ovDrawsList"><div style="color:var(--muted);font-size:13px">Loading…</div></div>
-    </div>
-
-    <div class="profile-card">
-      <h3>My Profile</h3>
-      <div class="prow"><span>Name</span><span id="prName">–</span></div>
-      <div class="prow"><span>Email</span><span id="prEmail">–</span></div>
-      <div class="prow"><span>Phone</span><span id="prPhone">–</span></div>
-      <div class="prow"><span>Account type</span><span id="prType">–</span></div>
-      <div class="prow" id="agentRow" style="display:none">
-        <span>My Agent</span><span id="prAgent">–</span>
-      </div>
-      <div class="prow"><span>Member since</span><span id="prSince">–</span></div>
     </div>
   </section>
 
-  <!-- ── TODAY'S DRAWS ── -->
-  <section class="tab-panel" id="tab-today">
-    <div class="panel-header">
-      <h2>Today's Draws</h2>
-      <button class="btn btn-secondary btn-sm" id="refreshToday">↺ Refresh</button>
+  <!-- ── SPECIAL DRAWS ── -->
+  <section class="tab-panel hidden" id="tab-special">
+    <div class="panel-inner">
+      <h2 class="panel-title">Special Draws</h2>
+      <div id="specialList"><div class="loading-state">Loading…</div></div>
     </div>
-    <div id="todayList" class="today-draws-list"></div>
   </section>
 
-  <!-- ── TICKETS ── -->
-  <section class="tab-panel" id="tab-tickets">
-    <div class="panel-header">
-      <h2>My Tickets</h2>
-      <button class="btn btn-secondary btn-sm" id="refreshTickets">↺ Refresh</button>
+  <!-- ── BUY TICKETS ── -->
+  <section class="tab-panel hidden" id="tab-buy">
+    <div class="panel-inner">
+      <h2 class="panel-title">Buy Tickets</h2>
+      <div id="buyList"><div class="loading-state">Loading…</div></div>
     </div>
-    <div id="ticketList" class="card-list"></div>
   </section>
 
-  <!-- ── LIVE DRAW ── -->
-  <section class="tab-panel" id="tab-live">
-    <div id="liveStatus" class="live-status">Connecting…</div>
-    <div id="liveTicketPicker" class="live-picker hidden">
-      <p class="picker-hint">Select a ticket to watch:</p>
-      <div id="livePickerList" class="picker-list"></div>
-    </div>
-    <div id="liveTicketView" class="hidden">
-      <div class="live-ticket-header">
-        <span id="liveTicketLabel" class="live-ticket-label"></span>
-        <button class="btn btn-ghost btn-sm" id="liveChangeTkt">Change ticket</button>
+  <!-- ── BINGO ROOM ── -->
+  <section class="tab-panel hidden" id="tab-room">
+    <div class="panel-inner room-panel">
+      <div class="room-card">
+        <div class="room-icon">🎯</div>
+        <h2>Enter the Bingo Room</h2>
+        <p>Watch the live draw, mark your tickets in real time and celebrate your wins.</p>
+        <a href="/bingo-room" class="btn btn-primary">Enter Bingo Room →</a>
       </div>
-      <div id="liveTicketGrid" class="live-ticket-grid"></div>
     </div>
   </section>
-
-  <!-- ── SELL POINTS ── -->
-  <section class="tab-panel" id="tab-sell">
-    <div class="profile-card" style="max-width:440px">
-      <h3>Sell Points Back to Agent</h3>
-      <p id="sellAgentInfo" style="color:var(--muted);font-size:13px;margin:10px 0 20px"></p>
-      <div id="sellErr"  class="alert alert-error   hidden"></div>
-      <div id="sellSucc" class="alert alert-success hidden"></div>
-      <div class="field" style="margin-bottom:16px">
-        <label>Points to sell</label>
-        <input type="number" id="sellAmt" value="0" min="1" step="1" />
-        <small style="color:var(--muted);font-size:11px;display:block;margin-top:5px">
-          Your balance: <span id="sellBal">0</span> pts
-        </small>
-      </div>
-      <button class="btn btn-primary" id="sellBtn">Sell Points</button>
-    </div>
-  </section>
-
-  <!-- ── TRANSACTIONS ── -->
-  <section class="tab-panel" id="tab-transactions">
-    <div class="panel-header">
-      <h2>Transactions</h2>
-      <button class="btn btn-secondary btn-sm" id="refreshTxns">↺ Refresh</button>
-    </div>
-    <div id="txnList" class="txn-list"></div>
-  </section>
-
 </div>
 
-<!-- ── WIN OVERLAY ── -->
-<div id="winOverlay" class="win-overlay hidden">
-  <div class="win-modal">
-    <div class="win-badge" id="winBadge">LINE!</div>
-    <div class="win-card-id" id="winCardId"></div>
-    <table class="win-card-grid" id="winCardGrid"></table>
-    <button class="btn btn-primary" id="winDismiss">Continue watching</button>
+<!-- ══ GET POINTS MODAL ═══════════════════════════════════════════════════ -->
+<div id="modal-points" class="modal-overlay hidden">
+  <div class="modal-card">
+    <button class="modal-close" id="closePoints">✕</button>
+    <div class="modal-logo">💎 Get Points</div>
+    <h2 class="modal-title">Top Up Your Balance</h2>
+    <p class="modal-body">You need more points to buy tickets. Contact your agent or administrator to add points to your account.</p>
+    <div class="points-info">
+      <div class="pi-row"><span>Current balance</span><strong id="modalPoints">0 pts</strong></div>
+    </div>
+    <button class="btn btn-primary btn-full" id="closePointsOk">Got it</button>
+  </div>
+</div>
+
+<!-- ══ BUY CONFIRM MODAL ═════════════════════════════════════════════════ -->
+<div id="modal-buy" class="modal-overlay hidden">
+  <div class="modal-card">
+    <button class="modal-close" id="closeBuy">✕</button>
+    <h2 class="modal-title" id="buyModalTitle">Buy Ticket</h2>
+    <div id="buyErr" class="alert-err hidden"></div>
+    <div id="buyOk"  class="alert-ok  hidden"></div>
+    <div class="buy-row">
+      <label>Quantity</label>
+      <div class="qty-ctrl">
+        <button class="qty-btn" id="qtyDown">−</button>
+        <span id="qtyVal">1</span>
+        <button class="qty-btn" id="qtyUp">+</button>
+      </div>
+    </div>
+    <div class="buy-cost">Cost: <strong id="buyCost">1</strong> pts &nbsp;|&nbsp; Balance: <strong id="buyBal">0</strong> pts</div>
+    <button class="btn btn-primary btn-full" id="btnBuyConfirm">Confirm Purchase</button>
   </div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
-<script src="user.js?v=5"></script>
+<script src="portal.js"></script>
 </body>
 </html>
