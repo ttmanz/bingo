@@ -52,19 +52,26 @@ router.get('/available-draws', requireUserAuth, (req, res) => {
   const presetTotal = queryOne('SELECT COUNT(DISTINCT ticket_number) as n FROM preset_bingo_cards')?.n ?? 0
   const soldRows = query('SELECT draw_id, COUNT(*) as sold FROM tickets WHERE ticket_number IS NOT NULL GROUP BY draw_id')
   const soldMap = Object.fromEntries(soldRows.map(r => [r.draw_id, r.sold]))
-  const addAvail = draws => draws.map(d => {
-    let scheduled_utc = null
-    if (d.draw_date && d.draw_time) {
-      const t = d.draw_time.length === 5 ? d.draw_time + ':00' : d.draw_time
-      scheduled_utc = new Date(d.draw_date + 'T' + t + '+03:00').toISOString()
-    }
-    return {
-      ...d,
-      scheduled_utc,
-      available_tickets: presetTotal > 0 ? presetTotal - (soldMap[d.id] ?? 0) : null,
-      total_tickets: presetTotal || null,
-    }
-  })
+  const TZ = 'Asia/Nicosia'
+  function localToUtc(draw_date, draw_time) {
+    const t = draw_time.length === 5 ? draw_time + ':00' : draw_time
+    // Parse the stored local time as UTC, then find the real offset for Asia/Nicosia at that date
+    const probe = new Date(`${draw_date}T${t}Z`)
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    }).formatToParts(probe).reduce((a, p) => { a[p.type] = p.value; return a }, {})
+    const tzDate = new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}Z`)
+    const offsetMs = probe - tzDate
+    return new Date(probe.getTime() - offsetMs).toISOString()
+  }
+
+  const addAvail = draws => draws.map(d => ({
+    ...d,
+    scheduled_utc: (d.draw_date && d.draw_time) ? localToUtc(d.draw_date, d.draw_time) : null,
+    available_tickets: presetTotal > 0 ? presetTotal - (soldMap[d.id] ?? 0) : null,
+    total_tickets: presetTotal || null,
+  }))
 
   res.json({ regular: addAvail(regular), special: addAvail(special) })
 })
