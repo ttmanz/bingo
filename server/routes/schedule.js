@@ -101,6 +101,12 @@ router.post('/generate-today', requireAuth, (req, res) => {
   res.json({ ok: true, created, skipped })
 })
 
+// DELETE /api/schedule/draws/:id — delete a draw instance
+router.delete('/draws/:id', requireAuth, (req, res) => {
+  run('DELETE FROM draws WHERE id = ?', [req.params.id])
+  res.json({ ok: true })
+})
+
 // POST /api/schedule/draws — create draw instance
 router.post('/draws', requireAuth, (req, res) => {
   const { title, draw_date, draw_time, ball_interval, ticket_price, full_house_prize, line_prize, schedule_id, timezone } = req.body

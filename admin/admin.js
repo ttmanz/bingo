@@ -164,6 +164,7 @@ async function loadDraws() {
   const data = await GET('/api/schedule')
   if (!data) return
   _scheduleData = data
+  loadDrawInstances()
   const grid = document.getElementById('week-grid')
   grid.innerHTML = data.map(day => `
     <div class="day-block">
@@ -266,6 +267,7 @@ document.getElementById('gen-today-btn').addEventListener('click', async () => {
     msg.textContent = `✓ Created ${res.created} draw${res.created > 1 ? 's' : ''} for today${res.skipped?.length ? ` (${res.skipped.join(', ')} already existed)` : ''}`
   }
   setTimeout(() => { msg.style.display = 'none' }, 5000)
+  loadDrawInstances()
 })
 
 async function deleteDraw(id) {
@@ -276,6 +278,45 @@ async function deleteDraw(id) {
 }
 
 document.getElementById('add-draw-btn').addEventListener('click', () => openDrawModal(0))
+
+async function loadDrawInstances() {
+  const rows = await GET('/api/schedule/draws?status=scheduled&limit=100')
+  const el = document.getElementById('draw-instances-list')
+  if (!rows || !rows.length) {
+    el.innerHTML = '<p style="color:var(--muted);padding:8px 0">No scheduled draw instances.</p>'
+    return
+  }
+  el.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="color:var(--muted);text-align:left;border-bottom:1px solid var(--border)">
+        <th style="padding:8px 12px">Date</th>
+        <th style="padding:8px 12px">Time</th>
+        <th style="padding:8px 12px">Title</th>
+        <th style="padding:8px 12px">Status</th>
+        <th style="padding:8px 12px">Tickets</th>
+        <th style="padding:8px 12px"></th>
+      </tr></thead>
+      <tbody>${rows.map(d => `
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:8px 12px">${d.draw_date}</td>
+          <td style="padding:8px 12px">${d.draw_time}</td>
+          <td style="padding:8px 12px">${d.title}</td>
+          <td style="padding:8px 12px">${d.status}</td>
+          <td style="padding:8px 12px">${d.ticket_count ?? 0}</td>
+          <td style="padding:8px 12px">
+            <button class="btn btn-sm btn-danger" onclick="deleteDrawInstance(${d.id})">Delete</button>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`
+}
+
+async function deleteDrawInstance(id) {
+  if (!confirm('Delete this draw instance? This cannot be undone.')) return
+  await DELETE(`/api/schedule/draws/${id}`)
+  toast('Draw instance deleted')
+  loadDrawInstances()
+}
 
 // ══════════════════════════════════════════════════════════════════════════
 // TICKETS PANEL
