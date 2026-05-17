@@ -91,36 +91,33 @@
     <button class="pm-item" id="btnSignOut">Sign out</button>
   </div>
 
+  <!-- ── NEXT DRAW (always visible) ── -->
+  <section id="next-draw-section" class="panel-inner">
+    <div class="countdown-card">
+      <div class="cc-label">Next Draw</div>
+      <div class="cc-title" id="nextDrawTitle">Loading…</div>
+      <div class="cc-time" id="nextDrawTime"></div>
+      <div class="countdown" id="countdown">
+        <div class="cd-unit"><span class="cd-val" id="cd-h">--</span><span class="cd-lbl">HRS</span></div>
+        <div class="cd-sep">:</div>
+        <div class="cd-unit"><span class="cd-val" id="cd-m">--</span><span class="cd-lbl">MIN</span></div>
+        <div class="cd-sep">:</div>
+        <div class="cd-unit"><span class="cd-val" id="cd-s">--</span><span class="cd-lbl">SEC</span></div>
+      </div>
+      <div class="cc-sub" id="nextDrawSub"></div>
+      <button class="btn btn-primary" id="btnBuyFromCountdown">Buy Ticket for This Draw</button>
+    </div>
+  </section>
+
   <!-- Tab nav -->
   <nav class="game-tabs">
-    <button class="gtab active" data-tab="next-draw">⏱ Next Draw</button>
-    <button class="gtab" data-tab="special">⭐ Special Draws</button>
+    <button class="gtab active" data-tab="special">⭐ Special Draws</button>
     <button class="gtab" data-tab="buy">🎟 Buy Tickets</button>
     <button class="gtab" data-tab="room">🎯 Bingo Room</button>
   </nav>
 
-  <!-- ── NEXT DRAW ── -->
-  <section class="tab-panel active" id="tab-next-draw">
-    <div class="panel-inner">
-      <div class="countdown-card">
-        <div class="cc-label">Next Draw</div>
-        <div class="cc-title" id="nextDrawTitle">Loading…</div>
-        <div class="cc-time" id="nextDrawTime"></div>
-        <div class="countdown" id="countdown">
-          <div class="cd-unit"><span class="cd-val" id="cd-h">--</span><span class="cd-lbl">HRS</span></div>
-          <div class="cd-sep">:</div>
-          <div class="cd-unit"><span class="cd-val" id="cd-m">--</span><span class="cd-lbl">MIN</span></div>
-          <div class="cd-sep">:</div>
-          <div class="cd-unit"><span class="cd-val" id="cd-s">--</span><span class="cd-lbl">SEC</span></div>
-        </div>
-        <div class="cc-sub" id="nextDrawSub"></div>
-        <button class="btn btn-primary" id="btnBuyFromCountdown">Buy Ticket for This Draw</button>
-      </div>
-    </div>
-  </section>
-
   <!-- ── SPECIAL DRAWS ── -->
-  <section class="tab-panel hidden" id="tab-special">
+  <section class="tab-panel active" id="tab-special">
     <div class="panel-inner">
       <h2 class="panel-title">Special Draws</h2>
       <div id="specialList"><div class="loading-state">Loading…</div></div>

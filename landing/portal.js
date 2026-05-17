@@ -190,7 +190,7 @@ async function enterGame() {
   currentUser = data.user || data;
   renderTopBar();
   showScreen('screen-game');
-  activateTab('next-draw');
+  activateTab('special');
   await loadDraws();
 }
 
@@ -307,10 +307,7 @@ function renderCountdown() {
   countdownTimer = setInterval(tick, 1000);
 }
 
-$('btnBuyFromCountdown').addEventListener('click', () => {
-  if (!nextDraw) return;
-  activateTab('buy');
-});
+$('btnBuyFromCountdown').addEventListener('click', () => activateTab('buy'));
 
 // ── Special Draws ─────────────────────────────────────────────────────────
 
