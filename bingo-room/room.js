@@ -70,7 +70,7 @@ function hideWaitingBanner() {
   document.querySelector('.room-layout').style.display = ''
 }
 
-function showNextDrawCountdown(nextDrawTime, nextDrawTitle) {
+function showWaitingPanel(nextDrawTime, nextDrawTitle) {
   clearInterval(_cdTimer)
   const panel      = document.getElementById('room-next-draw')
   const titleEl    = document.getElementById('rnd-title')
@@ -101,7 +101,7 @@ function showNextDrawCountdown(nextDrawTime, nextDrawTitle) {
   _cdTimer = setInterval(tick, 1000)
 }
 
-function hideNextDrawCountdown() {
+function hideWaitingPanel() {
   clearInterval(_cdTimer)
   const panel     = document.getElementById('room-next-draw')
   const calledEl2 = document.getElementById('called-numbers')
@@ -433,7 +433,7 @@ function connectSocket() {
     calledSet = new Set(called)
     if (phase === 'waiting') {
       renderPlayerCard()
-      showNextDrawCountdown(nextDrawTime, nextDrawTitle)
+      showWaitingPanel(nextDrawTime, nextDrawTitle)
       return
     }
     // phase === 'drawing'
@@ -449,7 +449,7 @@ function connectSocket() {
   // Server signals waiting for next draw
   socket.on('waiting', ({ nextDrawTime, nextDrawTitle }) => {
     renderPlayerCard()
-    showNextDrawCountdown(nextDrawTime, nextDrawTitle)
+    showWaitingPanel(nextDrawTime, nextDrawTitle)
   })
 
   // Countdown tick — update fill bar only, no visible timer
@@ -499,7 +499,7 @@ function connectSocket() {
     winBannerEl.classList.add('hidden')
     if (lastNumEl) lastNumEl.textContent = '—'
     hideWaitingBanner()
-    hideNextDrawCountdown()
+    hideWaitingPanel()
     statusTextEl.textContent = 'Draw starting…'
     renderPlayerCard()
     drum.reset(Array.from({ length: 90 }, (_, i) => i + 1))
