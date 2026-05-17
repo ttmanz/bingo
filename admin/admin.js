@@ -281,11 +281,23 @@ async function deleteDraw(id) {
 document.getElementById('add-draw-btn').addEventListener('click', () => openDrawModal(0))
 
 async function loadDrawInstances() {
-  const rows = await GET('/api/schedule/draws?status=scheduled&limit=100')
+  const rows = await GET('/api/schedule/draws?limit=200')
   const el = document.getElementById('draw-instances-list')
   if (!rows || !rows.length) {
-    el.innerHTML = '<p style="color:var(--muted);padding:8px 0">No scheduled draw instances.</p>'
+    el.innerHTML = '<p style="color:var(--muted);padding:8px 0">No draw instances.</p>'
     return
+  }
+  const statusStyle = {
+    scheduled: 'color:#10b981;font-weight:600',
+    running:   'color:#f59e0b;font-weight:600',
+    completed: 'color:var(--muted)',
+    cancelled: 'color:#ef4444',
+  }
+  const rowBg = {
+    scheduled: '',
+    running:   'background:rgba(245,158,11,0.07)',
+    completed: 'background:rgba(255,255,255,0.02)',
+    cancelled: 'background:rgba(239,68,68,0.07)',
   }
   el.innerHTML = `
     <table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -298,11 +310,11 @@ async function loadDrawInstances() {
         <th style="padding:8px 12px"></th>
       </tr></thead>
       <tbody>${rows.map(d => `
-        <tr style="border-bottom:1px solid var(--border)">
-          <td style="padding:8px 12px">${d.draw_date}</td>
-          <td style="padding:8px 12px">${d.draw_time}</td>
-          <td style="padding:8px 12px">${d.title}</td>
-          <td style="padding:8px 12px">${d.status}</td>
+        <tr style="border-bottom:1px solid var(--border);${rowBg[d.status]??''}">
+          <td style="padding:8px 12px;${d.status==='completed'?'color:var(--muted)':''}">${d.draw_date}</td>
+          <td style="padding:8px 12px;${d.status==='completed'?'color:var(--muted)':''}">${d.draw_time}</td>
+          <td style="padding:8px 12px;${d.status==='completed'?'color:var(--muted)':''}">${d.title}</td>
+          <td style="padding:8px 12px;${statusStyle[d.status]??''}">${d.status}</td>
           <td style="padding:8px 12px">${d.ticket_count ?? 0}</td>
           <td style="padding:8px 12px">
             <button class="btn btn-sm btn-danger" onclick="deleteDrawInstance(${d.id})">Delete</button>
