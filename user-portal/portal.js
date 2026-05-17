@@ -222,17 +222,10 @@ $('btnSignOut').addEventListener('click', () => {
 
 window.activateTab = function(name) {
   document.querySelectorAll('.sbtn').forEach(b => {
-    if (b.dataset.tab === name) {
-      b.classList.add('active');
-    } else {
-      b.classList.remove('active');
-    }
+    b.classList.toggle('active', b.dataset.tab === name);
   });
-  ['special', 'buy', 'room'].forEach(tab => {
-    const panel = document.getElementById('tab-' + tab);
-    if (!panel) return;
-    panel.classList.remove('hidden');
-    panel.style.display = (tab === name) ? 'block' : 'none';
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('active', p.id === 'tab-' + name);
   });
 };
 
