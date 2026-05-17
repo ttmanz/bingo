@@ -252,19 +252,20 @@ document.getElementById('draw-modal-save').addEventListener('click', async () =>
 document.getElementById('gen-today-btn').addEventListener('click', async () => {
   const btn = document.getElementById('gen-today-btn')
   const msg = document.getElementById('gen-today-msg')
+  const days = parseInt(document.getElementById('gen-days-select').value) || 1
   btn.disabled = true
   btn.textContent = 'Generating…'
-  const res = await POST('/api/schedule/generate-today', {})
+  const res = await POST('/api/schedule/generate-today', { days })
   btn.disabled = false
-  btn.textContent = "⚡ Generate Today's Draws"
+  btn.textContent = '⚡ Generate Draws'
   if (!res) return
   msg.style.display = 'block'
   if (res.created === 0) {
     msg.className = 'alert alert-info'
-    msg.textContent = res.message || `All draws already exist (${res.skipped?.join(', ')})`
+    msg.textContent = res.message || `All draws already exist${res.skipped?.length ? ` (${res.skipped.join(', ')})` : ''}`
   } else {
     msg.className = 'alert alert-success'
-    msg.textContent = `✓ Created ${res.created} draw${res.created > 1 ? 's' : ''} for today${res.skipped?.length ? ` (${res.skipped.join(', ')} already existed)` : ''}`
+    msg.textContent = `✓ Created ${res.created} draw${res.created > 1 ? 's' : ''} across ${days} day${days > 1 ? 's' : ''}${res.skipped?.length ? ` (${res.skipped.length} skipped — already existed)` : ''}`
   }
   setTimeout(() => { msg.style.display = 'none' }, 5000)
   loadDrawInstances()
