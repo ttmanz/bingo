@@ -8,7 +8,7 @@
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <link rel="apple-touch-icon" href="/icon-180.png" />
   <meta name="theme-color" content="#7c3aed" />
-  <link rel="stylesheet" href="portal.css?v=22" />
+  <link rel="stylesheet" href="portal.css?v=23" />
 </head>
 <body>
 
@@ -178,11 +178,7 @@
     <div id="buyOk"  class="alert-ok  hidden"></div>
     <div class="buy-row">
       <label>Quantity</label>
-      <div class="qty-ctrl">
-        <button class="qty-btn" id="qtyDown">−</button>
-        <span id="qtyVal">1</span>
-        <button class="qty-btn" id="qtyUp">+</button>
-      </div>
+      <select id="qtySelect" class="form-group" style="margin:0;width:100px"></select>
     </div>
     <div class="buy-cost">Cost: <strong id="buyCost">1</strong> pts &nbsp;|&nbsp; Balance: <strong id="buyBal">0</strong> pts</div>
     <button class="btn btn-primary btn-full" id="btnBuyConfirm">Confirm Purchase</button>
@@ -216,6 +212,6 @@
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
-<script src="portal.js?v=22"></script>
+<script src="portal.js?v=23"></script>
 </body>
 </html>

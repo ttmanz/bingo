@@ -401,18 +401,24 @@ function openBuyModal(drawId) {
 
 function updateBuyModal(balance) {
   const bal = balance ?? currentUser.points ?? 0;
-  $('qtyVal').textContent  = buyQty;
+  const max = Math.max(1, Math.floor(bal / activeBuyPrice));
+  const sel = $('qtySelect');
+  const prev = buyQty;
+  sel.innerHTML = '';
+  for (let i = 1; i <= Math.min(max, 20); i++) {
+    const opt = document.createElement('option');
+    opt.value = i; opt.textContent = i;
+    if (i === prev) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  buyQty = parseInt(sel.value) || 1;
   $('buyCost').textContent = buyQty * activeBuyPrice;
   $('buyBal').textContent  = bal;
 }
 
-$('qtyDown').addEventListener('click', () => {
-  if (buyQty > 1) { buyQty--; updateBuyModal(); }
-});
-
-$('qtyUp').addEventListener('click', () => {
-  const max = Math.floor((currentUser.points ?? 0) / activeBuyPrice);
-  if (buyQty < Math.max(max, 1)) { buyQty++; updateBuyModal(); }
+$('qtySelect').addEventListener('change', () => {
+  buyQty = parseInt($('qtySelect').value) || 1;
+  $('buyCost').textContent = buyQty * activeBuyPrice;
 });
 
 $('closeBuy').addEventListener('click', () => hideModal('modal-buy'));
@@ -460,13 +466,16 @@ $('btnBuyConfirm').addEventListener('click', async () => {
   else                                     currentUser.points = balance - cost;
 
   renderTopBar();
-  updateBuyModal();
-
-  const okEl = $('buyOk');
-  okEl.textContent = `✅ ${buyQty} ticket${buyQty > 1 ? 's' : ''} purchased!`;
-  okEl.classList.remove('hidden');
+  const purchased = buyQty;
   buyQty = 1;
-  updateBuyModal();
+  hideModal('modal-buy');
+  closeSection();
+
+  const toast = document.getElementById('reg-success');
+  const msg   = document.getElementById('reg-success-msg');
+  msg.textContent = `✅ ${purchased} ticket${purchased > 1 ? 's' : ''} purchased successfully!`;
+  toast.classList.remove('hidden');
+  setTimeout(() => toast.classList.add('hidden'), 3000);
 });
 
 // ── Get Points modal ──────────────────────────────────────────────────────
