@@ -56,12 +56,17 @@ async function fetchNextDrawTime() {
 }
 
 function showDrawInProgress() {
-  document.querySelector('.room-layout').style.display = 'none'
-  document.getElementById('room-blocked').classList.remove('hidden')
-  fetchNextDrawTime().then(dt => {
-    const el = document.getElementById('room-next-time')
-    if (el) el.textContent = dt ? dt.toLocaleString() : 'Check back soon'
-  })
+  // Show cards but overlay a waiting banner — don't fully block
+  renderPlayerCard()
+  const banner = document.getElementById('room-waiting-banner')
+  if (banner) banner.classList.remove('hidden')
+}
+
+function hideWaitingBanner() {
+  const banner = document.getElementById('room-waiting-banner')
+  if (banner) banner.classList.add('hidden')
+  document.getElementById('room-blocked').classList.add('hidden')
+  document.querySelector('.room-layout').style.display = ''
 }
 
 // ── Viewport height fix ───────────────────────────────────────────────────
@@ -453,6 +458,7 @@ function connectSocket() {
     paused     = false
     winBannerEl.classList.add('hidden')
     if (lastNumEl) lastNumEl.textContent = '—'
+    hideWaitingBanner()
     renderPlayerCard()
     drum.reset(Array.from({ length: 90 }, (_, i) => i + 1))
   })

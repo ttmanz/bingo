@@ -259,6 +259,17 @@ body {
   margin: 8px 0;
 }
 
+/* ── Waiting banner (mid-draw entry) ── */
+.room-waiting-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.35);
+  border-radius: 10px; padding: 12px 16px; margin-bottom: 12px;
+  font-size: 13px; font-weight: 600; color: #fcd34d;
+}
+.room-waiting-banner.hidden { display: none !important; }
+.rwb-icon { font-size: 18px; flex-shrink: 0; }
+.rwb-text { line-height: 1.4; }
+
 /* ── Win banner ── */
 .room-win-banner {
   padding: 16px;
