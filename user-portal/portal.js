@@ -401,9 +401,7 @@ function openBuyModal(drawId) {
 
 function updateBuyModal(balance) {
   const bal = balance ?? currentUser.points ?? 0;
-  const max = Math.max(1, Math.floor(bal / activeBuyPrice));
-  const options = [1,2,3,4,5,6,7,8,9,10,15,20,30,40,50,100].filter(n => n <= max);
-  if (!options.length) options.push(1);
+  const options = [1,2,3,4,5,6,7,8,9,10,15,20,30,40,50,100];
   const sel = $('qtySelect');
   const prev = buyQty;
   sel.innerHTML = '';
