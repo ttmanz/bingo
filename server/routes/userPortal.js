@@ -52,11 +52,19 @@ router.get('/available-draws', requireUserAuth, (req, res) => {
   const presetTotal = queryOne('SELECT COUNT(DISTINCT ticket_number) as n FROM preset_bingo_cards')?.n ?? 0
   const soldRows = query('SELECT draw_id, COUNT(*) as sold FROM tickets WHERE ticket_number IS NOT NULL GROUP BY draw_id')
   const soldMap = Object.fromEntries(soldRows.map(r => [r.draw_id, r.sold]))
-  const addAvail = draws => draws.map(d => ({
-    ...d,
-    available_tickets: presetTotal > 0 ? presetTotal - (soldMap[d.id] ?? 0) : null,
-    total_tickets: presetTotal || null,
-  }))
+  const addAvail = draws => draws.map(d => {
+    let scheduled_utc = null
+    if (d.draw_date && d.draw_time) {
+      const t = d.draw_time.length === 5 ? d.draw_time + ':00' : d.draw_time
+      scheduled_utc = new Date(d.draw_date + 'T' + t + '+02:00').toISOString()
+    }
+    return {
+      ...d,
+      scheduled_utc,
+      available_tickets: presetTotal > 0 ? presetTotal - (soldMap[d.id] ?? 0) : null,
+      total_tickets: presetTotal || null,
+    }
+  })
 
   res.json({ regular: addAvail(regular), special: addAvail(special) })
 })

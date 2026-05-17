@@ -243,6 +243,7 @@ let specialDraws = [];
 
 function drawScheduledTime(d) {
   // API returns draw_date ("2026-05-15") and draw_time ("18:00:00") separately
+  if (d.scheduled_utc) return new Date(d.scheduled_utc);
   if (d.draw_date && d.draw_time) return new Date(d.draw_date + 'T' + d.draw_time + '+02:00');
   if (d.scheduled_time) return new Date(d.scheduled_time);
   return null;
