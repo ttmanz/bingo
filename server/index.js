@@ -30,12 +30,15 @@ const io         = new Server(httpServer, { cors: { origin: '*' } })
 app.use(express.json())
 
 // ── Serve static panels ───────────────────────────────────────────────────
-app.use('/',             express.static(join(__dirname, '../landing')))
-app.use('/admin',        express.static(join(__dirname, '../admin')))
-app.use('/agent-portal', express.static(join(__dirname, '../agent-portal')))
-app.use('/user-portal',     express.static(join(__dirname, '../user-portal')))
-app.use('/special-draws',   express.static(join(__dirname, '../special-draws')))
-app.use('/bingo-room',      express.static(join(__dirname, '../bingo-room')))
+const noCache = { setHeaders: (res, path) => {
+  if (path.endsWith('.html')) res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+}}
+app.use('/',             express.static(join(__dirname, '../landing'),      noCache))
+app.use('/admin',        express.static(join(__dirname, '../admin'),        noCache))
+app.use('/agent-portal', express.static(join(__dirname, '../agent-portal'), noCache))
+app.use('/user-portal',     express.static(join(__dirname, '../user-portal'),  noCache))
+app.use('/special-draws',   express.static(join(__dirname, '../special-draws'),noCache))
+app.use('/bingo-room',      express.static(join(__dirname, '../bingo-room'),   noCache))
 
 // ── API routes ────────────────────────────────────────────────────────────
 app.use('/api/auth',         authRoutes)
