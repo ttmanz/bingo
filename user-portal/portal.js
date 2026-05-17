@@ -402,15 +402,17 @@ function openBuyModal(drawId) {
 function updateBuyModal(balance) {
   const bal = balance ?? currentUser.points ?? 0;
   const max = Math.max(1, Math.floor(bal / activeBuyPrice));
+  const options = [1,2,3,4,5,6,7,8,9,10,15,20,30,40,50,100].filter(n => n <= max);
+  if (!options.length) options.push(1);
   const sel = $('qtySelect');
   const prev = buyQty;
   sel.innerHTML = '';
-  for (let i = 1; i <= Math.min(max, 20); i++) {
+  options.forEach(n => {
     const opt = document.createElement('option');
-    opt.value = i; opt.textContent = i;
-    if (i === prev) opt.selected = true;
+    opt.value = n; opt.textContent = n;
+    if (n === prev) opt.selected = true;
     sel.appendChild(opt);
-  }
+  });
   buyQty = parseInt(sel.value) || 1;
   $('buyCost').textContent = buyQty * activeBuyPrice;
   $('buyBal').textContent  = bal;
