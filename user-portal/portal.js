@@ -110,8 +110,22 @@ $('btnRegSubmit').addEventListener('click', async () => {
     return;
   }
 
+  // Auto-login after registration
+  const login = await apiFetch('/api/user-auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password })
+  });
+
   hideModal('screen-register');
-  showToast('🎉 Account created — welcome!');
+
+  if (login.ok) {
+    token = login.data.token;
+    localStorage.setItem('bp_token', token);
+    showToast('🎉 Account created — welcome!');
+    await enterGame();
+  } else {
+    showToast('🎉 Account created — please sign in!');
+  }
 });
 
 // ── Login ─────────────────────────────────────────────────────────────────
