@@ -190,7 +190,7 @@ async function enterGame() {
   currentUser = data.user || data;
   renderTopBar();
   showScreen('screen-game');
-  activateTab('special');
+  closeSection();
   await loadDraws();
 }
 
@@ -218,22 +218,21 @@ $('btnSignOut').addEventListener('click', () => {
   showScreen('screen-home');
 });
 
-// ── Tabs ──────────────────────────────────────────────────────────────────
+// ── Section navigation ────────────────────────────────────────────────────
 
-window.activateTab = function(name) {
-  document.querySelectorAll('.sbtn').forEach(b => {
-    b.classList.toggle('active', b.dataset.tab === name);
-  });
-  document.querySelectorAll('.tab-panel').forEach(p => {
-    p.classList.toggle('active', p.id === 'tab-' + name);
-  });
-  const panel = document.getElementById('tab-' + name);
-  if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+window.openSection = function(name) {
+  document.getElementById('game-main').style.display = 'none';
+  document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
+  const panel = document.getElementById('section-' + name);
+  if (panel) panel.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
-document.querySelectorAll('.sbtn').forEach(btn => {
-  btn.addEventListener('click', () => window.activateTab(btn.dataset.tab));
-});
+window.closeSection = function() {
+  document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('game-main').style.display = '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
 
 // ── Draws data ────────────────────────────────────────────────────────────
 
@@ -310,7 +309,7 @@ function renderCountdown() {
   countdownTimer = setInterval(tick, 1000);
 }
 
-$('btnBuyFromCountdown').addEventListener('click', () => activateTab('buy'));
+$('btnBuyFromCountdown').addEventListener('click', () => openSection('buy'));
 
 // ── Special Draws ─────────────────────────────────────────────────────────
 
