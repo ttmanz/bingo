@@ -116,16 +116,11 @@ $('btnRegSubmit').addEventListener('click', async () => {
     body: JSON.stringify({ email, password })
   });
 
+  token = data.token;
+  localStorage.setItem('bp_token', token);
   hideModal('screen-register');
-
-  if (login.ok) {
-    token = login.data.token;
-    localStorage.setItem('bp_token', token);
-    showToast('🎉 Account created — welcome!');
-    await enterGame();
-  } else {
-    showToast('🎉 Account created — please sign in!');
-  }
+  showToast('🎉 Account created — welcome!');
+  await enterGame();
 });
 
 // ── Login ─────────────────────────────────────────────────────────────────
