@@ -230,7 +230,9 @@ window.activateTab = function(name) {
   });
   ['special', 'buy', 'room'].forEach(tab => {
     const panel = document.getElementById('tab-' + tab);
-    if (panel) panel.style.display = (tab === name) ? 'block' : 'none';
+    if (!panel) return;
+    panel.classList.remove('hidden');
+    panel.style.display = (tab === name) ? 'block' : 'none';
   });
 };
 
