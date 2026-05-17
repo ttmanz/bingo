@@ -473,6 +473,17 @@ $('btnBuyConfirm').addEventListener('click', async () => {
 $('closePoints').addEventListener('click',   () => hideModal('modal-points'));
 $('closePointsOk').addEventListener('click', () => hideModal('modal-points'));
 
+// ── Auto-mark toggle ──────────────────────────────────────────────────────
+
+const autoMarkToggle = $('autoMarkToggle');
+autoMarkToggle.checked = localStorage.getItem('bingo_automark') === '1';
+autoMarkToggle.addEventListener('change', () => {
+  const on = autoMarkToggle.checked;
+  localStorage.setItem('bingo_automark', on ? '1' : '0');
+  $('enterRoomBtn').href = '/bingo-room' + (on ? '?automark=1' : '');
+});
+$('enterRoomBtn').href = '/bingo-room' + (autoMarkToggle.checked ? '?automark=1' : '');
+
 // ── Auto-login on load ────────────────────────────────────────────────────
 
 (async () => {
