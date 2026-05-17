@@ -277,18 +277,17 @@ body::before {
 /* ── Draw cards ── */
 .draw-card {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: 14px; padding: 18px 20px;
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 14px; margin-bottom: 12px;
-  transition: border-color .2s;
+  border-radius: 14px; padding: 20px 24px;
+  margin-bottom: 12px; transition: border-color .2s;
 }
 .draw-card:hover { border-color: var(--primary); }
-.dc-info  { flex: 1; min-width: 0; }
-.dc-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
-.dc-meta  { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
-.dc-side  { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.dc-cost  { font-size: 11px; color: var(--muted); white-space: nowrap; }
-.btn-sm   { padding: 7px 16px !important; font-size: 13px !important; }
+.dc-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.dc-name   { font-size: 16px; font-weight: 700; }
+.dc-time   { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+.dc-prizes { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+.dc-footer { display: flex; align-items: center; justify-content: space-between; }
+.dc-cost   { font-size: 13px; color: var(--muted); }
+.btn-sm    { padding: 7px 18px !important; font-size: 13px !important; }
 .badge {
   font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px;
   text-transform: uppercase; letter-spacing: .06em;

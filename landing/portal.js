@@ -353,14 +353,16 @@ function drawCard(d, showBuy) {
   const prize = d.full_house_prize ? '🏆 ' + d.full_house_prize + ' pts' : '';
   const line  = d.line_prize       ? '🎯 Line: ' + d.line_prize + ' pts'  : '';
   const cost  = d.ticket_price ?? d.price ?? 1;
+  const statusCls = 'badge-' + (d.status || 'scheduled');
 
   return `<div class="draw-card">
-    <div class="dc-info">
-      <div class="dc-title">${d.title || d.name || 'Draw'}</div>
-      ${time ? `<div class="dc-meta">🕐 ${time}</div>` : ''}
-      ${[prize, line].filter(Boolean).length ? `<div class="dc-meta">${[prize, line].filter(Boolean).join(' · ')}</div>` : ''}
+    <div class="dc-header">
+      <span class="dc-name">${d.title || d.name || 'Draw'}</span>
+      <span class="badge ${statusCls}">${d.status || 'scheduled'}</span>
     </div>
-    <div class="dc-side">
+    ${time ? `<div class="dc-time">🕐 ${time}</div>` : ''}
+    <div class="dc-prizes">${[prize, line].filter(Boolean).join(' &nbsp;·&nbsp; ')}</div>
+    <div class="dc-footer">
       <span class="dc-cost">🎟 ${cost} pt${cost !== 1 ? 's' : ''} / ticket</span>
       ${showBuy ? `<button class="btn btn-primary btn-sm btn-buy-draw" data-id="${d.id}">Buy</button>` : ''}
     </div>
