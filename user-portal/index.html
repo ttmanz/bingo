@@ -179,6 +179,9 @@
     <div class="buy-row">
       <label>Quantity</label>
       <select id="qtySelect" class="form-group" style="margin:0;width:100px"></select>
+      <span id="qtyVal" style="display:none">1</span>
+      <button id="qtyDown" style="display:none">−</button>
+      <button id="qtyUp" style="display:none">+</button>
     </div>
     <div class="buy-cost">Cost: <strong id="buyCost">1</strong> pts &nbsp;|&nbsp; Balance: <strong id="buyBal">0</strong> pts</div>
     <button class="btn btn-primary btn-full" id="btnBuyConfirm">Confirm Purchase</button>
@@ -212,6 +215,6 @@
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
-<script>var s=document.createElement('script');s.src='portal.js?t='+Date.now();document.head.appendChild(s);</script>
+<script src="portal.js?v=24"></script>
 </body>
 </html>
