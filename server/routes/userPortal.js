@@ -63,7 +63,7 @@ router.get('/available-draws', requireUserAuth, (req, res) => {
     }).formatToParts(probe).reduce((a, p) => { a[p.type] = p.value; return a }, {})
     const tzDate = new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}Z`)
     const offsetMs = probe - tzDate
-    return new Date(probe.getTime() - offsetMs).toISOString()
+    return new Date(probe.getTime() + offsetMs).toISOString()
   }
 
   const addAvail = draws => draws.map(d => ({
