@@ -227,6 +227,8 @@ window.activateTab = function(name) {
   document.querySelectorAll('.tab-panel').forEach(p => {
     p.classList.toggle('active', p.id === 'tab-' + name);
   });
+  const panel = document.getElementById('tab-' + name);
+  if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
 
 document.querySelectorAll('.sbtn').forEach(btn => {
