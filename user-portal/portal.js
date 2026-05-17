@@ -402,24 +402,24 @@ function openBuyModal(drawId) {
 function updateBuyModal(balance) {
   const bal = balance ?? currentUser.points ?? 0;
   const options = [1,2,3,4,5,6,7,8,9,10,15,20,30,40,50,100];
-  const sel = $('qtySelect');
-  const prev = buyQty;
-  sel.innerHTML = '';
+  if (!options.includes(buyQty)) buyQty = 1;
+  const pad = $('qtyKeypad');
+  pad.innerHTML = '';
   options.forEach(n => {
-    const opt = document.createElement('option');
-    opt.value = n; opt.textContent = n;
-    if (n === prev) opt.selected = true;
-    sel.appendChild(opt);
+    const btn = document.createElement('button');
+    btn.className = 'qty-key' + (n === buyQty ? ' active' : '');
+    btn.textContent = n;
+    btn.addEventListener('click', () => {
+      buyQty = n;
+      pad.querySelectorAll('.qty-key').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      $('buyCost').textContent = buyQty * activeBuyPrice;
+    });
+    pad.appendChild(btn);
   });
-  buyQty = parseInt(sel.value) || 1;
   $('buyCost').textContent = buyQty * activeBuyPrice;
   $('buyBal').textContent  = bal;
 }
-
-$('qtySelect').addEventListener('change', () => {
-  buyQty = parseInt($('qtySelect').value) || 1;
-  $('buyCost').textContent = buyQty * activeBuyPrice;
-});
 
 $('closeBuy').addEventListener('click', () => hideModal('modal-buy'));
 

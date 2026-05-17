@@ -318,6 +318,11 @@ body::before {
 .qty-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-size: 20px; width: 36px; height: 36px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .qty-btn:hover { background: var(--border); }
 #qtyVal { font-size: 22px; font-weight: 800; min-width: 32px; text-align: center; }
+.qty-label { font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
+.qty-keypad { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 14px; }
+.qty-key { background: var(--surface2); border: 1.5px solid var(--border); color: var(--text); font-size: 15px; font-weight: 700; padding: 10px 4px; border-radius: 10px; cursor: pointer; text-align: center; transition: background .15s, border-color .15s, color .15s; }
+.qty-key:hover { background: var(--border); }
+.qty-key.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 .buy-cost { font-size: 14px; color: var(--muted); margin-bottom: 16px; }
 .buy-cost strong { color: var(--text); }
 
