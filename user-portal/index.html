@@ -8,7 +8,7 @@
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <link rel="apple-touch-icon" href="/icon-180.png" />
   <meta name="theme-color" content="#7c3aed" />
-  <link rel="stylesheet" href="portal.css?v=6" />
+  <link rel="stylesheet" href="portal.css?v=7" />
 </head>
 <body>
 
@@ -111,9 +111,9 @@
 
   <!-- Section nav buttons -->
   <div class="section-btns">
-    <button class="sbtn active" data-tab="special">⭐ Special Draws</button>
-    <button class="sbtn" data-tab="buy">🎟 Buy Tickets</button>
-    <button class="sbtn" data-tab="room">🎯 Bingo Room</button>
+    <button class="sbtn active" data-tab="special" onclick="activateTab('special')">⭐ Special Draws</button>
+    <button class="sbtn" data-tab="buy" onclick="activateTab('buy')">🎟 Buy Tickets</button>
+    <button class="sbtn" data-tab="room" onclick="activateTab('room')">🎯 Bingo Room</button>
   </div>
 
   <!-- ── SPECIAL DRAWS ── -->
@@ -206,6 +206,6 @@
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
-<script src="portal.js?v=6"></script>
+<script src="portal.js?v=7"></script>
 </body>
 </html>
