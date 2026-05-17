@@ -28,11 +28,15 @@ const httpServer = createServer(app)
 const io         = new Server(httpServer, { cors: { origin: '*' } })
 
 app.use(express.json())
+app.set('etag', false)
 
 // ── Serve static panels ───────────────────────────────────────────────────
-const noCache = { setHeaders: (res, path) => {
-  if (path.endsWith('.html') || path.endsWith('.js') || path.endsWith('.css'))
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
+const noCache = { etag: false, setHeaders: (res, path) => {
+  if (path.endsWith('.html') || path.endsWith('.js') || path.endsWith('.css')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    res.setHeader('Pragma', 'no-cache')
+    res.setHeader('Expires', '0')
+  }
 }}
 app.use('/',             express.static(join(__dirname, '../landing'),      noCache))
 app.use('/admin',        express.static(join(__dirname, '../admin'),        noCache))
