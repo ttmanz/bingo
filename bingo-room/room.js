@@ -199,12 +199,12 @@ function buildOverlayTable(card, winRowIdx) {
   const trs = rows.map((row, ri) => {
     const tds = row.map(n => {
       if (n === null) return `<td class="blank"></td>`
-      // winning row starts neutral so the check is dramatic
       if (ri === winRowIdx) return `<td class="num" data-n="${n}">${n}</td>`
       const cls = calledSet.has(n) ? 'called' : 'num'
       return `<td class="${cls}" data-n="${n}">${n}</td>`
     }).join('')
-    return `<tr>${tds}</tr>`
+    const codeCell = ri === 0 ? `<td class="card-code-cell" rowspan="3">${card.code ?? ''}</td>` : ''
+    return `<tr>${tds}${codeCell}</tr>`
   }).join('')
   return `<table class="room-card-grid-table overlay-card-table">${trs}</table>`
 }
@@ -286,12 +286,13 @@ async function runLineCheck(card, rowIdx) {
 
 function buildBingoOverlayTable(card) {
   const rows = [card.row1, card.row2, card.row3]
-  const trs = rows.map(row => {
+  const trs = rows.map((row, ri) => {
     const tds = row.map(n => {
       if (n === null) return `<td class="blank"></td>`
       return `<td class="num" data-n="${n}">${n}</td>`
     }).join('')
-    return `<tr>${tds}</tr>`
+    const codeCell = ri === 0 ? `<td class="card-code-cell" rowspan="3">${card.code ?? ''}</td>` : ''
+    return `<tr>${tds}${codeCell}</tr>`
   }).join('')
   return `<table class="room-card-grid-table overlay-card-table">${trs}</table>`
 }
