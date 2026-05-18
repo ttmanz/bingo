@@ -84,10 +84,7 @@ function showWaitingPanel(nextDrawTime, nextDrawTitle) {
   liveDot.className = 'live-dot'
 
   if (!nextDrawTime) {
-    if (titleEl) titleEl.textContent = 'No draws scheduled'
-    if (countEl) countEl.textContent = ''
-    const subEl = panel.querySelector('.rnd-sub')
-    if (subEl) subEl.textContent = 'Check back later'
+    panel.classList.add('hidden')
     const overlay = document.getElementById('room-nodraw-overlay')
     if (overlay) overlay.classList.remove('hidden')
     return
