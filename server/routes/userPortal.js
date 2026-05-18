@@ -141,7 +141,7 @@ router.post('/sell-points', requireUserAuth, (req, res) => {
 // Each draw has its own independent pool of 2000 tickets; sold tickets are never reused within a draw.
 router.post('/buy/:drawId', requireUserAuth, (req, res) => {
   const drawId = parseInt(req.params.drawId)
-  const qty    = Math.max(1, Math.min(10, parseInt(req.body.quantity) || 1))
+  const qty    = Math.max(1, Math.min(100, parseInt(req.body.quantity) || 1))
 
   const draw = queryOne("SELECT * FROM draws WHERE id = ? AND status = 'scheduled'", [drawId])
   if (!draw) return res.status(404).json({ error: 'Draw not available for purchase' })

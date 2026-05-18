@@ -407,34 +407,27 @@ async function openBuyModal(drawId) {
   showModal('modal-buy');
 }
 
-let numpadInput = '';
-
 function updateBuyModal(balance) {
   const bal = balance ?? currentUser.points ?? 0;
-  if (!buyQty || buyQty < 1) buyQty = 1;
-  numpadInput = String(buyQty);
-  $('qtyVal').textContent = buyQty;
+  const options = [1,2,3,4,5,6,7,8,9,10,15,20,30,40,50,100];
+  if (!options.includes(buyQty)) buyQty = 1;
+  const pad = $('qtyKeypad');
+  pad.innerHTML = '';
+  options.forEach(n => {
+    const btn = document.createElement('button');
+    btn.className = 'qty-key' + (n === buyQty ? ' active' : '');
+    btn.textContent = n;
+    btn.addEventListener('click', () => {
+      buyQty = n;
+      pad.querySelectorAll('.qty-key').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      $('buyCost').textContent = buyQty * activeBuyPrice;
+    });
+    pad.appendChild(btn);
+  });
   $('buyCost').textContent = buyQty * activeBuyPrice;
   $('buyBal').textContent  = bal;
 }
-
-// Numpad handler — wired once at startup
-document.getElementById('buyNumpad').addEventListener('click', e => {
-  const btn = e.target.closest('.np-btn');
-  if (!btn) return;
-  const n = btn.dataset.n;
-  if (n === 'ok') return;
-  if (n === 'back') {
-    numpadInput = numpadInput.slice(0, -1) || '0';
-  } else {
-    numpadInput = numpadInput === '0' ? n : numpadInput + n;
-  }
-  let val = Math.min(10, Math.max(1, parseInt(numpadInput) || 1));
-  if (parseInt(numpadInput) > 10) { numpadInput = '10'; val = 10; }
-  buyQty = val;
-  $('qtyVal').textContent = val;
-  $('buyCost').textContent = val * activeBuyPrice;
-});
 
 $('closeBuy').addEventListener('click', () => hideModal('modal-buy'));
 
