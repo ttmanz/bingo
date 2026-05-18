@@ -247,7 +247,7 @@ async function runLineCheck(card, rowIdx) {
   // ── Animate winning row cells in overlay ─────────────────────────────────
   const overlayRows  = overlay.querySelectorAll('.overlay-card-table tr')
   const overlayWinTds = [...overlayRows[rowIdx].querySelectorAll('td')]
-    .filter(td => !td.classList.contains('blank'))
+    .filter(td => !td.classList.contains('blank') && !td.classList.contains('card-code-cell'))
 
   // Also mark the original right-panel cells
   const tables  = document.querySelectorAll('.room-card-grid-table')
@@ -296,6 +296,8 @@ function buildBingoOverlayTable(card) {
 
 async function runBingoCheck(card) {
   paused = true
+  // Wait for last number announcement to finish before starting ceremony
+  await new Promise(r => setTimeout(r, 800))
 
   // ── Step 1: BINGO! flash ─────────────────────────────────────────────────
   const flash = document.createElement('div')
@@ -334,9 +336,11 @@ async function runBingoCheck(card) {
   const overlayRows = overlay.querySelectorAll('.overlay-card-table tr')
 
   for (let ri = 0; ri < 3; ri++) {
-    const oTds = [...overlayRows[ri].querySelectorAll('td')].filter(td => !td.classList.contains('blank'))
+    const oTds = [...overlayRows[ri].querySelectorAll('td')]
+      .filter(td => !td.classList.contains('blank') && !td.classList.contains('card-code-cell'))
     const rTds = origTable
-      ? [...origTable.querySelectorAll('tr')[ri].querySelectorAll('td')].filter(td => !td.classList.contains('blank'))
+      ? [...origTable.querySelectorAll('tr')[ri].querySelectorAll('td')]
+          .filter(td => !td.classList.contains('blank') && !td.classList.contains('card-code-cell'))
       : []
     for (let i = 0; i < oTds.length; i++) {
       oTds[i].classList.add('checking')
@@ -362,8 +366,6 @@ async function runBingoCheck(card) {
     gsap.to(overlay, { opacity: 0, y: -30, duration: 0.5, ease: 'power2.in', onComplete: () => { overlay.remove(); r() } })
   )
 
-  // ── Step 7: Next-draw countdown (30 s) ───────────────────────────────────
-  showNextDrawCountdown(30)
 }
 
 function showNextDrawCountdown(seconds) {
@@ -457,6 +459,7 @@ function connectSocket() {
   socket.on('waiting', ({ nextDrawTime, nextDrawTitle }) => {
     renderPlayerCard()
     showWaitingPanel(nextDrawTime, nextDrawTitle)
+    drum.reset(Array.from({ length: 90 }, (_, i) => i + 1))
   })
 
   // Countdown tick — update fill bar only, no visible timer
@@ -510,5 +513,6 @@ function connectSocket() {
     statusTextEl.textContent = 'Draw starting…'
     renderPlayerCard()
     drum.reset(Array.from({ length: 90 }, (_, i) => i + 1))
+    announcer.sayText('Draw starts!')
   })
 }
