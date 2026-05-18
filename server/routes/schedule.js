@@ -42,15 +42,15 @@ router.delete('/:id', requireAuth, (req, res) => {
   res.json({ ok: true })
 })
 
-// GET /api/schedule/draws — all draw instances
+// GET /api/schedule/draws — active draw instances (completed excluded unless ?status=completed)
 router.get('/draws', requireAuth, (req, res) => {
   const { status, limit = 50 } = req.query
-  const where = status ? 'WHERE d.status = ?' : ''
+  const where = status ? 'WHERE d.status = ?' : "WHERE d.status != 'completed'"
   const params = status ? [status, Number(limit)] : [Number(limit)]
   const rows = query(
     `SELECT d.*, COUNT(t.id) as ticket_count FROM draws d
      LEFT JOIN tickets t ON t.draw_id = d.id
-     ${where} GROUP BY d.id ORDER BY d.draw_date DESC, d.draw_time DESC LIMIT ?`,
+     ${where} GROUP BY d.id ORDER BY d.draw_date ASC, d.draw_time ASC LIMIT ?`,
     params
   )
   res.json(rows)
