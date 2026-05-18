@@ -179,25 +179,10 @@
     <div id="buyErr" class="alert-err hidden"></div>
     <div id="buyOk"  class="alert-ok  hidden"></div>
     <div class="qty-label">Quantity</div>
-    <div class="qty-display" id="qtyDisplay"><span id="qtyVal">1</span></div>
-    <div class="buy-numpad" id="buyNumpad">
-      <div class="numpad-grid">
-        <button class="np-btn" data-n="1">1</button>
-        <button class="np-btn" data-n="2">2</button>
-        <button class="np-btn" data-n="3">3</button>
-        <button class="np-btn" data-n="4">4</button>
-        <button class="np-btn" data-n="5">5</button>
-        <button class="np-btn" data-n="6">6</button>
-        <button class="np-btn" data-n="7">7</button>
-        <button class="np-btn" data-n="8">8</button>
-        <button class="np-btn" data-n="9">9</button>
-        <button class="np-btn np-back" data-n="back">⌫</button>
-        <button class="np-btn" data-n="0">0</button>
-        <button class="np-btn np-ok" data-n="ok">✓</button>
-      </div>
-    </div>
+    <div class="qty-keypad" id="qtyKeypad"></div>
     <!-- backward compat for cached JS -->
     <select id="qtySelect" style="display:none"></select>
+    <span id="qtyVal" style="display:none">1</span>
     <button id="qtyDown" style="display:none">−</button>
     <button id="qtyUp" style="display:none">+</button>
     <div class="buy-cost">Cost: <strong id="buyCost">1</strong> pts &nbsp;|&nbsp; Balance: <strong id="buyBal">0</strong> pts</div>
@@ -232,6 +217,6 @@
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
-<script src="portal.v29.js"></script>
+<script src="portal.v30.js"></script>
 </body>
 </html>
