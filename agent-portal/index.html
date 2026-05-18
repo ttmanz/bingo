@@ -64,9 +64,6 @@
     <button class="tab-btn" data-tab="transactions">Transactions</button>
   </nav>
 
-  <!-- Create panel — accessed via profile avatar, not a nav tab -->
-  <div id="createPanel" class="create-panel hidden">
-
   <!-- ── OVERVIEW TAB ── -->
   <section class="tab-panel active" id="tab-overview">
     <div class="stats-grid">
@@ -111,45 +108,6 @@
     </div>
     <div id="downlineList" class="card-list"></div>
   </section>
-
-  <!-- ── CREATE PANEL (slide-in, opened via profile avatar) ── -->
-    <div class="create-panel-inner">
-      <div class="create-panel-header">
-        <button class="create-panel-back" id="createPanelBack">← Back</button>
-        <h2 id="createFormTitle">Create</h2>
-      </div>
-      <div class="form-card create-panel-form">
-        <div id="createError" class="alert alert-error hidden"></div>
-        <div id="createSuccess" class="alert alert-success hidden"></div>
-        <div class="field">
-          <label>Full Name *</label>
-          <input type="text" id="createName" placeholder="Full name" />
-        </div>
-        <div class="field">
-          <label>Email *</label>
-          <input type="email" id="createEmail" placeholder="email@example.com" />
-        </div>
-        <div class="field">
-          <label>Phone</label>
-          <input type="tel" id="createPhone" placeholder="+357 99 000000" />
-        </div>
-        <div class="field">
-          <label>Password *</label>
-          <input type="password" id="createPassword" placeholder="Set a password" />
-        </div>
-        <div class="field" id="commissionField">
-          <label>Commission Rate (%)</label>
-          <input type="number" id="createCommission" value="5" min="0" max="100" step="0.5" />
-        </div>
-        <div class="field">
-          <label>Initial Points (optional)</label>
-          <input type="number" id="createPoints" value="0" min="0" step="1" />
-          <small id="createPointsHint" class="field-hint">Your balance: <span id="createBalanceHint">0</span> pts</small>
-        </div>
-        <button class="btn btn-primary btn-full" id="createBtn">Create</button>
-      </div>
-    </div>
-  </div>
 
   <!-- ── ALLOCATE TAB ── -->
   <section class="tab-panel" id="tab-allocate">
@@ -207,6 +165,46 @@
     </div>
     <div id="txnList" class="txn-list"></div>
   </section>
+
+  <!-- ── CREATE PANEL (fullscreen slide-in overlay, opened via profile avatar) ── -->
+  <div id="createPanel" class="create-panel hidden">
+    <div class="create-panel-header">
+      <button class="create-panel-back" id="createPanelBack">← Back</button>
+      <h2 id="createFormTitle">Create</h2>
+    </div>
+    <div class="create-panel-inner">
+      <div class="form-card create-panel-form">
+        <div id="createError" class="alert alert-error hidden"></div>
+        <div id="createSuccess" class="alert alert-success hidden"></div>
+        <div class="field">
+          <label>Full Name *</label>
+          <input type="text" id="createName" placeholder="Full name" />
+        </div>
+        <div class="field">
+          <label>Email *</label>
+          <input type="email" id="createEmail" placeholder="email@example.com" />
+        </div>
+        <div class="field">
+          <label>Phone</label>
+          <input type="tel" id="createPhone" placeholder="+357 99 000000" />
+        </div>
+        <div class="field">
+          <label>Password *</label>
+          <input type="password" id="createPassword" placeholder="Set a password" />
+        </div>
+        <div class="field" id="commissionField">
+          <label>Commission Rate (%)</label>
+          <input type="number" id="createCommission" value="5" min="0" max="100" step="0.5" />
+        </div>
+        <div class="field">
+          <label>Initial Points (optional)</label>
+          <input type="number" id="createPoints" value="0" min="0" step="1" />
+          <small id="createPointsHint" class="field-hint">Your balance: <span id="createBalanceHint">0</span> pts</small>
+        </div>
+        <button class="btn btn-primary btn-full" id="createBtn">Create</button>
+      </div>
+    </div>
+  </div>
 
 </div><!-- /dashboard -->
 
