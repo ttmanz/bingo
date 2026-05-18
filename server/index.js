@@ -63,7 +63,7 @@ app.use('/api/import-cards',    importCardsRoutes)
 app.use('/api/preset-cards',   presetCardsRoutes)
 
 // ── Auto-expire past scheduled draws ─────────────────────────────────────
-import { query as dbQuery, run as dbRun } from './db.js'
+import { query as dbQuery, queryOne as dbQueryOne, run as dbRun, insert as dbInsert } from './db.js'
 
 const TZ_EXPIRE = 'Asia/Nicosia'
 function expirePastDraws() {
@@ -115,11 +115,81 @@ function drawLocalToUtcMs(draw_date, draw_time) {
 function getNextScheduledDraw() {
   try {
     return dbQuery(
-      `SELECT id, title, draw_date, draw_time, ball_interval FROM draws
+      `SELECT id, title, draw_date, draw_time, ball_interval, line_prize, full_house_prize FROM draws
        WHERE status = 'scheduled'
        ORDER BY draw_date ASC, draw_time ASC LIMIT 1`
     )[0] ?? null
   } catch { return null }
+}
+
+// ── Per-draw win state ────────────────────────────────────────────────────
+let linePrizeAwarded  = false
+let bingoPrizeAwarded = false
+
+function awardPrize(userId, drawId, ticketId, amount, description) {
+  try {
+    const user = dbQueryOne('SELECT points FROM users WHERE id = ?', [userId])
+    const newPoints = (user?.points ?? 0) + amount
+    dbRun('UPDATE users SET points = ? WHERE id = ?', [newPoints, userId])
+    dbRun('UPDATE tickets SET prize_amount = prize_amount + ?, paid_out = 1 WHERE id = ?', [amount, ticketId])
+    dbInsert(
+      'INSERT INTO transactions (user_id, type, amount, balance_after, description, draw_id) VALUES (?,?,?,?,?,?)',
+      [userId, 'prize', amount, newPoints, description, drawId]
+    )
+  } catch (e) {
+    console.error('Prize award error:', e)
+  }
+}
+
+function checkWins(drawId, draw) {
+  const called = new Set(game.called)
+  let bingoTriggered = false
+
+  try {
+    const tickets = dbQuery(
+      "SELECT id, user_id, numbers FROM tickets WHERE draw_id = ? AND status = 'active'",
+      [drawId]
+    )
+
+    for (const ticket of tickets) {
+      const cards = JSON.parse(ticket.numbers)
+
+      for (const card of cards) {
+        const rows = [card.row1, card.row2, card.row3]
+        const cardNums = rows.flat().filter(n => n !== null)
+
+        // LINE: any row fully called
+        if (!linePrizeAwarded) {
+          for (const row of rows) {
+            const nums = row.filter(n => n !== null)
+            if (nums.length && nums.every(n => called.has(n))) {
+              linePrizeAwarded = true
+              const prize = draw.line_prize ?? 0
+              if (prize > 0) awardPrize(ticket.user_id, drawId, ticket.id, prize, 'LINE win')
+              io.emit('prize-awarded', { type: 'line', user_id: ticket.user_id, amount: prize })
+              console.log(`LINE win — user ${ticket.user_id}, prize ${prize}`)
+              break
+            }
+          }
+        }
+
+        // BINGO: all 15 numbers on this card called
+        if (!bingoPrizeAwarded && cardNums.every(n => called.has(n))) {
+          bingoPrizeAwarded = true
+          const prize = draw.full_house_prize ?? 0
+          if (prize > 0) awardPrize(ticket.user_id, drawId, ticket.id, prize, 'BINGO win')
+          io.emit('prize-awarded', { type: 'bingo', user_id: ticket.user_id, amount: prize })
+          console.log(`BINGO win — user ${ticket.user_id}, prize ${prize}`)
+          bingoTriggered = true
+        }
+      }
+      if (bingoTriggered) break
+    }
+  } catch (e) {
+    console.error('Win check error:', e)
+  }
+
+  return bingoTriggered
 }
 
 function scheduleNextDraw() {
@@ -157,6 +227,8 @@ function startDraw(draw) {
   const intervalMs = Math.max(2000, (draw.ball_interval ?? 5) * 1000)
   gamePhase   = 'drawing'
   currentDraw = draw
+  linePrizeAwarded  = false
+  bingoPrizeAwarded = false
   resetGame(game)
   try { dbRun(`UPDATE draws SET status = 'running' WHERE id = ?`, [draw.id]) } catch {}
   io.emit('game-reset')
@@ -179,7 +251,14 @@ function drawNextBall(intervalMs, drawId) {
     const number = drawNumber(game)
     if (number !== null) {
       io.emit('number-drawn', { number, called: [...game.called] })
-      drawNextBall(intervalMs, drawId)
+      const bingoWon = checkWins(drawId, currentDraw)
+      if (bingoWon) {
+        game.gameOver = true
+        try { dbRun(`UPDATE draws SET status = 'completed' WHERE id = ?`, [drawId]) } catch {}
+        setTimeout(() => { io.emit('game-over'); setTimeout(scheduleNextDraw, 5_000) }, 3_000)
+      } else {
+        drawNextBall(intervalMs, drawId)
+      }
     } else {
       game.gameOver = true
       try { dbRun(`UPDATE draws SET status = 'completed' WHERE id = ?`, [drawId]) } catch {}
