@@ -46,6 +46,9 @@
         <span class="points-icon">💎</span>
         <span id="myPoints">0</span> pts
       </div>
+      <button class="profile-avatar" id="profileAvatar" title="Create your team">
+        <span id="profileInitials">?</span>
+      </button>
       <span id="agentName" class="agent-name-label"></span>
       <button class="btn btn-ghost btn-sm" id="logoutBtn">Sign out</button>
     </div>
@@ -55,14 +58,14 @@
   <nav class="tab-nav">
     <button class="tab-btn active" data-tab="overview">Overview</button>
     <button class="tab-btn" data-tab="downline">Downline</button>
-    <button class="tab-btn" data-tab="create">
-      <span id="createTabLabel">Create</span>
-    </button>
     <button class="tab-btn" data-tab="allocate">Allocate Points</button>
     <button class="tab-btn" data-tab="sell">Sell Points</button>
     <button class="tab-btn" data-tab="family">Family Activity</button>
     <button class="tab-btn" data-tab="transactions">Transactions</button>
   </nav>
+
+  <!-- Create panel — accessed via profile avatar, not a nav tab -->
+  <div id="createPanel" class="create-panel hidden">
 
   <!-- ── OVERVIEW TAB ── -->
   <section class="tab-panel active" id="tab-overview">
@@ -109,42 +112,44 @@
     <div id="downlineList" class="card-list"></div>
   </section>
 
-  <!-- ── CREATE TAB ── -->
-  <section class="tab-panel" id="tab-create">
-    <div class="form-card">
-      <h2 id="createFormTitle">Create</h2>
-      <div id="createError" class="alert alert-error hidden"></div>
-      <div id="createSuccess" class="alert alert-success hidden"></div>
-
-      <div class="field">
-        <label>Full Name *</label>
-        <input type="text" id="createName" placeholder="Full name" />
+  <!-- ── CREATE PANEL (slide-in, opened via profile avatar) ── -->
+    <div class="create-panel-inner">
+      <div class="create-panel-header">
+        <button class="create-panel-back" id="createPanelBack">← Back</button>
+        <h2 id="createFormTitle">Create</h2>
       </div>
-      <div class="field">
-        <label>Email *</label>
-        <input type="email" id="createEmail" placeholder="email@example.com" />
+      <div class="form-card create-panel-form">
+        <div id="createError" class="alert alert-error hidden"></div>
+        <div id="createSuccess" class="alert alert-success hidden"></div>
+        <div class="field">
+          <label>Full Name *</label>
+          <input type="text" id="createName" placeholder="Full name" />
+        </div>
+        <div class="field">
+          <label>Email *</label>
+          <input type="email" id="createEmail" placeholder="email@example.com" />
+        </div>
+        <div class="field">
+          <label>Phone</label>
+          <input type="tel" id="createPhone" placeholder="+357 99 000000" />
+        </div>
+        <div class="field">
+          <label>Password *</label>
+          <input type="password" id="createPassword" placeholder="Set a password" />
+        </div>
+        <div class="field" id="commissionField">
+          <label>Commission Rate (%)</label>
+          <input type="number" id="createCommission" value="5" min="0" max="100" step="0.5" />
+        </div>
+        <div class="field">
+          <label>Initial Points (optional)</label>
+          <input type="number" id="createPoints" value="0" min="0" step="1" />
+          <small id="createPointsHint" class="field-hint">Your balance: <span id="createBalanceHint">0</span> pts</small>
+        </div>
+        <button class="btn btn-primary btn-full" id="createBtn">Create</button>
       </div>
-      <div class="field">
-        <label>Phone</label>
-        <input type="tel" id="createPhone" placeholder="+1 234 567 8900" />
-      </div>
-      <div class="field">
-        <label>Password *</label>
-        <input type="password" id="createPassword" placeholder="Set a password" />
-      </div>
-      <!-- Only for super/master creating sub-agents -->
-      <div class="field" id="commissionField">
-        <label>Commission Rate (%)</label>
-        <input type="number" id="createCommission" value="5" min="0" max="100" step="0.5" />
-      </div>
-      <div class="field">
-        <label>Initial Points (optional)</label>
-        <input type="number" id="createPoints" value="0" min="0" step="1" />
-        <small id="createPointsHint" class="field-hint">Your current balance: <span id="createBalanceHint">0</span> pts</small>
-      </div>
-      <button class="btn btn-primary" id="createBtn">Create</button>
     </div>
-  </section>
+  </div>
 
   <!-- ── ALLOCATE TAB ── -->
   <section class="tab-panel" id="tab-allocate">

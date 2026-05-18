@@ -113,6 +113,11 @@ function renderTopbar() {
 
   document.getElementById('agentName').textContent = agentInfo.name
   document.getElementById('myPoints').textContent  = (agentInfo.points ?? 0).toLocaleString()
+
+  // Set profile avatar initials
+  const initials = (agentInfo.name || '?')
+    .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+  document.getElementById('profileInitials').textContent = initials
 }
 
 function renderOverview() {
@@ -138,24 +143,36 @@ function renderOverview() {
   document.getElementById('profStatus').textContent = ai.status || '–'
 }
 
-/* ── Create tab ───────────────────────────────────────────────────────── */
-function configureCreateTab() {
-  const isAgent = agentInfo.agent_type === 'agent'
-  const label   = isAgent ? 'Create User' : 'Create Sub-Agent'
-  document.getElementById('createTabLabel').textContent   = label
-  document.getElementById('createFormTitle').textContent  = label
+/* ── Create panel ─────────────────────────────────────────────────────── */
+function openCreatePanel() {
+  const panel = document.getElementById('createPanel')
+  panel.classList.remove('hidden')
+  requestAnimationFrame(() => panel.classList.add('open'))
+}
 
-  // Agents create users (no commission needed)
-  if (isAgent) {
-    document.getElementById('commissionField').style.display = 'none'
-  } else {
-    document.getElementById('commissionField').style.display = ''
-  }
+function closeCreatePanel() {
+  const panel = document.getElementById('createPanel')
+  panel.classList.remove('open')
+  panel.addEventListener('transitionend', () => panel.classList.add('hidden'), { once: true })
+}
+
+document.getElementById('profileAvatar').addEventListener('click', openCreatePanel)
+document.getElementById('createPanelBack').addEventListener('click', closeCreatePanel)
+
+function configureCreateTab() {
+  const type  = agentInfo.agent_type
+  const label = type === 'super_agent'  ? 'Create Master Agent'
+              : type === 'master_agent' ? 'Create Agent'
+              : 'Create Player'
+
+  document.getElementById('createFormTitle').textContent = label
+  document.getElementById('createBtn').textContent       = label
+
+  document.getElementById('commissionField').style.display =
+    type === 'agent' ? 'none' : ''
 
   document.getElementById('createBalanceHint').textContent =
     (agentInfo.points ?? 0).toLocaleString()
-
-  document.getElementById('createBtn').textContent = label
 }
 
 document.getElementById('createBtn').addEventListener('click', async () => {
@@ -186,7 +203,7 @@ document.getElementById('createBtn').addEventListener('click', async () => {
       : { name, email, phone, password, commission_rate: commission, points }
 
     await apiFetch(endpoint, { method: 'POST', body: JSON.stringify(body) })
-    showAlert(succEl, `${isAgent ? 'User' : 'Sub-agent'} created successfully!`)
+    showAlert(succEl, `Created successfully!`)
 
     // Clear form
     ;['createName','createEmail','createPhone','createPassword'].forEach(id => {
@@ -194,12 +211,13 @@ document.getElementById('createBtn').addEventListener('click', async () => {
     })
     document.getElementById('createPoints').value = '0'
 
-    // Refresh balance
+    // Refresh balance and close panel after short delay
     agentInfo = await apiFetch('/api/agent-portal/me')
     renderTopbar()
     document.getElementById('createBalanceHint').textContent =
       (agentInfo.points ?? 0).toLocaleString()
-    downline = null // invalidate cache
+    downline = null
+    setTimeout(closeCreatePanel, 1200)
 
   } catch (err) {
     showAlert(errEl, err.message)

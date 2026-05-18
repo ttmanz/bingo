@@ -100,6 +100,58 @@ body {
   white-space: nowrap;
 }
 
+/* ── Profile avatar button ── */
+.profile-avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 13px; font-weight: 800;
+  border: 2px solid rgba(255,255,255,.15);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: opacity .15s, transform .15s, box-shadow .15s;
+}
+.profile-avatar:hover {
+  opacity: .9;
+  transform: scale(1.08);
+  box-shadow: 0 0 0 3px rgba(124,58,237,.35);
+}
+
+/* ── Create panel (full-page slide-in) ── */
+.create-panel {
+  position: fixed; inset: 0; z-index: 200;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform .28s cubic-bezier(.4,0,.2,1);
+}
+.create-panel.open {
+  transform: translateX(0);
+}
+.create-panel.hidden { display: none; }
+.create-panel-header {
+  display: flex; align-items: center; gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.create-panel-back {
+  background: none; border: none; color: var(--primary);
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  padding: 6px 0;
+  transition: opacity .15s;
+}
+.create-panel-back:hover { opacity: .75; }
+.create-panel-header h2 { font-size: 18px; font-weight: 800; }
+.create-panel-inner {
+  flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 32px 20px;
+}
+.create-panel-form { width: 100%; max-width: 480px; }
+
 .points-chip {
   display: flex;
   align-items: center;
