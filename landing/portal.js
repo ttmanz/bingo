@@ -77,6 +77,7 @@ $('btnPlay').addEventListener('click', () => {
 
 function clearRegForm() {
   ['regName','regEmail','regPhone','regPassword'].forEach(id => $(id).value = '');
+  $('regTcCheck').checked = false;
   hideErr('regErr');
 }
 
@@ -95,6 +96,10 @@ $('btnRegSubmit').addEventListener('click', async () => {
   }
   if (password.length < 6) {
     showErr('regErr', 'Password must be at least 6 characters.');
+    return;
+  }
+  if (!$('regTcCheck').checked) {
+    showErr('regErr', 'Please accept the Terms & Conditions to continue.');
     return;
   }
 
