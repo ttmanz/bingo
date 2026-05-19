@@ -32,6 +32,7 @@ let bingoWon      = false
 let _socket       = null
 let _cdTimer      = null   // next-draw countdown interval
 let _drawResults  = null   // stored until ceremony ends
+let _pendingBalls = []     // balls received while paused — drained on resume
 
 const _token = localStorage.getItem('bp_token') || ''
 
@@ -278,7 +279,7 @@ async function runLineCheck(card, rowIdx) {
   overlay.remove()
 
   // ── Announcer says "Continuing" then resume ──────────────────────────────
-  announcer.sayText('Continuing.', () => { paused = false })
+  announcer.sayText('Continuing.', () => { paused = false; drainPendingBalls() })
 }
 
 // ── Bingo check ceremony ──────────────────────────────────────────────────
@@ -382,6 +383,20 @@ async function runBingoCheck(card) {
   tryShowDrawResults()
 }
 
+// ── Drain balls received during a ceremony pause ─────────────────────────
+function drainPendingBalls() {
+  if (!_pendingBalls.length) return
+  // Silently catch up: update calledSet from the latest snapshot
+  const last = _pendingBalls[_pendingBalls.length - 1]
+  calledSet = new Set(last.called)
+  refreshCardMarks()
+  // Show the last missed number on the call card
+  callCard.display(last.number)
+  // Check for any wins triggered by the caught-up numbers
+  checkWins()
+  _pendingBalls = []
+}
+
 // ── Draw results card ─────────────────────────────────────────────────────
 
 function showDrawResultsCard({ drawTitle, lineWinner, bingoWinner }) {
@@ -466,8 +481,8 @@ async function runRemoteWinCeremony(type, amount) {
       onComplete: () => { overlay.remove(); r() } })
   )
 
-  if (type === 'line') announcer.sayText('Continuing.', () => { paused = false })
-  else { paused = false; tryShowDrawResults() }
+  if (type === 'line') announcer.sayText('Continuing.', () => { paused = false; drainPendingBalls() })
+  else { paused = false; drainPendingBalls(); tryShowDrawResults() }
 }
 
 function showNextDrawCountdown(seconds) {
@@ -579,7 +594,8 @@ function connectSocket() {
 
   // A number is drawn — animate ball
   socket.on('number-drawn', ({ number, called }) => {
-    if (drawing || paused) return
+    if (paused) { _pendingBalls.push({ number, called }); return }
+    if (drawing) return
     drawing   = true
     calledSet = new Set(called)
     if (lastNumEl) lastNumEl.textContent = number
@@ -639,7 +655,8 @@ function connectSocket() {
     bingoWon   = false
     drawing    = false
     paused     = false
-    _drawResults = null
+    _drawResults  = null
+    _pendingBalls = []
     winBannerEl.classList.add('hidden')
     if (lastNumEl) lastNumEl.textContent = '—'
     callCard.reset()
