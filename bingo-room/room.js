@@ -299,8 +299,7 @@ function buildBingoOverlayTable(card) {
 
 async function runBingoCheck(card) {
   paused = true
-  // Wait for last number announcement to finish before starting ceremony
-  await new Promise(r => setTimeout(r, 800))
+  announcer.reset()  // cancel any in-progress number call immediately
 
   // ── Step 1: BINGO! flash ─────────────────────────────────────────────────
   const flash = document.createElement('div')
@@ -386,15 +385,26 @@ async function runBingoCheck(card) {
 // ── Drain balls received during a ceremony pause ─────────────────────────
 function drainPendingBalls() {
   if (!_pendingBalls.length) return
-  // Silently catch up: update calledSet from the latest snapshot
   const last = _pendingBalls[_pendingBalls.length - 1]
   calledSet = new Set(last.called)
   refreshCardMarks()
-  // Show the last missed number on the call card
-  callCard.display(last.number)
-  // Check for any wins triggered by the caught-up numbers
-  checkWins()
   _pendingBalls = []
+  // Play the last missed ball with full tube animation + audio
+  drawing = true
+  drum.exitBall(
+    last.number,
+    (num, group, color) => {
+      callCard.display(num)
+      announcer.announce(num)
+      gsap.fromTo(ballEl,
+        { scale: 1.4, filter: `drop-shadow(0 0 28px ${color})` },
+        { scale: 1,   filter: 'none', duration: 0.55, ease: 'elastic.out(1,0.5)' })
+    },
+    () => {
+      drawing = false
+      checkWins()
+    }
+  )
 }
 
 // ── Draw results card ─────────────────────────────────────────────────────
@@ -604,7 +614,7 @@ function connectSocket() {
       // onReveal — ball reaches tube peak
       (num, group, color) => {
         callCard.display(num)
-        announcer.announce(num)
+        if (!paused) announcer.announce(num)
         gsap.fromTo(ballEl,
           { scale: 1.4, filter: `drop-shadow(0 0 28px ${color})` },
           { scale: 1,   filter: 'none', duration: 0.55, ease: 'elastic.out(1,0.5)' })
@@ -612,7 +622,7 @@ function connectSocket() {
       // onSettle — ball at rest
       () => {
         refreshCardMarks()
-        checkWins()
+        if (!paused) checkWins()
         drawing = false
       }
     )

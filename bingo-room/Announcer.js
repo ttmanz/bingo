@@ -126,5 +126,5 @@ export class Announcer {
     speechSynthesis.speak(utt)
   }
 
-  reset() { speechSynthesis.cancel() }
+  reset() { speechSynthesis.cancel(); this._speaking = false }
 }
