@@ -416,14 +416,12 @@ function showDrawResultsCard({ drawTitle, lineWinner, bingoWinner }) {
     { opacity: 0, y: 40 },
     { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' }
   )
-  // Auto-dismiss after 12 seconds, then clear this draw's tickets
+  // Auto-dismiss after 12 seconds, then return all users to the main page
   setTimeout(() => {
     gsap.to(card, { opacity: 0, y: -20, duration: 0.5, ease: 'power2.in',
       onComplete: () => {
-        card.remove()
         sessionStorage.removeItem('bingoRoomTicket')
-        playerCards = null
-        renderPlayerCard()   // shows the "no ticket" state
+        window.location.href = '/user-portal'
       }
     })
   }, 12000)
