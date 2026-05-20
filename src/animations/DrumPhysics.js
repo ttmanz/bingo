@@ -7,11 +7,18 @@ const BALL_VISUAL_R = 8     // px — rendered radius (16 px diam)
 const BALL_PHYS_R   = 6     // cannon-es physics radius
 const DRUM_INNER_R  = 118   // soft containment sphere radius
 const PERSP         = 185   // perspective depth for 3-D projection
+const DEG_PER_PX    = 360 / (2 * Math.PI * BALL_VISUAL_R)  // ~7.16 deg/px rolling rate
 
 // Omnidirectional turbulence — no bias, fast chaotic motion
 const F_TURB    = 150   // per-frame random force (X, Y, Z equally)
 const V_MIN     = 10    // minimum ball speed — boosts sluggish balls
 const V_MAX     = 130   // velocity cap to prevent physics instability
+
+// ── Tube tilt: B, D, F tilt 2°; H stays flat ─────────────────────────────
+const TAN2 = Math.tan(2 * Math.PI / 180)   // ≈ 0.03492
+// B (x=155→530, 375px wide): right end drops 375×TAN2 ≈ 13px
+// D (x=530→375, 155px wide): left end drops 155×TAN2  ≈  5px
+// F (x=375→530, 155px wide): right end drops 155×TAN2 ≈  5px
 
 // ── Tube centre-line waypoints (machine-container coords) ─────────────────
 // Drum wrapper: left 10 px, top 80 px inside .lottery-machine
@@ -19,11 +26,11 @@ const V_MAX     = 130   // velocity cap to prevent physics instability
 const TUBE_WP = [
   { x: 155, y: 100 },   // [0] drum-top exit collar
   { x: 155, y: 12  },   // [1] tube peak  ← REVEAL point
-  { x: 530, y: 12  },   // [2] top-right corner
+  { x: 530, y: Math.round(12  + (530 - 155) * TAN2) },  // [2] B right end  (~25)
   { x: 530, y: 135 },   // [3] first drop
-  { x: 375, y: 135 },   // [4] middle-left
+  { x: 375, y: Math.round(135 + (530 - 375) * TAN2) },  // [4] D left end   (~140)
   { x: 375, y: 255 },   // [5] second drop
-  { x: 530, y: 255 },   // [6] second-right
+  { x: 530, y: Math.round(255 + (530 - 375) * TAN2) },  // [6] F right end  (~260)
   { x: 530, y: 385 },   // [7] final drop
   { x: 120, y: 385 },   // [8] tube end ← ball 0 rests here
 ]
@@ -34,20 +41,21 @@ const REST_SLOTS = (() => {
   const s = []
   const add = (cx, cy, sec) => s.push({ left: cx - R, top: cy - R, sec })
   const S = 18   // slot step — ball diameter (16) + 2 px gap
-  // H: bottom horizontal — enters from WP[7] right, fills left→right
+  const wp2y = TUBE_WP[2].y, wp4y = TUBE_WP[4].y, wp6y = TUBE_WP[6].y
+  // H: bottom horizontal — flat, enters from WP[7] right, fills left→right
   for (let cx = 120 + R; cx <= 530 - R; cx += S) add(cx, 385, 'H')
-  // G: right final vertical — enters from WP[6] top, fills bottom→top
-  for (let cy = 385 - S; cy >= 255 + R; cy -= S) add(530, cy, 'G')
-  // F: second horizontal — enters from WP[5] left, fills right→left
-  for (let cx = 530 - S; cx >= 375 + R; cx -= S) add(cx, 255, 'F')
-  // E: left second vertical — enters from WP[4] top, fills bottom→top
-  for (let cy = 255 - S; cy >= 135 + R; cy -= S) add(375, cy, 'E')
-  // D: first horizontal — enters from WP[3] right, fills left→right (within tube x=375–530 only)
-  for (let cx = 375 + R; cx <= 530 - R; cx += S) add(cx, 135, 'D')
-  // C: right first vertical — enters from WP[2] top, fills bottom→top
-  for (let cy = 135 - S; cy >= 12 + R; cy -= S) add(530, cy, 'C')
-  // B: top horizontal — enters from WP[1] left, fills right→left
-  for (let cx = 530 - S; cx >= 155 + R; cx -= S) add(cx, 12, 'B')
+  // G: right final vertical — from WP[6]=(530,~260) down to WP[7]=(530,385), fills bottom→top
+  for (let cy = 385 - S; cy >= wp6y + R; cy -= S) add(530, cy, 'G')
+  // F: third horizontal — tilts right (right end lower), fills right→left
+  for (let cx = 530 - S; cx >= 375 + R; cx -= S) add(cx, Math.round(255 + (cx - 375) * TAN2), 'F')
+  // E: left second vertical — from WP[4]=(375,~140) down to WP[5]=(375,255), fills bottom→top
+  for (let cy = 255 - S; cy >= wp4y + R; cy -= S) add(375, cy, 'E')
+  // D: second horizontal — tilts left (left end lower), fills left→right (x=375–530 only)
+  for (let cx = 375 + R; cx <= 530 - R; cx += S) add(cx, Math.round(135 + (530 - cx) * TAN2), 'D')
+  // C: right first vertical — from WP[2]=(530,~25) down to WP[3]=(530,135), fills bottom→top
+  for (let cy = 135 - S; cy >= wp2y + R; cy -= S) add(530, cy, 'C')
+  // B: top horizontal — tilts right (right end lower), fills right→left
+  for (let cx = 530 - S; cx >= 155 + R; cx -= S) add(cx, Math.round(12 + (cx - 155) * TAN2), 'B')
   return s
 })()
 
@@ -191,10 +199,13 @@ export class DrumPhysics {
       }
     })
 
+    const rot = px => Math.round(px * DEG_PER_PX)  // rotation degrees for pixel distance
+
     // Always: rise from drum to WP[0], shoot up to WP[1] (reveal)
     tl.to(clone, { left: wp(0).left, top: wp(0).top,
-                   transform: 'scale(1)', duration: 0.32, ease: 'power2.in' })
+                   scale: 1, rotation: `+=${rot(100)}`, duration: 0.32, ease: 'power2.in' })
       .to(clone, { left: wp(1).left, top: wp(1).top,
+                   rotation: `+=${rot(TUBE_WP[0].y - TUBE_WP[1].y)}`,
                    duration: 0.20, ease: 'power3.out',
                    onComplete: () => {
                      gsap.fromTo(clone,
@@ -216,31 +227,44 @@ export class DrumPhysics {
     //   H → WP[7]                   slide left   to restL
 
     if (sec !== 'B') {
-      // Roll right along top horizontal → WP[2]
-      tl.to(clone, { left: wp(2).left, top: wp(2).top, duration: 0.42, ease: 'none' })
+      // Roll right along top horizontal → WP[2] (tilted, so top also changes)
+      tl.to(clone, { left: wp(2).left, top: wp(2).top,
+                     rotation: `+=${rot(TUBE_WP[2].x - TUBE_WP[1].x)}`,
+                     duration: 0.42, ease: 'none' })
     }
     if (sec !== 'B' && sec !== 'C') {
       // Drop down first vertical → WP[3]
-      tl.to(clone, { left: wp(3).left, top: wp(3).top, duration: 0.24, ease: 'power2.in' })
+      tl.to(clone, { left: wp(3).left, top: wp(3).top,
+                     rotation: `+=${rot(TUBE_WP[3].y - TUBE_WP[2].y)}`,
+                     duration: 0.24, ease: 'power2.in' })
     }
     if (sec === 'E' || sec === 'F' || sec === 'G' || sec === 'H') {
       // Slide left → WP[4]  (D stops at WP[3] — its entry point)
-      tl.to(clone, { left: wp(4).left, top: wp(4).top, duration: 0.28, ease: 'none' })
+      tl.to(clone, { left: wp(4).left, top: wp(4).top,
+                     rotation: `-=${rot(TUBE_WP[3].x - TUBE_WP[4].x)}`,
+                     duration: 0.28, ease: 'none' })
     }
     if (sec === 'F' || sec === 'G' || sec === 'H') {
       // Drop down second vertical → WP[5]
-      tl.to(clone, { left: wp(5).left, top: wp(5).top, duration: 0.24, ease: 'power2.in' })
+      tl.to(clone, { left: wp(5).left, top: wp(5).top,
+                     rotation: `+=${rot(TUBE_WP[5].y - TUBE_WP[4].y)}`,
+                     duration: 0.24, ease: 'power2.in' })
     }
     if (sec === 'G' || sec === 'H') {
       // Slide right → WP[6]  (F stops at WP[5] — its entry point)
-      tl.to(clone, { left: wp(6).left, top: wp(6).top, duration: 0.28, ease: 'none' })
+      tl.to(clone, { left: wp(6).left, top: wp(6).top,
+                     rotation: `+=${rot(TUBE_WP[6].x - TUBE_WP[5].x)}`,
+                     duration: 0.28, ease: 'none' })
     }
     if (sec === 'H') {
       // Drop down final vertical → WP[7]
-      tl.to(clone, { left: wp(7).left, top: wp(7).top, duration: 0.30, ease: 'power2.in' })
+      tl.to(clone, { left: wp(7).left, top: wp(7).top,
+                     rotation: `+=${rot(TUBE_WP[7].y - TUBE_WP[6].y)}`,
+                     duration: 0.30, ease: 'power2.in' })
     }
 
-    // Final move: single axis, from entry waypoint to rest slot
+    // Final move: from entry waypoint to rest slot
+    // Tilted horizontals (B, D, F) animate both axes; H (flat) only left; verticals only top
     const entryL = { H: wp(7).left, G: wp(6).left, F: wp(5).left,
                      E: wp(4).left, D: wp(3).left, C: wp(2).left, B: wp(1).left }[sec]
     const entryT = { H: wp(7).top,  G: wp(6).top,  F: wp(5).top,
@@ -249,9 +273,18 @@ export class DrumPhysics {
     const vDist = Math.abs(restT - entryT)
 
     if (sec === 'H' || sec === 'F' || sec === 'D' || sec === 'B') {
-      tl.to(clone, { left: restL, duration: Math.max(0.15, hDist / 600), ease: 'power2.out' })
+      const rightward = sec === 'B' || sec === 'F'
+      const rotStr    = rightward ? `+=${rot(hDist)}` : `-=${rot(hDist)}`
+      if (sec === 'H') {
+        tl.to(clone, { left: restL, rotation: rotStr,
+                       duration: Math.max(0.15, hDist / 600), ease: 'power2.out' })
+      } else {
+        tl.to(clone, { left: restL, top: restT, rotation: rotStr,
+                       duration: Math.max(0.15, hDist / 600), ease: 'power2.out' })
+      }
     } else {
-      tl.to(clone, { top: restT, duration: Math.max(0.15, vDist / 600), ease: 'power2.in' })
+      tl.to(clone, { top: restT, rotation: `+=${rot(vDist)}`,
+                     duration: Math.max(0.15, vDist / 600), ease: 'power2.in' })
     }
 
     return e.number
