@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { query, queryOne, run, insert } from '../db.js'
 import { requireAuth } from '../middleware/auth.js'
+import { triggerReschedule } from '../gameBridge.js'
 
 const router = Router()
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
@@ -33,6 +34,14 @@ router.put('/:id', requireAuth, (req, res) => {
     'UPDATE draw_schedule SET draw_time=?, draw_number=?, title=?, ball_interval=?, ticket_price=?, full_house_prize=?, line_prize=?, enabled=?, timezone=? WHERE id=?',
     [draw_time, draw_number, title, ball_interval, ticket_price, full_house_prize, line_prize, enabled ?? 1, timezone ?? 'UTC', req.params.id]
   )
+  // Propagate time/prize changes to any not-yet-started draw instances for this template
+  run(
+    `UPDATE draws SET draw_time=?, ball_interval=?, title=?, ticket_price=?, full_house_prize=?, line_prize=?
+     WHERE schedule_id=? AND status='scheduled'`,
+    [draw_time, ball_interval, title, ticket_price, full_house_prize, line_prize, req.params.id]
+  )
+  // Reset the server's countdown so it picks up the new time immediately
+  triggerReschedule()
   res.json({ ok: true })
 })
 
@@ -97,6 +106,7 @@ router.post('/generate-today', requireAuth, (req, res) => {
 // DELETE /api/schedule/draws/:id — delete a draw instance
 router.delete('/draws/:id', requireAuth, (req, res) => {
   run('DELETE FROM draws WHERE id = ?', [req.params.id])
+  triggerReschedule()
   res.json({ ok: true })
 })
 
@@ -109,6 +119,7 @@ router.post('/draws', requireAuth, (req, res) => {
     [schedule_id ?? null, title, draw_date, draw_time, ball_interval ?? 5, ticket_price, full_house_prize, line_prize,
      jackpot?.enabled ?? 0, jackpot?.amount ?? 0, jackpot?.ball_count ?? 45, timezone ?? 'UTC']
   )
+  triggerReschedule()
   res.json({ id })
 })
 

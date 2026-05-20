@@ -65,6 +65,7 @@ app.use('/api/preset-cards',   presetCardsRoutes)
 
 // ── Auto-expire past scheduled draws ─────────────────────────────────────
 import { query as dbQuery, queryOne as dbQueryOne, run as dbRun, insert as dbInsert } from './db.js'
+import { setRescheduleCallback } from './gameBridge.js'
 
 const TZ_EXPIRE = 'Asia/Nicosia'
 
@@ -383,6 +384,8 @@ io.on('connection', (socket) => {
 
 // ── Boot ──────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3001
+
+setRescheduleCallback(scheduleNextDraw)
 
 initDb().then(() => {
   scheduleNextDraw()
