@@ -220,6 +220,7 @@ function openDrawModal(day, draw = null) {
   document.getElementById('dm-ticket-price').value = draw?.ticket_price ?? 1
   document.getElementById('dm-fh-prize').value     = draw?.full_house_prize ?? 100
   document.getElementById('dm-line-prize').value   = draw?.line_prize ?? 10
+  document.getElementById('dm-announcer').value    = draw?.announcer ?? ''
   document.getElementById('draw-modal').classList.add('open')
 }
 
@@ -237,6 +238,7 @@ document.getElementById('draw-modal-save').addEventListener('click', async () =>
     ticket_price:     Number(document.getElementById('dm-ticket-price').value),
     full_house_prize: Number(document.getElementById('dm-fh-prize').value),
     line_prize:       Number(document.getElementById('dm-line-prize').value),
+    announcer:        document.getElementById('dm-announcer').value || null,
   }
   if (!body.title) { toast('Title is required', 'error'); return }
   if (_drawEditId) {

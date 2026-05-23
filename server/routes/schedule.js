@@ -19,26 +19,26 @@ router.get('/', requireAuth, (req, res) => {
 
 // POST /api/schedule — create entry
 router.post('/', requireAuth, (req, res) => {
-  const { day_of_week, draw_time, draw_number, title, ball_interval, ticket_price, full_house_prize, line_prize, timezone } = req.body
+  const { day_of_week, draw_time, draw_number, title, ball_interval, ticket_price, full_house_prize, line_prize, timezone, announcer } = req.body
   const id = insert(
-    'INSERT INTO draw_schedule (day_of_week, draw_time, draw_number, title, ball_interval, ticket_price, full_house_prize, line_prize, timezone) VALUES (?,?,?,?,?,?,?,?,?)',
-    [day_of_week, draw_time, draw_number ?? 1, title, ball_interval ?? 5, ticket_price, full_house_prize, line_prize, timezone ?? 'UTC']
+    'INSERT INTO draw_schedule (day_of_week, draw_time, draw_number, title, ball_interval, ticket_price, full_house_prize, line_prize, timezone, announcer) VALUES (?,?,?,?,?,?,?,?,?,?)',
+    [day_of_week, draw_time, draw_number ?? 1, title, ball_interval ?? 5, ticket_price, full_house_prize, line_prize, timezone ?? 'UTC', announcer ?? null]
   )
   res.json({ id, ...req.body })
 })
 
 // PUT /api/schedule/:id — update entry
 router.put('/:id', requireAuth, (req, res) => {
-  const { draw_time, draw_number, title, ball_interval, ticket_price, full_house_prize, line_prize, enabled, timezone } = req.body
+  const { draw_time, draw_number, title, ball_interval, ticket_price, full_house_prize, line_prize, enabled, timezone, announcer } = req.body
   run(
-    'UPDATE draw_schedule SET draw_time=?, draw_number=?, title=?, ball_interval=?, ticket_price=?, full_house_prize=?, line_prize=?, enabled=?, timezone=? WHERE id=?',
-    [draw_time, draw_number, title, ball_interval, ticket_price, full_house_prize, line_prize, enabled ?? 1, timezone ?? 'UTC', req.params.id]
+    'UPDATE draw_schedule SET draw_time=?, draw_number=?, title=?, ball_interval=?, ticket_price=?, full_house_prize=?, line_prize=?, enabled=?, timezone=?, announcer=? WHERE id=?',
+    [draw_time, draw_number, title, ball_interval, ticket_price, full_house_prize, line_prize, enabled ?? 1, timezone ?? 'UTC', announcer ?? null, req.params.id]
   )
-  // Propagate time/prize changes to any not-yet-started draw instances for this template
+  // Propagate time/prize/announcer changes to any not-yet-started draw instances
   run(
-    `UPDATE draws SET draw_time=?, ball_interval=?, title=?, ticket_price=?, full_house_prize=?, line_prize=?
+    `UPDATE draws SET draw_time=?, ball_interval=?, title=?, ticket_price=?, full_house_prize=?, line_prize=?, announcer=?
      WHERE schedule_id=? AND status='scheduled'`,
-    [draw_time, ball_interval, title, ticket_price, full_house_prize, line_prize, req.params.id]
+    [draw_time, ball_interval, title, ticket_price, full_house_prize, line_prize, announcer ?? null, req.params.id]
   )
   // Reset the server's countdown so it picks up the new time immediately
   triggerReschedule()
