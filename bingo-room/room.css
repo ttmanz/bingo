@@ -150,7 +150,10 @@ body {
 .room-drum-col {
   flex: 1 1 auto;
   overflow: hidden;
-  padding: 16px 0 8px 16px;
+  padding: 0 0 40px 16px;  /* 40px clearance at bottom so drum base sits there */
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end; /* push draw-stage to the bottom of the column */
 }
 
 .room-callcard-col {

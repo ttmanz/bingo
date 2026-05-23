@@ -12,7 +12,6 @@ const CALLS = {
 }
 const say = n => CALLS[n] || `Number ${n}!`
 
-// Image base path for the 4 announcers × 3 poses
 const IMG = (type, pose) => `/bingo-room/announcers/ann-${type}-${pose}.png`
 
 function pickVoice() {
@@ -30,11 +29,10 @@ function pickVoice() {
 
 export class Announcer {
   constructor() {
-    this._type     = 'a'      // default announcer; changed by setType()
+    this._type     = 'a'
     this._voice    = null
     this._speaking = false
     this._unlocked = false
-    this._mouthInterval = null
 
     speechSynthesis.onvoiceschanged = () => { this._voice = pickVoice() }
     this._voice = pickVoice()
@@ -44,31 +42,15 @@ export class Announcer {
     this._unlock()
   }
 
-  // ── Public: switch to a different announcer (called when draw changes) ──
+  // Switch to a different announcer character (a / b / c / d)
   setType(type) {
     if (!type || !['a','b','c','d'].includes(type)) return
     this._type = type
     this._setImg('closed')
   }
 
-  // ── Private helpers ───────────────────────────────────────────────────────
   _setImg(pose) {
     if (this._img) this._img.src = IMG(this._type, pose)
-  }
-
-  _startMouth() {
-    clearInterval(this._mouthInterval)
-    let open = false
-    this._mouthInterval = setInterval(() => {
-      open = !open
-      this._setImg(open ? 'talking' : 'closed')
-    }, 180)
-  }
-
-  _stopMouth() {
-    clearInterval(this._mouthInterval)
-    this._mouthInterval = null
-    this._setImg('closed')
   }
 
   _unlock() {
@@ -91,82 +73,44 @@ export class Announcer {
     const el = document.createElement('div')
     el.id        = 'announcer'
     el.className = 'announcer'
-    el.innerHTML = `
-      <div class="ann-bubble" id="ann-bubble">
-        <span class="ann-bubble-num" id="ann-bubble-num"></span>
-      </div>
-      <img class="announcer-img" src="${IMG(this._type, 'closed')}" alt="announcer"/>
-    `
+    // No speech bubble — image only
+    el.innerHTML = `<img class="announcer-img" src="${IMG(this._type, 'closed')}" alt="announcer"/>`
     document.body.appendChild(el)
-    this._el        = el
-    this._img       = el.querySelector('.announcer-img')
-    this._bubble    = el.querySelector('#ann-bubble')
-    this._bubbleNum = el.querySelector('#ann-bubble-num')
+    this._el  = el
+    this._img = el.querySelector('.announcer-img')
   }
 
+  // Gentle idle float — the only continuous animation
   _idleAnim() {
     gsap.to(this._el, {
-      y: -7, duration: 2.4, ease: 'sine.inOut', yoyo: true, repeat: -1,
+      y: -6, duration: 2.6, ease: 'sine.inOut', yoyo: true, repeat: -1,
     })
   }
 
-  // ── Show speech bubble ────────────────────────────────────────────────────
-  _showBubble(text) {
-    this._bubbleNum.textContent = text
-    gsap.fromTo(this._bubble,
-      { opacity: 0, scale: 0.4, y: 12 },
-      { opacity: 1, scale: 1,   y: 0,  duration: 0.4, ease: 'back.out(1.7)' }
-    )
-    // Bounce
-    gsap.timeline()
-      .to(this._el, { y: '-=10', duration: 0.2, ease: 'power2.out' })
-      .to(this._el, { y: '+=10', duration: 0.3, ease: 'bounce.out' })
-  }
-
-  _hideBubble() {
-    gsap.to(this._bubble, { opacity: 0, scale: 0.75, duration: 0.45, delay: 0.4 })
-  }
-
-  // ── Public: say arbitrary text (optional onDone callback) ────────────────
+  // Say arbitrary text, swap to talking/excited pose, back to closed when done
   sayText(text, onDone) {
-    if (this._speaking) { speechSynthesis.cancel(); this._stopMouth() }
+    if (this._speaking) speechSynthesis.cancel()
     this._speaking = true
-
-    // Excited pose for BINGO/LINE, talking for everything else
-    const isExcited = /bingo|line!/i.test(text)
-    this._setImg(isExcited ? 'excited' : 'talking')
-    if (!isExcited) this._startMouth()
-
-    this._showBubble(text)
-
+    // Excited pose for BINGO / LINE announcements, talking pose for everything else
+    this._setImg(/bingo|line!/i.test(text) ? 'excited' : 'talking')
     this._speak(text, () => {
       this._speaking = false
-      this._stopMouth()
-      this._hideBubble()
+      this._setImg('closed')
       if (onDone) onDone()
     })
   }
 
-  // ── Public: announce a ball number ───────────────────────────────────────
+  // Announce a drawn ball number
   announce(number) {
-    if (this._speaking) { speechSynthesis.cancel(); this._stopMouth() }
+    if (this._speaking) speechSynthesis.cancel()
     this._speaking = true
-
-    this._startMouth()
-    this._showBubble(number)
-
-    gsap.timeline()
-      .to(this._el, { y: '-=14', duration: 0.18, ease: 'power2.out' })
-      .to(this._el, { y: '+=14', duration: 0.28, ease: 'bounce.out' })
-
+    this._setImg('talking')
     this._speak(say(number), () => {
       this._speaking = false
-      this._stopMouth()
-      gsap.to(this._bubble, { opacity: 0, scale: 0.75, duration: 0.45, delay: 0.6 })
+      this._setImg('closed')
     })
   }
 
-  // ── Private: Web Speech API ───────────────────────────────────────────────
   _speak(text, onEnd) {
     if (!('speechSynthesis' in window)) { onEnd(); return }
     const utt = new SpeechSynthesisUtterance(text)
@@ -180,7 +124,7 @@ export class Announcer {
 
   reset() {
     speechSynthesis.cancel()
-    this._stopMouth()
     this._speaking = false
+    this._setImg('closed')
   }
 }
