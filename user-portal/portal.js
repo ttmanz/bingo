@@ -373,16 +373,18 @@ function drawCard(d, showBuy) {
 
 // ── Buy confirm modal ─────────────────────────────────────────────────────
 
-let activeBuyDrawId = null;
-let activeBuyPrice  = 1;
+let activeBuyDrawId    = null;
+let activeBuyDrawTitle = '';
+let activeBuyPrice     = 1;
 let buyQty = 1;
 
 function openBuyModal(drawId) {
   const draw = [...allDraws, ...specialDraws].find(d => d.id === drawId);
   if (!draw) return;
 
-  activeBuyDrawId = drawId;
-  activeBuyPrice  = draw.ticket_price ?? draw.price ?? 1;
+  activeBuyDrawId    = drawId;
+  activeBuyDrawTitle = draw.name || draw.title || 'Draw';
+  activeBuyPrice     = draw.ticket_price ?? draw.price ?? 1;
   buyQty = 1;
 
   const balance = currentUser.points ?? 0;
@@ -470,13 +472,19 @@ $('btnBuyConfirm').addEventListener('click', async () => {
   const purchased = buyQty;
   buyQty = 1;
   hideModal('modal-buy');
-  closeSection();
 
-  const toast = document.getElementById('reg-success');
-  const msg   = document.getElementById('reg-success-msg');
-  msg.textContent = `✅ ${purchased} ticket${purchased > 1 ? 's' : ''} purchased successfully!`;
-  toast.classList.remove('hidden');
-  setTimeout(() => toast.classList.add('hidden'), 3000);
+  // Store ticket in localStorage so bingo room tab can read it
+  try {
+    const allCards = (data.tickets || []).flatMap(t => t.cards ?? []);
+    localStorage.setItem('bingoRoomTicket', JSON.stringify({
+      draw_id:   activeBuyDrawId,
+      drawTitle: activeBuyDrawTitle,
+      cards:     allCards
+    }));
+  } catch (e) { console.warn('Could not write bingoRoomTicket', e); }
+
+  closeSection();
+  showToast(`✅ ${purchased} ticket${purchased > 1 ? 's' : ''} purchased!`);
 });
 
 // ── Get Points modal ──────────────────────────────────────────────────────
