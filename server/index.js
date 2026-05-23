@@ -56,6 +56,16 @@ app.get('/bingo-room/index.html',  serveIndex('../bingo-room'))
 app.get('/admin',                  serveIndex('../admin'))
 app.get('/admin/',                 serveIndex('../admin'))
 
+// Serve announcer image(s) from project root (not inside landing/)
+// Matches /announcer.png, /announcer-a.png, /announcer-b.png, etc.
+app.get(/^\/announcer(-\w+)?\.png$/, (req, res) => {
+  const name = req.path.replace(/^\//, '')
+  const filePath = join(__dirname, '..', name)
+  res.sendFile(filePath, err => {
+    if (err) res.sendFile(join(__dirname, '../announcer.png'))
+  })
+})
+
 app.use('/',             express.static(join(__dirname, '../landing'),      noCache))
 app.use('/admin',        express.static(join(__dirname, '../admin'),        noCache))
 app.use('/agent-portal', express.static(join(__dirname, '../agent-portal'), noCache))

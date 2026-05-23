@@ -337,6 +337,50 @@ body {
 .drum-ball--clone  { z-index: 60; }
 .rest-ball         { z-index: 65; }   /* above tube SVG so stacked balls are visible */
 
+/* ── Announcer character ─────────────────────────────────────────────────── */
+.announcer {
+  position: fixed;
+  bottom: 90px;
+  /* sit just to the left of the call card column */
+  right: calc(var(--callcard-width, 280px) + 8px);
+  width: 110px;
+  z-index: 160;           /* above bingo overlay (z=150) so always visible */
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.announcer-img {
+  width: 110px;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 6px 20px rgba(0,0,0,0.65));
+}
+
+/* Speech bubble — appears above the character's head */
+.ann-bubble {
+  background: rgba(255,255,255,0.96);
+  color: #12043a;
+  border-radius: 14px 14px 14px 4px;
+  padding: 7px 12px;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 3px 14px rgba(0,0,0,0.35);
+  margin-bottom: 8px;
+  max-width: 220px;
+  text-align: center;
+  transform-origin: bottom left;
+  opacity: 0;            /* hidden initially; Announcer.js shows/hides via GSAP */
+}
+
+.ann-bubble-num {
+  display: block;
+  letter-spacing: .02em;
+}
+
 .drum-ball span {
   position: relative;
   z-index: 2;

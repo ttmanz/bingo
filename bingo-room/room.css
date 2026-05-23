@@ -361,12 +361,14 @@ body {
   align-items: center;
   justify-content: center;
   gap: 20px;
-  background: url('/bingo-room/win-line.png') center/cover no-repeat;
+  /* solid fallback first so the overlay is never transparent/black
+     if the background image is slow to load (black-screen guard) */
+  background: rgba(3,5,20,0.88) url('/bingo-room/win-line.png') center/cover no-repeat;
   z-index: 150;
   pointer-events: none;
 }
 #line-check-overlay.bingo-overlay {
-  background: url('/bingo-room/win-bingo.png') center/cover no-repeat;
+  background: rgba(3,5,20,0.88) url('/bingo-room/win-bingo.png') center/cover no-repeat;
 }
 .lco-title {
   font-size: 15px;
