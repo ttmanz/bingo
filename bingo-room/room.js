@@ -122,11 +122,11 @@ function setVh() {
 setVh()
 window.addEventListener('resize', setVh)
 
-// ── Load player card from sessionStorage (set by user-portal on redirect) ─
+// ── Load player card from localStorage (shared across all portal tabs) ─
 // Format: { cards: [{row1,row2,row3,code},...], drawTitle: "..." }
 let playerCards = null
 try {
-  const raw = sessionStorage.getItem('bingoRoomTicket')
+  const raw = localStorage.getItem('bingoRoomTicket')
   if (raw) playerCards = JSON.parse(raw)
 } catch {}
 
@@ -430,7 +430,7 @@ function showDrawResultsCard({ drawTitle, lineWinner, bingoWinner }) {
   setTimeout(() => {
     gsap.to(card, { opacity: 0, y: -20, duration: 0.5, ease: 'power2.in',
       onComplete: () => {
-        sessionStorage.removeItem('bingoRoomTicket')
+        localStorage.removeItem('bingoRoomTicket')
         window.location.href = '/user-portal'
       }
     })

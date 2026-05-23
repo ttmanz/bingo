@@ -501,9 +501,17 @@ $('btnBuyConfirm').addEventListener('click', async () => {
     const toastEl = document.getElementById('reg-success');
     const toastMsg = document.getElementById('reg-success-msg');
     if (toastEl && toastMsg) {
-      toastMsg.textContent = purchased + ' ticket' + plural + ' bought! Click Enter Bingo Room to play.';
+      toastMsg.textContent = purchased + ' ticket' + plural + ' bought! Tap Bingo Room to play.';
       toastEl.classList.remove('hidden');
-      setTimeout(() => toastEl.classList.add('hidden'), 6000);
+      toastEl.style.display = 'flex';
+      toastEl.style.opacity = '1';
+      toastEl.style.zIndex  = '9999';
+      setTimeout(() => {
+        toastEl.classList.add('hidden');
+        toastEl.style.display = '';
+        toastEl.style.opacity = '';
+        toastEl.style.zIndex  = '';
+      }, 6000);
     }
   } catch (err) {
     console.error('Buy success block threw:', err);
