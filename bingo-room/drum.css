@@ -158,8 +158,8 @@ body {
 .drum-wrapper {
   position: absolute;
   left: 10px;
-  /* anchor from bottom so the base-platform sits 25px above stage */
-  bottom: 25px;
+  /* anchor from bottom so the base-platform sits at the studio floor */
+  bottom: 0;
   top: auto;
   display: flex;
   flex-direction: column;
