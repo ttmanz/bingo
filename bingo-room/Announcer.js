@@ -14,6 +14,16 @@ const say = n => CALLS[n] || `Number ${n}!`
 
 const IMG = (type, pose) => `/bingo-room/announcers/ann-${type}-${pose}.png`
 
+// Frame sequences from the announcer-demo tool
+// 0 = closed, 1 = talking, 2 = excited
+// TICKS_PER_STEP at ~60fps: 6 ticks ≈ 100ms per step — natural speech rhythm
+const SEQS = {
+  talk: [0,0, 1,1,1, 0,0, 1,1, 0, 1,1,1,1, 0,0,0, 1,1, 0],
+  win:  [2,2,2, 1, 2,2, 1, 2,2,2, 1,1, 2,2, 1, 2,2,2],
+}
+const TICKS_PER_STEP = 6
+const POSES = ['closed', 'talking', 'excited']
+
 function pickVoice() {
   const voices = speechSynthesis.getVoices()
   const prefer = ['Samantha','Karen','Moira','Tessa','Victoria',
@@ -33,6 +43,9 @@ export class Announcer {
     this._voice    = null
     this._speaking = false
     this._unlocked = false
+    this._rafId    = null   // requestAnimationFrame handle
+    this._tick     = 0
+    this._seq      = null   // current frame sequence
 
     speechSynthesis.onvoiceschanged = () => { this._voice = pickVoice() }
     this._voice = pickVoice()
@@ -49,10 +62,34 @@ export class Announcer {
     this._setImg('closed')
   }
 
+  // ── Private: image swap ───────────────────────────────────────────────────
   _setImg(pose) {
     if (this._img) this._img.src = IMG(this._type, pose)
   }
 
+  // ── Private: rAF-based frame sequence ────────────────────────────────────
+  _startSeq(seqName) {
+    this._stopSeq()
+    this._seq  = SEQS[seqName]
+    this._tick = 0
+    const step = () => {
+      this._tick++
+      const seqIdx   = Math.floor(this._tick / TICKS_PER_STEP) % this._seq.length
+      const frameIdx = this._seq[seqIdx]
+      this._setImg(POSES[frameIdx])
+      this._rafId = requestAnimationFrame(step)
+    }
+    this._rafId = requestAnimationFrame(step)
+  }
+
+  _stopSeq() {
+    if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null }
+    this._seq  = null
+    this._tick = 0
+    this._setImg('closed')
+  }
+
+  // ── Private: speech unlock (required on mobile before first utterance) ───
   _unlock() {
     const handler = () => {
       if (this._unlocked) return
@@ -73,44 +110,44 @@ export class Announcer {
     const el = document.createElement('div')
     el.id        = 'announcer'
     el.className = 'announcer'
-    // No speech bubble — image only
     el.innerHTML = `<img class="announcer-img" src="${IMG(this._type, 'closed')}" alt="announcer"/>`
     document.body.appendChild(el)
     this._el  = el
     this._img = el.querySelector('.announcer-img')
   }
 
-  // Gentle idle float — the only continuous animation
+  // Gentle idle float — only continuous animation
   _idleAnim() {
     gsap.to(this._el, {
       y: -6, duration: 2.6, ease: 'sine.inOut', yoyo: true, repeat: -1,
     })
   }
 
-  // Say arbitrary text, swap to talking/excited pose, back to closed when done
+  // ── Public: say arbitrary text ────────────────────────────────────────────
   sayText(text, onDone) {
-    if (this._speaking) speechSynthesis.cancel()
+    if (this._speaking) { speechSynthesis.cancel(); this._stopSeq() }
     this._speaking = true
-    // Excited pose for BINGO / LINE announcements, talking pose for everything else
-    this._setImg(/bingo|line!/i.test(text) ? 'excited' : 'talking')
+    // Win sequence for BINGO / LINE, talk sequence for everything else
+    this._startSeq(/bingo|line!/i.test(text) ? 'win' : 'talk')
     this._speak(text, () => {
       this._speaking = false
-      this._setImg('closed')
+      this._stopSeq()
       if (onDone) onDone()
     })
   }
 
-  // Announce a drawn ball number
+  // ── Public: announce a drawn ball number ──────────────────────────────────
   announce(number) {
-    if (this._speaking) speechSynthesis.cancel()
+    if (this._speaking) { speechSynthesis.cancel(); this._stopSeq() }
     this._speaking = true
-    this._setImg('talking')
+    this._startSeq('talk')
     this._speak(say(number), () => {
       this._speaking = false
-      this._setImg('closed')
+      this._stopSeq()
     })
   }
 
+  // ── Private: Web Speech API ───────────────────────────────────────────────
   _speak(text, onEnd) {
     if (!('speechSynthesis' in window)) { onEnd(); return }
     const utt = new SpeechSynthesisUtterance(text)
@@ -125,6 +162,6 @@ export class Announcer {
   reset() {
     speechSynthesis.cancel()
     this._speaking = false
-    this._setImg('closed')
+    this._stopSeq()
   }
 }
