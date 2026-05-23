@@ -33,6 +33,8 @@ let _socket       = null
 let _cdTimer      = null   // next-draw countdown interval
 let _drawResults  = null   // stored until ceremony ends
 let _pendingBalls = []     // balls received while paused — drained on resume
+let _introPlayed   = false  // prevents intro replaying within same draw cycle
+let _nextDrawTitle = ''     // stored from 'waiting'/'state' for intro speech
 
 const _token = localStorage.getItem('bp_token') || ''
 
@@ -573,6 +575,7 @@ function connectSocket() {
   socket.on('state', ({ called, gameOver, phase, nextDrawTime, nextDrawTitle }) => {
     calledSet = new Set(called)
     if (phase === 'waiting') {
+      _nextDrawTitle = nextDrawTitle || 'this draw'
       renderPlayerCard()
       showWaitingPanel(nextDrawTime, nextDrawTitle)
       return
@@ -589,15 +592,44 @@ function connectSocket() {
 
   // Server signals waiting for next draw
   socket.on('waiting', ({ nextDrawTime, nextDrawTitle }) => {
+    _nextDrawTitle = nextDrawTitle || 'this draw'
+    _introPlayed   = false        // allow intro for the new draw
+    gsap.to(announcer._el, { opacity: 0, duration: 0.5 })  // hide announcer between draws
     renderPlayerCard()
     showWaitingPanel(nextDrawTime, nextDrawTitle)
     drum.reset(Array.from({ length: 90 }, (_, i) => i + 1))
   })
 
-  // Countdown tick — update fill bar only, no visible timer
+  // Countdown tick — update fill bar; trigger announcer intro at T-3s
   socket.on('countdown', ({ remaining, total }) => {
     const pct = remaining / total
     if (countdownFill) countdownFill.style.width = (pct * 100) + '%'
+
+    if (remaining <= 3 && !_introPlayed) {
+      _introPlayed = true
+      paused = true   // queue any balls the server sends during the intro
+
+      // Fade out the countdown panel
+      const panel = document.getElementById('room-next-draw')
+      if (panel && !panel.classList.contains('hidden')) {
+        gsap.to(panel, {
+          opacity: 0, duration: 0.4,
+          onComplete: () => { panel.classList.add('hidden'); panel.style.opacity = '' }
+        })
+      }
+
+      // Fade in announcer (opacity only — idle y-float already running)
+      gsap.to(announcer._el, {
+        opacity: 1, duration: 0.8, ease: 'power2.out',
+        onComplete: () => {
+          const title = _nextDrawTitle || 'this draw'
+          announcer.sayText(
+            `Welcome to ${title}, I will be calling for you. Let's start!`,
+            () => { paused = false; drainPendingBalls() }
+          )
+        }
+      })
+    }
   })
 
   // A number is drawn — animate ball
@@ -665,6 +697,7 @@ function connectSocket() {
     paused     = false
     _drawResults  = null
     _pendingBalls = []
+    _introPlayed  = false   // new draw cycle — allow intro at T-3s
     winBannerEl.classList.add('hidden')
     if (lastNumEl) lastNumEl.textContent = '—'
     callCard.reset()
@@ -673,6 +706,7 @@ function connectSocket() {
     statusTextEl.textContent = 'Draw starting…'
     renderPlayerCard()
     drum.reset(Array.from({ length: 90 }, (_, i) => i + 1))
-    announcer.sayText('Draw starts!')
+    // Fade announcer out — intro will bring her back at T-3s of new countdown
+    gsap.to(announcer._el, { opacity: 0, duration: 0.5 })
   })
 }
