@@ -31,13 +31,31 @@ app.use(express.json())
 app.set('etag', false)
 
 // ── Serve static panels ───────────────────────────────────────────────────
-const noCache = { etag: false, setHeaders: (res, path) => {
-  if (path.endsWith('.html') || path.endsWith('.js') || path.endsWith('.css')) {
+const noCache = { etag: false, setHeaders: (res, filePath) => {
+  if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
     res.setHeader('Pragma', 'no-cache')
     res.setHeader('Expires', '0')
   }
 }}
+
+// Belt-and-braces: explicitly serve each index.html with no-cache so
+// browsers can never hold a stale copy with an old portal.js version tag
+const serveIndex = (dir) => (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+  res.setHeader('Pragma', 'no-cache')
+  res.setHeader('Expires', '0')
+  res.sendFile(join(__dirname, dir, 'index.html'))
+}
+app.get('/user-portal',            serveIndex('../user-portal'))
+app.get('/user-portal/',           serveIndex('../user-portal'))
+app.get('/user-portal/index.html', serveIndex('../user-portal'))
+app.get('/bingo-room',             serveIndex('../bingo-room'))
+app.get('/bingo-room/',            serveIndex('../bingo-room'))
+app.get('/bingo-room/index.html',  serveIndex('../bingo-room'))
+app.get('/admin',                  serveIndex('../admin'))
+app.get('/admin/',                 serveIndex('../admin'))
+
 app.use('/',             express.static(join(__dirname, '../landing'),      noCache))
 app.use('/admin',        express.static(join(__dirname, '../admin'),        noCache))
 app.use('/agent-portal', express.static(join(__dirname, '../agent-portal'), noCache))
