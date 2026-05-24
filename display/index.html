@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bingo24-7 – Big Screen Display</title>
+  <link rel="stylesheet" href="display.css" />
+</head>
+<body>
+
+<!-- ── LOGIN OVERLAY ──────────────────────────────────────────────── -->
+<div id="loginOverlay" class="login-overlay">
+  <div class="login-box">
+    <div class="login-logo">🎱</div>
+    <h1>Bingo24-7</h1>
+    <p class="login-sub">Big Screen Display</p>
+    <div id="loginError" class="login-error hidden"></div>
+    <input type="email"    id="loginEmail"    placeholder="Agent email"  autocomplete="email" />
+    <input type="password" id="loginPassword" placeholder="Password"     autocomplete="current-password" />
+    <button id="loginBtn">Unlock Display</button>
+  </div>
+</div>
+
+<!-- ── BIG SCREEN DISPLAY ─────────────────────────────────────────── -->
+<div id="display" class="display hidden">
+
+  <!-- Header bar -->
+  <header class="ds-header">
+    <div class="ds-logo">🎱 Bingo24-7</div>
+    <div class="ds-draw-title" id="dsDrawTitle">–</div>
+    <div class="ds-status"     id="dsStatus">Waiting…</div>
+    <button class="ds-logout" id="dsLogout" title="Sign out">✕</button>
+  </header>
+
+  <!-- Main content -->
+  <main class="ds-main">
+
+    <!-- Left: Current ball -->
+    <div class="ds-ball-panel">
+      <div class="ds-ball-label">BALL CALLED</div>
+      <div class="ds-ball-circle" id="dsBallCircle">
+        <span class="ds-ball-number" id="dsBallNumber">–</span>
+      </div>
+      <div class="ds-ball-phrase" id="dsBallPhrase">Waiting for draw to start…</div>
+      <div class="ds-called-count" id="dsCalledCount">0 / 90</div>
+    </div>
+
+    <!-- Right: Number grid 1-90 -->
+    <div class="ds-grid-panel">
+      <div class="ds-grid" id="dsGrid"></div>
+    </div>
+
+  </main>
+
+  <!-- Footer: prizes -->
+  <footer class="ds-footer">
+    <div class="ds-prize">
+      <span class="ds-prize-label">LINE PRIZE</span>
+      <span class="ds-prize-value" id="dsLinePrize">–</span>
+    </div>
+    <div class="ds-prize ds-prize-bingo">
+      <span class="ds-prize-label">FULL HOUSE</span>
+      <span class="ds-prize-value" id="dsBingoPrize">–</span>
+    </div>
+    <div class="ds-prize">
+      <span class="ds-prize-label">NEXT DRAW</span>
+      <span class="ds-prize-value ds-next-time" id="dsNextTime">–</span>
+    </div>
+  </footer>
+
+  <!-- Win announcement overlay -->
+  <div id="dsWinOverlay" class="ds-win-overlay hidden">
+    <div class="ds-win-inner">
+      <div class="ds-win-emoji" id="dsWinEmoji">🎉</div>
+      <div class="ds-win-text"  id="dsWinText">BINGO!</div>
+      <div class="ds-win-sub"   id="dsWinSub"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="display.js" type="module"></script>
+</body>
+</html>

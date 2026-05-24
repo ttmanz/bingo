@@ -55,6 +55,9 @@ app.get('/bingo-room/',            serveIndex('../bingo-room'))
 app.get('/bingo-room/index.html',  serveIndex('../bingo-room'))
 app.get('/admin',                  serveIndex('../admin'))
 app.get('/admin/',                 serveIndex('../admin'))
+app.get('/display',                serveIndex('../display'))
+app.get('/display/',               serveIndex('../display'))
+app.get('/display/index.html',     serveIndex('../display'))
 
 app.use('/',             express.static(join(__dirname, '../landing'),      noCache))
 app.use('/admin',        express.static(join(__dirname, '../admin'),        noCache))
@@ -62,6 +65,7 @@ app.use('/agent-portal', express.static(join(__dirname, '../agent-portal'), noCa
 app.use('/user-portal',     express.static(join(__dirname, '../user-portal'),  noCache))
 app.use('/special-draws',   express.static(join(__dirname, '../special-draws'),noCache))
 app.use('/bingo-room',      express.static(join(__dirname, '../bingo-room'),   noCache))
+app.use('/display',         express.static(join(__dirname, '../display'),       noCache))
 app.use('/terms',           express.static(join(__dirname, '../terms'),         noCache))
 
 // ── API routes ────────────────────────────────────────────────────────────
@@ -269,9 +273,11 @@ function scheduleNextDraw() {
   const delay   = startMs - Date.now()
 
   io.emit('waiting', {
-    nextDrawTime:  new Date(startMs).toISOString(),
-    nextDrawTitle: next.title,
-    announcer:     next.announcer ?? null,
+    nextDrawTime:    new Date(startMs).toISOString(),
+    nextDrawTitle:   next.title,
+    announcer:       next.announcer ?? null,
+    line_prize:      next.line_prize ?? 0,
+    full_house_prize: next.full_house_prize ?? 0,
   })
 
   if (delay <= 0) {
@@ -334,14 +340,21 @@ io.on('connection', (socket) => {
     const startMs = drawLocalToUtcMs(currentDraw.draw_date, currentDraw.draw_time)
     socket.emit('state', {
       ...getState(game), phase: 'waiting',
-      nextDrawTime:  new Date(startMs).toISOString(),
-      nextDrawTitle: currentDraw.title,
-      announcer:     currentDraw.announcer ?? null,
+      nextDrawTime:    new Date(startMs).toISOString(),
+      nextDrawTitle:   currentDraw.title,
+      announcer:       currentDraw.announcer ?? null,
+      line_prize:      currentDraw.line_prize ?? 0,
+      full_house_prize: currentDraw.full_house_prize ?? 0,
     })
   } else if (gamePhase === 'waiting') {
     socket.emit('state', { ...getState(game), phase: 'waiting', nextDrawTime: null, nextDrawTitle: null })
   } else {
-    socket.emit('state', { ...getState(game), phase: 'drawing' })
+    socket.emit('state', {
+      ...getState(game), phase: 'drawing',
+      drawTitle:       currentDraw?.title ?? '',
+      line_prize:      currentDraw?.line_prize ?? 0,
+      full_house_prize: currentDraw?.full_house_prize ?? 0,
+    })
   }
 
   socket.on('line', () => {

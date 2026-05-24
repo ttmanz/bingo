@@ -79,6 +79,11 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
   showScreen('loginScreen')
 })
 
+/* ── Big Screen Display ───────────────────────────────────────────────── */
+document.getElementById('bigScreenBtn').addEventListener('click', () => {
+  window.open('/display', '_blank', 'noopener')
+})
+
 /* ── Tab navigation ───────────────────────────────────────────────────── */
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
