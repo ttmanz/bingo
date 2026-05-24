@@ -69,6 +69,7 @@ export class Announcer {
 
   // ── Private: rAF-based frame sequence ────────────────────────────────────
   _startSeq(seqName) {
+    console.log('[Announcer] _startSeq', seqName, 'opacity:', this._el?.style.opacity, getComputedStyle(this._el||document.body).opacity)
     this._stopSeq()
     this._seq  = SEQS[seqName]
     this._tick = 0
@@ -76,16 +77,23 @@ export class Announcer {
       this._tick++
       const seqIdx   = Math.floor(this._tick / TICKS_PER_STEP) % this._seq.length
       const frameIdx = this._seq[seqIdx]
-      this._setImg(POSES[frameIdx])
+      const pose = POSES[frameIdx]
+      if (pose !== this._lastPose) {
+        this._lastPose = pose
+        console.log('[Announcer] pose →', pose)
+      }
+      this._setImg(pose)
       this._rafId = requestAnimationFrame(step)
     }
     this._rafId = requestAnimationFrame(step)
   }
 
   _stopSeq() {
+    console.log('[Announcer] _stopSeq called from:', new Error().stack?.split('\n')[2]?.trim())
     if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null }
     this._seq  = null
     this._tick = 0
+    this._lastPose = null
     this._setImg('closed')
   }
 
