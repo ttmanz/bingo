@@ -61,11 +61,14 @@ router.get('/', requireAuth, (req, res) => {
   res.json({ entries, summary })
 })
 
-// GET /api/system-tickets/draws — all draws for the selector
+// GET /api/system-tickets/draws — today's active draws only (scheduled or running)
 router.get('/draws', requireAuth, (req, res) => {
   const draws = query(
     `SELECT id, title, draw_date, draw_time, type, status
-     FROM draws ORDER BY draw_date DESC, draw_time DESC LIMIT 200`
+     FROM draws
+     WHERE draw_date = date('now')
+       AND status IN ('scheduled', 'running')
+     ORDER BY draw_time ASC`
   )
   res.json(draws)
 })

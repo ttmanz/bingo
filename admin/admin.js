@@ -899,8 +899,13 @@ async function loadSysDrawSelector() {
   const draws = await GET('/api/system-tickets/draws')
   if (!draws) return
   const sel = document.getElementById('sys-draw-select')
+  if (!draws.length) {
+    sel.innerHTML = '<option value="">— no active draws today —</option>'
+    return
+  }
+  const statusLabel = s => s === 'running' ? ' ● LIVE' : ''
   sel.innerHTML = draws.map(d =>
-    `<option value="${d.id}" data-label="${d.title} (${d.draw_date})">${d.title} — ${d.draw_date} ${d.draw_time} [${d.type ?? 'regular'}]</option>`
+    `<option value="${d.id}" data-label="${d.title} (${d.draw_date})">${d.title} — ${d.draw_time}${statusLabel(d.status)}</option>`
   ).join('')
 }
 
