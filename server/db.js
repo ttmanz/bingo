@@ -216,10 +216,13 @@ function runMigrations() {
     db.run("ALTER TABLE users ADD COLUMN points REAL DEFAULT 0")
   }
 
-  // system_tickets: add winning_ticket_ids column
+  // system_tickets: add winning_ticket_ids and ticket_ids columns
   const stCols = db.exec("PRAGMA table_info(system_tickets)")[0]?.values?.map(r => r[1]) ?? []
   if (stCols.length && !stCols.includes('winning_ticket_ids')) {
     db.run('ALTER TABLE system_tickets ADD COLUMN winning_ticket_ids TEXT')
+  }
+  if (stCols.length && !stCols.includes('ticket_ids')) {
+    db.run('ALTER TABLE system_tickets ADD COLUMN ticket_ids TEXT')
   }
 
   // draws: add type, description, and timezone
@@ -259,4 +262,18 @@ async function seedDefaults() {
   if (!jackpotRow) {
     insert('INSERT INTO jackpot (id, enabled, amount, ball_count) VALUES (1, 0, 1000, 45)', [])
   }
+  // House user for system tickets — created once, never deleted
+  const houseRow = queryOne("SELECT id FROM users WHERE email = 'house@system.internal'")
+  if (!houseRow) {
+    insert(
+      "INSERT INTO users (name, email, role, status, points) VALUES (?,?,?,?,?)",
+      ['HOUSE', 'house@system.internal', 'system', 'active', 0]
+    )
+  }
+}
+
+// Returns the house user's id — used by system ticket generation
+export function getHouseUserId() {
+  const row = queryOne("SELECT id FROM users WHERE email = 'house@system.internal'")
+  return row?.id ?? null
 }
