@@ -3,7 +3,7 @@ import { createServer } from 'http'
 import { Server } from 'socket.io'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { initDb } from './db.js'
+import { initDb, getHouseUserId } from './db.js'
 import { createGameState, drawNumber, resetGame, getState } from './gameState.js'
 import authRoutes        from './routes/auth.js'
 import scheduleRoutes    from './routes/schedule.js'
@@ -225,7 +225,7 @@ function checkWins(drawId, draw) {
               const prize = draw.line_prize ?? 0
               if (prize > 0) awardPrize(ticket.user_id, drawId, ticket.id, prize, 'LINE win')
               const lu = dbQueryOne('SELECT email FROM users WHERE id = ?', [ticket.user_id])
-              lineWinnerEmail = lu?.email ?? null
+              lineWinnerEmail = (ticket.user_id === getHouseUserId()) ? null : (lu?.email ?? null)
               io.emit('prize-awarded', { type: 'line', user_id: ticket.user_id, amount: prize })
               console.log(`LINE win — user ${ticket.user_id}, prize ${prize}`)
               break
@@ -239,7 +239,7 @@ function checkWins(drawId, draw) {
           const prize = draw.full_house_prize ?? 0
           if (prize > 0) awardPrize(ticket.user_id, drawId, ticket.id, prize, 'BINGO win')
           const bu = dbQueryOne('SELECT email FROM users WHERE id = ?', [ticket.user_id])
-          bingoWinnerEmail = bu?.email ?? null
+          bingoWinnerEmail = (ticket.user_id === getHouseUserId()) ? null : (bu?.email ?? null)
           io.emit('prize-awarded', { type: 'bingo', user_id: ticket.user_id, amount: prize })
           console.log(`BINGO win — user ${ticket.user_id}, prize ${prize}`)
           bingoTriggered = true
@@ -379,7 +379,7 @@ io.on('connection', (socket) => {
               const prize = draw.line_prize ?? 0
               if (prize > 0) awardPrize(ticket.user_id, drawId, ticket.id, prize, 'LINE win')
               const lu2 = dbQueryOne('SELECT email FROM users WHERE id = ?', [ticket.user_id])
-              lineWinnerEmail = lu2?.email ?? null
+              lineWinnerEmail = (ticket.user_id === getHouseUserId()) ? null : (lu2?.email ?? null)
               io.emit('prize-awarded', { type: 'line', user_id: ticket.user_id, amount: prize })
               console.log(`LINE win — user ${ticket.user_id}, prize ${prize}`)
               return
