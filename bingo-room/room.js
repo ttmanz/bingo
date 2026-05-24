@@ -227,8 +227,7 @@ async function runLineCheck(card, rowIdx) {
     )
   )
 
-  // Keep the talk animation looping after LINE! speech ends
-  announcer.sayText('LINE!', () => { announcer._startSeq('talk') })
+  announcer.sayText('LINE!')
   await new Promise(r => setTimeout(r, 1600))
 
   await new Promise(r =>
@@ -249,6 +248,9 @@ async function runLineCheck(card, rowIdx) {
   )
 
   await new Promise(r => setTimeout(r, 300))
+
+  // Keep mouth moving during the cell check — direct call, not relying on speech callback
+  announcer._startSeq('talk')
 
   // ── Animate winning row cells in overlay ─────────────────────────────────
   const overlayRows  = overlay.querySelectorAll('.overlay-card-table tr')
@@ -317,9 +319,7 @@ async function runBingoCheck(card) {
       { opacity: 1, scale: 1, duration: 0.45, ease: 'back.out(1.6)', onComplete: r }
     )
   )
-  // When BINGO! speech finishes, keep the win animation looping
-  // so the announcer's mouth keeps moving throughout the card check
-  announcer.sayText('BINGO!', () => { announcer._startSeq('win') })
+  announcer.sayText('BINGO!')
   await new Promise(r => setTimeout(r, 1800))
   await new Promise(r =>
     gsap.to(flash, { opacity: 0, scale: 1.3, duration: 0.3, ease: 'power2.in', onComplete: () => { flash.remove(); r() } })
@@ -346,6 +346,8 @@ async function runBingoCheck(card) {
   // Ensure call card column is visible and any waiting panel is hidden
   calledEl.style.display = ''
   document.getElementById('room-next-draw')?.classList.add('hidden')
+  // Keep mouth moving through the entire check — direct call, not relying on speech callback
+  announcer._startSeq('win')
 
   for (let ri = 0; ri < 3; ri++) {
     const oTds = [...overlayRows[ri].querySelectorAll('td')]
