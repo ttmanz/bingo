@@ -340,8 +340,9 @@ async function runBingoCheck(card) {
   const origTable = document.querySelectorAll('.room-card-grid-table')[cardIdx]
   const overlayRows = overlay.querySelectorAll('.overlay-card-table tr')
 
-  // Ensure call card column is visible
+  // Ensure call card column is visible and any waiting panel is hidden
   calledEl.style.display = ''
+  document.getElementById('room-next-draw')?.classList.add('hidden')
 
   for (let ri = 0; ri < 3; ri++) {
     const oTds = [...overlayRows[ri].querySelectorAll('td')]
@@ -354,15 +355,24 @@ async function runBingoCheck(card) {
       const num = Number(oTds[i].dataset.n)
       const ccCell = num ? document.querySelector(`.cc-cell[data-n="${num}"]`) : null
 
+      // Force call card visible on every iteration in case something tried to hide it
+      calledEl.style.display = ''
+
       oTds[i].classList.add('checking')
-      if (ccCell) ccCell.classList.add('cc-bingo-highlight')
+      if (ccCell) {
+        ccCell.classList.remove('cc-bingo-checked')
+        ccCell.classList.add('cc-bingo-highlight')  // pulse while being checked
+      }
 
       await new Promise(r => setTimeout(r, 600))
 
       oTds[i].classList.remove('checking')
       oTds[i].className = 'bingo-win'
       if (rTds[i]) rTds[i].className = 'bingo-win'
-      if (ccCell) ccCell.classList.remove('cc-bingo-highlight')
+      if (ccCell) {
+        ccCell.classList.remove('cc-bingo-highlight')
+        ccCell.classList.add('cc-bingo-checked')  // stays bright green permanently
+      }
     }
   }
 
@@ -680,12 +690,13 @@ function connectSocket() {
     if (type === 'line') {
       lineWon = true   // stop every client from triggering a second line
       // Local ceremony already running on the winner — show remote version on everyone else
-      if (!document.getElementById('line-flash')) {
+      // Guard: skip if this client is already running its own ceremony (overlay present)
+      if (!document.getElementById('line-flash') && !document.getElementById('line-check-overlay')) {
         runRemoteWinCeremony('line', amount)
       }
     } else if (type === 'bingo') {
       bingoWon = true
-      if (!document.getElementById('line-flash')) {
+      if (!document.getElementById('line-flash') && !document.getElementById('line-check-overlay')) {
         runRemoteWinCeremony('bingo', amount)
       }
     }
@@ -702,6 +713,10 @@ function connectSocket() {
     _introPlayed  = false   // new draw cycle — allow intro at T-3s
     winBannerEl.classList.add('hidden')
     if (lastNumEl) lastNumEl.textContent = '—'
+    // Clear any lingering bingo-check highlights on the call card
+    document.querySelectorAll('.cc-bingo-checked, .cc-bingo-highlight').forEach(el => {
+      el.classList.remove('cc-bingo-checked', 'cc-bingo-highlight')
+    })
     callCard.reset()
     hideWaitingBanner()
     hideWaitingPanel()

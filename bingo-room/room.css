@@ -413,6 +413,14 @@ body {
   position: relative;
 }
 
+/* permanent bright green once a bingo number is confirmed — stays until game-reset */
+.cc-cell.cc-bingo-checked {
+  background: #00c853 !important;
+  color: #003a1f !important;
+  box-shadow: 0 0 8px rgba(0, 200, 83, 0.65);
+  font-weight: 800;
+}
+
 /* ── Bingo flash variant ── */
 #line-flash.bingo-flash {
   font-size: 108px;
