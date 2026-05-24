@@ -1004,10 +1004,9 @@ document.getElementById('gw-submit-btn').addEventListener('click', async () => {
 
   const drawId   = document.getElementById('gw-draw-select').value
   const cardCode = document.getElementById('gw-card-code').value.trim()
-  const winType  = document.getElementById('gw-win-type').value
 
-  if (!drawId)   { errEl.textContent = 'Select a draw first';     errEl.classList.remove('hidden'); return }
-  if (!cardCode) { errEl.textContent = 'Enter a card code';        errEl.classList.remove('hidden'); return }
+  if (!drawId)   { errEl.textContent = 'Select a draw first'; errEl.classList.remove('hidden'); return }
+  if (!cardCode) { errEl.textContent = 'Enter a card code';   errEl.classList.remove('hidden'); return }
 
   const btn = document.getElementById('gw-submit-btn')
   btn.disabled = true
@@ -1016,7 +1015,7 @@ document.getElementById('gw-submit-btn').addEventListener('click', async () => {
   const res = await POST('/api/system-tickets/give-win', {
     draw_id:   Number(drawId),
     card_code: cardCode,
-    win_type:  winType,
+    win_type:  'bingo',
   })
 
   btn.disabled = false
@@ -1029,10 +1028,9 @@ document.getElementById('gw-submit-btn').addEventListener('click', async () => {
   }
 
   document.getElementById('gw-card-code').value = ''
-  const typeLabel = { line: 'Line', bingo: 'Full House', both: 'Line + Full House' }[winType] || winType
-  okEl.textContent = `✅ ${typeLabel} awarded to ticket #${res.ticket_id} (card ${res.card_code}). Win ceremony fired to all players.`
+  okEl.textContent = `✅ Full House awarded to ticket #${res.ticket_id} (card ${res.card_code}). Win ceremony fired to all players.`
   okEl.classList.remove('hidden')
-  toast(`Win awarded — card ${res.card_code}`)
+  toast(`Full House win awarded — card ${res.card_code}`)
 })
 
 async function updateSysTicket(id, fields) {
