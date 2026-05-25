@@ -183,7 +183,7 @@ function drawLocalToUtcMs(draw_date, draw_time) {
 function getNextScheduledDraw() {
   try {
     return dbQuery(
-      `SELECT id, title, draw_date, draw_time, ball_interval, line_prize, full_house_prize FROM draws
+      `SELECT id, title, draw_date, draw_time, ball_interval, line_prize, full_house_prize, announcer FROM draws
        WHERE status = 'scheduled'
        ORDER BY draw_date ASC, draw_time ASC LIMIT 1`
     )[0] ?? null
