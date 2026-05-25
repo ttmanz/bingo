@@ -702,15 +702,23 @@ function connectSocket() {
 
   // A number is drawn — animate ball
   socket.on('number-drawn', ({ number, called }) => {
-    // Safety: if curtain still up when first ball arrives (countdown event missed), lift it now
+    // Safety: if countdown never fired remaining=0, the curtain is still up and paused is still
+    // true. Lift the curtain and unpause so the draw can proceed.
     if (!_curtainFaded) {
       _curtainFaded = true
       const blocked = document.getElementById('room-blocked')
       if (blocked && !blocked.classList.contains('hidden')) {
         gsap.to(blocked, {
           opacity: 0, duration: 0.8,
-          onComplete: () => { blocked.classList.add('hidden'); blocked.style.opacity = '' }
+          onComplete: () => {
+            blocked.classList.add('hidden')
+            blocked.style.opacity = ''
+            paused = false
+            drainPendingBalls()
+          }
         })
+      } else {
+        paused = false
       }
     }
     if (paused) { _pendingBalls.push({ number, called }); return }
