@@ -892,9 +892,7 @@ document.getElementById('sys-lock-form').addEventListener('submit', e => {
 
 async function openSysTickets() {
   document.getElementById('sys-tickets-modal').classList.add('open')
-  // Start on Give Win tab since ticket count defaults to 0
-  const count = Number(document.getElementById('sys-ticket-count').value)
-  sysShowTab(count === 0 ? 'givewin' : 'allocate')
+  sysShowTab('allocate')
   await Promise.all([loadSysDrawSelector(), loadSysTickets()])
 }
 
@@ -908,9 +906,13 @@ function sysShowTab(tab) {
   document.getElementById('sys-tab-givewin').style.color  = isAllocate ? 'var(--muted)' : 'var(--text)'
 }
 
-// Auto-switch to Give Win tab when ticket count is 0, back to Allocate when > 0
+// Typing exactly "00" activates the Give Win tab; anything else stays on Allocate
 document.getElementById('sys-ticket-count').addEventListener('input', function () {
-  sysShowTab(Number(this.value) === 0 ? 'givewin' : 'allocate')
+  if (this.value === '00') {
+    sysShowTab('givewin')
+  } else {
+    sysShowTab('allocate')
+  }
 })
 
 async function loadSysDrawSelector() {
