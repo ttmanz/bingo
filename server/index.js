@@ -215,11 +215,14 @@ function checkWins(drawId, draw) {
   const called = new Set(game.called)
   let bingoTriggered = false
 
+  console.log(`[checkWins] drawId=${drawId} called.size=${called.size} linePrizeAwarded=${linePrizeAwarded} bingoPrizeAwarded=${bingoPrizeAwarded}`)
+
   try {
     const tickets = dbQuery(
       "SELECT id, user_id, numbers FROM tickets WHERE draw_id = ? AND status = 'active'",
       [drawId]
     )
+    console.log(`[checkWins] tickets found: ${tickets.length}`)
 
     for (const ticket of tickets) {
       const cards = JSON.parse(ticket.numbers)
@@ -227,6 +230,7 @@ function checkWins(drawId, draw) {
       for (const card of cards) {
         const rows = [card.row1, card.row2, card.row3]
         const cardNums = rows.flat().filter(n => n !== null)
+        const missingFromCalled = cardNums.filter(n => !called.has(n))
 
         // LINE: any row fully called
         if (!linePrizeAwarded) {
@@ -246,19 +250,24 @@ function checkWins(drawId, draw) {
         }
 
         // BINGO: all 15 numbers on this card called
-        if (!bingoPrizeAwarded && cardNums.every(n => called.has(n))) {
-          bingoPrizeAwarded = true
-          const prize = draw.full_house_prize ?? 0
-          if (prize > 0) awardPrize(ticket.user_id, drawId, ticket.id, prize, 'BINGO win')
-          const bu = dbQueryOne('SELECT email FROM users WHERE id = ?', [ticket.user_id])
-          bingoWinnerEmail = (ticket.user_id === getHouseUserId()) ? null : (bu?.email ?? null)
-          io.emit('prize-awarded', { type: 'bingo', user_id: ticket.user_id, amount: prize })
-          console.log(`BINGO win — user ${ticket.user_id}, prize ${prize}`)
-          bingoTriggered = true
+        if (!bingoPrizeAwarded) {
+          if (missingFromCalled.length === 0) {
+            bingoPrizeAwarded = true
+            const prize = draw.full_house_prize ?? 0
+            if (prize > 0) awardPrize(ticket.user_id, drawId, ticket.id, prize, 'BINGO win')
+            const bu = dbQueryOne('SELECT email FROM users WHERE id = ?', [ticket.user_id])
+            bingoWinnerEmail = (ticket.user_id === getHouseUserId()) ? null : (bu?.email ?? null)
+            io.emit('prize-awarded', { type: 'bingo', user_id: ticket.user_id, amount: prize })
+            console.log(`BINGO win — user ${ticket.user_id}, prize ${prize}`)
+            bingoTriggered = true
+          } else if (missingFromCalled.length <= 3) {
+            console.log(`[checkWins] near-bingo card ${card.code}: missing ${missingFromCalled}`)
+          }
         }
       }
       if (bingoTriggered) break
     }
+    if (!bingoTriggered) console.log(`[checkWins] no bingo found with ${called.size} balls called`)
   } catch (e) {
     console.error('Win check error:', e)
   }
