@@ -892,7 +892,9 @@ document.getElementById('sys-lock-form').addEventListener('submit', e => {
 
 async function openSysTickets() {
   document.getElementById('sys-tickets-modal').classList.add('open')
-  sysShowTab('allocate')
+  // Start on Give Win tab since ticket count defaults to 0
+  const count = Number(document.getElementById('sys-ticket-count').value)
+  sysShowTab(count === 0 ? 'givewin' : 'allocate')
   await Promise.all([loadSysDrawSelector(), loadSysTickets()])
 }
 
@@ -905,6 +907,11 @@ function sysShowTab(tab) {
   document.getElementById('sys-tab-givewin').style.borderBottomColor  = isAllocate ? 'transparent' : 'var(--primary)'
   document.getElementById('sys-tab-givewin').style.color  = isAllocate ? 'var(--muted)' : 'var(--text)'
 }
+
+// Auto-switch to Give Win tab when ticket count is 0, back to Allocate when > 0
+document.getElementById('sys-ticket-count').addEventListener('input', function () {
+  sysShowTab(Number(this.value) === 0 ? 'givewin' : 'allocate')
+})
 
 async function loadSysDrawSelector() {
   const draws = await GET('/api/system-tickets/draws')
