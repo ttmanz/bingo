@@ -27,13 +27,17 @@ body {
 /* ── Draw-in-progress blocking screen ── */
 .room-blocked {
   position: fixed; inset: 0; z-index: 1000;
-  background: rgba(8,8,18,.96);
+  background: url('/bingo-room/curtain.png') center/cover no-repeat;
   display: flex; align-items: center; justify-content: center; padding: 24px;
 }
 .room-blocked.hidden { display: none !important; }
 .room-blocked-inner {
-  background: var(--room-surface); border: 1px solid var(--room-border);
+  background: rgba(8,8,18,0.85);
+  border: 1px solid rgba(167,139,250,0.4);
   border-radius: 20px; padding: 48px 36px; text-align: center; max-width: 400px; width: 100%;
+  box-shadow: 0 0 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(167,139,250,0.12);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 .room-blocked-icon  { font-size: 56px; margin-bottom: 16px; }
 .room-blocked-title { font-size: 24px; font-weight: 800; margin-bottom: 12px; }
