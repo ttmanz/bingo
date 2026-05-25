@@ -102,7 +102,7 @@ function showWaitingPanel(nextDrawTime, nextDrawTitle) {
     const inner = blocked.querySelector('.room-blocked-inner')
     if (inner) {
       inner.innerHTML = `
-        <div class="room-blocked-icon">🎰</div>
+        <img src="/bingo-room/bm.png" alt="" style="width:140px;height:auto;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;">
         <h2 class="room-blocked-title">${nextDrawTitle || 'Upcoming Draw'}</h2>
         <p class="room-blocked-msg" style="margin-bottom:4px">Starting in</p>
         <div id="curtain-countdown-display" style="font-size:64px;font-weight:900;color:#a78bfa;letter-spacing:-.02em;line-height:1;margin:10px 0 6px;font-variant-numeric:tabular-nums;">--:--</div>
