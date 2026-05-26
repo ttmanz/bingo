@@ -238,6 +238,8 @@ a.pm-item { color: var(--muted); }
   white-space: nowrap;
 }
 .sbtn:hover { background: rgba(124,58,237,.25); border-color: rgba(124,58,237,.5); }
+/* Full-width button (5th item breaks onto its own row and spans both columns) */
+.sbtn-wide { flex: 1 1 100%; max-width: 100%; }
 
 /* ── Section panels (full-page views) ── */
 .section-panel { display: none; }
@@ -448,3 +450,71 @@ a.pm-item { color: var(--muted); }
 .ios-steps { font-size: 15px; line-height: 1.7; color: var(--muted); margin-bottom: 24px; text-align: left; }
 .ios-steps strong { color: var(--text); }
 .ios-share { font-size: 18px; }
+
+/* ── Game Schedule ── */
+.sched-date {
+  font-size: 13px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .1em; color: var(--muted);
+  padding: 4px 0 16px;
+}
+.sched-list {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.sched-row {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px; padding: 14px 16px;
+  transition: border-color .15s;
+}
+.sched-row-live {
+  border-color: rgba(239,68,68,.45);
+  background: rgba(239,68,68,.06);
+}
+.sched-row-done {
+  opacity: .55;
+}
+.sched-time {
+  font-size: 18px; font-weight: 900; color: #a78bfa;
+  min-width: 58px; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.sched-row-done .sched-time { color: var(--muted); }
+.sched-info {
+  flex: 1; min-width: 0;
+}
+.sched-name {
+  font-size: 15px; font-weight: 800; color: var(--text);
+  display: flex; align-items: center; gap: 6px;
+  flex-wrap: wrap;
+}
+.sched-type {
+  font-size: 10px; font-weight: 700; padding: 2px 7px;
+  border-radius: 20px; background: rgba(6,182,212,.15);
+  color: #67e8f9; border: 1px solid rgba(6,182,212,.3);
+  text-transform: uppercase; letter-spacing: .06em;
+}
+.sched-prizes {
+  display: flex; gap: 12px; margin-top: 4px; flex-wrap: wrap;
+}
+.sched-prize {
+  font-size: 12px; color: var(--muted);
+}
+.sched-prize strong { color: #fbbf24; font-weight: 700; }
+.sched-badge-wrap {
+  flex-shrink: 0;
+}
+.sched-badge {
+  font-size: 11px; font-weight: 700; padding: 4px 10px;
+  border-radius: 20px; white-space: nowrap;
+}
+.sched-live { background: rgba(239,68,68,.2);  color: #f87171; border: 1px solid rgba(239,68,68,.4); }
+.sched-soon { background: rgba(124,58,237,.18); color: #c4b5fd; border: 1px solid rgba(124,58,237,.4); }
+.sched-done { background: rgba(255,255,255,.06); color: var(--muted); border: 1px solid var(--border); }
+.sched-empty {
+  text-align: center; padding: 60px 20px 40px;
+  color: var(--muted);
+}
+.sched-empty-icon { font-size: 48px; margin-bottom: 16px; }
+.sched-empty p { font-size: 15px; margin-bottom: 6px; }
+.sched-empty-sub { font-size: 13px; color: var(--muted); }

@@ -228,6 +228,7 @@ window.openSection = function(name) {
   const panel = document.getElementById('section-' + name);
   if (panel) { panel.classList.remove('hidden'); panel.classList.add('active'); }
   if (name === 'tickets') loadMyTickets();
+  if (name === 'schedule') loadSchedule();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
@@ -356,6 +357,91 @@ async function loadMyTickets() {
   } catch (err) {
     panel.innerHTML = '<div class="loading-state">Could not load tickets. Please try again.</div>';
     console.error('loadMyTickets error', err);
+  }
+}
+
+// ── Game Schedule ─────────────────────────────────────────────────────────
+
+async function loadSchedule() {
+  const panel = document.getElementById('schedulePanel');
+  if (!panel) return;
+  panel.innerHTML = '<div class="loading-state">Loading…</div>';
+
+  try {
+    const { ok, data } = await apiFetch('/api/user-portal/available-draws');
+    if (!ok) throw new Error('fetch failed');
+
+    const regular = Array.isArray(data.regular) ? data.regular : [];
+    const special = Array.isArray(data.special)  ? data.special  : [];
+    const all = [...regular, ...special];
+
+    // Filter to draws whose scheduled time falls within today (local calendar day)
+    const todayStr = new Date().toLocaleDateString('en-CA'); // "YYYY-MM-DD" in local tz
+    const toMs = d => {
+      if (d.scheduled_utc) return new Date(d.scheduled_utc).getTime();
+      if (d.draw_date && d.draw_time) return new Date(d.draw_date + 'T' + d.draw_time).getTime();
+      return null;
+    };
+
+    const todayDraws = all
+      .filter(d => {
+        const ms = toMs(d);
+        if (!ms) return false;
+        const localDay = new Date(ms).toLocaleDateString('en-CA');
+        return localDay === todayStr;
+      })
+      .sort((a, b) => (toMs(a) || 0) - (toMs(b) || 0));
+
+    if (!todayDraws.length) {
+      panel.innerHTML = `
+        <div class="sched-empty">
+          <div class="sched-empty-icon">📅</div>
+          <p>No more draws scheduled for today.</p>
+          <p class="sched-empty-sub">Check back tomorrow!</p>
+        </div>`;
+      return;
+    }
+
+    const now = Date.now();
+
+    panel.innerHTML = `
+      <div class="sched-date">${new Date().toLocaleDateString([], { weekday:'long', day:'numeric', month:'long' })}</div>
+      <div class="sched-list">
+        ${todayDraws.map(d => {
+          const ms = toMs(d);
+          const isLive = d.status === 'running';
+          const isPast = !isLive && ms && ms < now;
+          const timeStr = ms
+            ? new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : '—';
+          const linePrize = d.line_prize > 0 ? d.line_prize : null;
+          const fullPrize = d.full_house_prize > 0 ? d.full_house_prize : null;
+          const badgeHtml = isLive
+            ? `<span class="sched-badge sched-live">🔴 Live</span>`
+            : isPast
+            ? `<span class="sched-badge sched-done">✓ Done</span>`
+            : `<span class="sched-badge sched-soon">⏰ ${timeStr}</span>`;
+          const typeTag = d.draw_type === 'special'
+            ? `<span class="sched-type">Special</span>` : '';
+          const prizeLine = (linePrize || fullPrize)
+            ? `<div class="sched-prizes">
+                ${linePrize  ? `<span class="sched-prize">Line <strong>${linePrize} pts</strong></span>` : ''}
+                ${fullPrize  ? `<span class="sched-prize">Full House <strong>${fullPrize} pts</strong></span>` : ''}
+               </div>` : '';
+          return `
+            <div class="sched-row${isLive ? ' sched-row-live' : isPast ? ' sched-row-done' : ''}">
+              <div class="sched-time">${timeStr}</div>
+              <div class="sched-info">
+                <div class="sched-name">${d.title || 'Draw'}${typeTag}</div>
+                ${prizeLine}
+              </div>
+              <div class="sched-badge-wrap">${badgeHtml}</div>
+            </div>`;
+        }).join('')}
+      </div>`;
+  } catch (err) {
+    panel.innerHTML = '<div class="loading-state">Could not load schedule. Please try again.</div>';
+    console.error('loadSchedule error', err);
   }
 }
 

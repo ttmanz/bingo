@@ -8,7 +8,7 @@
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <link rel="apple-touch-icon" href="/icon-180.png" />
   <meta name="theme-color" content="#7c3aed" />
-  <link rel="stylesheet" href="portal.css?v=29" />
+  <link rel="stylesheet" href="portal.css?v=30" />
 </head>
 <body>
 
@@ -119,6 +119,7 @@
       <button class="sbtn" onclick="openSection('buy')">🎟 Buy Tickets</button>
       <button class="sbtn" onclick="openSection('tickets')">🗂 My Tickets</button>
       <button class="sbtn" onclick="window.location.href='/bingo-room'">🎯 Bingo Room</button>
+      <button class="sbtn sbtn-wide" onclick="openSection('schedule')">📅 Game Schedule</button>
     </div>
   </div>
 
@@ -157,6 +158,17 @@
         <p>Watch the live draw, mark your tickets in real time and celebrate your wins.</p>
         <button class="btn btn-primary" id="btnEnterRoom">Enter Bingo Room →</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ── GAME SCHEDULE PANEL ── -->
+  <div id="section-schedule" class="section-panel">
+    <div class="section-back-bar">
+      <button class="back-btn" onclick="closeSection()">&#8592;</button>
+      <span class="section-title">📅 Game Schedule</span>
+    </div>
+    <div class="panel-inner" id="schedulePanel">
+      <div class="loading-state">Loading…</div>
     </div>
   </div>
 
@@ -232,6 +244,6 @@
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
-<script src="portal.js?v=34"></script>
+<script src="portal.js?v=35"></script>
 </body>
 </html>
