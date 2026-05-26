@@ -159,7 +159,49 @@ function setVh() {
   document.documentElement.style.setProperty('--real-vh', window.innerHeight + 'px')
 }
 setVh()
-window.addEventListener('resize', setVh)
+
+// ── Stage scaling: fit the 580×460 machine into whatever screen is available ─
+// The machine uses transform:scale(--stage-scale); we compensate the announcer
+// position via JS because it lives in body (outside the machine stacking context).
+function _announcerNaturalPos() {
+  const el = announcer?._el
+  if (!el) return null
+  const isCD = el.classList.contains('announcer-c') || el.classList.contains('announcer-d')
+  return isCD
+    ? { ox: 65,  oy: 190, w: 125, h: 325 }   // types c & d — left stage
+    : { ox: 836, oy: 200, w: 200, h: 340 }   // types a & b — right stage
+}
+
+function updateStageScale() {
+  const drumCol = document.querySelector('.room-drum-col')
+  const machine = document.getElementById('lottery-machine')
+  const scaler  = machine?.parentElement   // .machine-scaler
+  if (!drumCol || !machine || !scaler) return
+
+  // Scale constrained by available width AND height (minus 52px topbar)
+  const availW   = drumCol.clientWidth
+  const availH   = Math.max(1, window.innerHeight - 52)   // guard against tiny window
+  const scale    = Math.max(0.3, Math.min(1, availW / 580, availH / 460))
+
+  document.documentElement.style.setProperty('--stage-scale', scale)
+  scaler.style.width  = Math.round(580 * scale) + 'px'
+  scaler.style.height = Math.round(460 * scale) + 'px'
+
+  // Reposition the announcer after layout settles (it lives in body, tracks machine)
+  requestAnimationFrame(() => {
+    const np = _announcerNaturalPos()
+    if (!np || !announcer?._el) return
+    const mRect = machine.getBoundingClientRect()
+    const el    = announcer._el
+    el.style.left   = Math.round(mRect.left + np.ox * scale) + 'px'
+    el.style.top    = Math.round(mRect.top + window.scrollY + np.oy * scale) + 'px'
+    el.style.width  = Math.round(np.w * scale) + 'px'
+    el.style.height = Math.round(np.h * scale) + 'px'
+  })
+}
+
+updateStageScale()
+window.addEventListener('resize', () => { setVh(); updateStageScale() })
 
 // ── Load player card from localStorage (shared across all portal tabs) ─
 // Format: { cards: [{row1,row2,row3,code},...], drawTitle: "..." }
@@ -643,7 +685,7 @@ function connectSocket() {
     calledSet = new Set(called)
     if (phase === 'waiting') {
       _nextDrawTitle = nextDrawTitle || 'this draw'
-      if (annType) announcer.setType(annType)
+      if (annType) { announcer.setType(annType); updateStageScale() }
       renderPlayerCard()
       showWaitingPanel(nextDrawTime, nextDrawTitle)
       return
@@ -663,7 +705,7 @@ function connectSocket() {
     _nextDrawTitle = nextDrawTitle || 'this draw'
     _introPlayed   = false        // allow intro for the new draw
     _curtainFaded  = false        // allow curtain to lift for the new draw
-    if (annType) announcer.setType(annType)
+    if (annType) { announcer.setType(annType); updateStageScale() }
     gsap.to(announcer._el, { opacity: 0, duration: 0.5 })  // hide announcer between draws
     renderPlayerCard()
     showWaitingPanel(nextDrawTime, nextDrawTitle)

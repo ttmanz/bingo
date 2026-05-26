@@ -144,6 +144,8 @@ body {
   width: 580px;
   min-height: 460px;
   overflow: visible;
+  transform-origin: top left;
+  transform: scale(var(--stage-scale, 1));
 }
 
 .tube-svg {
@@ -340,18 +342,15 @@ body {
 .rest-ball         { z-index: 65; }   /* above tube SVG so stacked balls are visible */
 
 /* ── Announcer character ─────────────────────────────────────────────────── */
+/* Position and size are set dynamically by updateStageScale() in room.js     */
+/* so the announcer tracks the scaled machine on all screen sizes.            */
 .announcer {
   position: absolute;
-  left: 836px;
-  top: 200px;
-  width: 200px;
-  height: 340px;
   z-index: 160;             /* above bingo overlay (z=150) so always visible */
   pointer-events: none;
   display: flex;
   align-items: flex-end;
   opacity: 0;               /* hidden until T-3s countdown; GSAP fades her in */
-  /* No idle animation */
 }
 
 .announcer-img {
@@ -361,24 +360,6 @@ body {
   object-fit: contain;
   object-position: bottom;
   filter: drop-shadow(0 8px 24px rgba(0,0,0,0.65));
-}
-
-/* Types a & b — right side main stage (same base position) */
-.announcer-a,
-.announcer-b {
-  left: 836px;
-  top: 200px;
-  width: 200px;
-  height: 340px;
-}
-
-/* Types c & d — left small stage; left arm at ~90px from screen edge */
-.announcer-c,
-.announcer-d {
-  left: 65px;
-  top: 190px;
-  width: 125px;
-  height: 325px;
 }
 
 .drum-ball span {

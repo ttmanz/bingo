@@ -120,8 +120,11 @@ export class DrumPhysics3D {
     // Project physics position → machine-container coords (matches animation-1 math)
     const mRect = this.machineEl.getBoundingClientRect()
     const dRect = this.drumEl.getBoundingClientRect()
-    const offX  = dRect.left - mRect.left
-    const offY  = dRect.top  - mRect.top
+    // getBoundingClientRect returns scaled viewport coords; clone CSS positions are
+    // in the machine's own unscaled coordinate space, so divide by the CSS scale.
+    const cssScale = mRect.width / 580   // 580 = machine natural CSS width
+    const offX  = (dRect.left - mRect.left) / cssScale
+    const offY  = (dRect.top  - mRect.top)  / cssScale
     const p     = e.body.position
     const s     = PERSP / (PERSP - p.z)
     const vs    = Math.max(0.5, Math.min(1.35, s))

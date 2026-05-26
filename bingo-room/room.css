@@ -504,6 +504,92 @@ body {
   word-break: break-all; text-align: right;
 }
 
+/* ── Machine scaler wrapper (constrains the scaled .lottery-machine) ── */
+.machine-scaler {
+  position: relative;
+  overflow: visible;
+  /* width & height set dynamically by JS updateStageScale() */
+}
+
+/* ── Mobile responsive layout ─────────────────────────────────────────────── */
+@media (max-width: 860px) {
+  /* Stack drum col and callcard vertically instead of side-by-side */
+  .room-top {
+    flex-direction: column;
+  }
+
+  /* Give the full width to the drum area; machine will auto-scale to fit height */
+  .room-drum-col {
+    padding: 8px 8px 0;
+    justify-content: flex-start;
+    overflow: visible;
+  }
+  .room-drum-col .app {
+    margin-top: 0;
+    padding-bottom: 0;
+    align-items: flex-start;
+  }
+  .draw-stage {
+    justify-content: flex-start;
+  }
+
+  /* Callcard becomes a compact strip below the drum */
+  .room-callcard-col {
+    flex: 0 0 auto;
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--room-border);
+    padding: 10px 16px;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+  /* Keep call-card grid from expanding to full phone width */
+  .room-callcard-col .call-card {
+    max-width: 380px;
+    margin: 0 auto;
+  }
+
+  /* Win overlays that reserved right-side space for the callcard */
+  #line-flash,
+  #line-check-overlay,
+  #bingo-next-draw {
+    right: 0;
+  }
+
+  /* Draw-results popup: full width on mobile */
+  #draw-results-card {
+    width: calc(100vw - 32px);
+    min-width: 0;
+    max-width: 100%;
+    left: 16px;
+    transform: none;
+  }
+
+  /* Tickets section: tighter padding */
+  .room-tickets-section {
+    padding: 16px 12px 32px;
+  }
+
+  /* Ticket table: smaller cells on mobile */
+  .room-card-grid-table td {
+    height: 30px;
+    font-size: 11px;
+  }
+  .room-card-grid-table td.card-code-cell {
+    font-size: 7px;
+    width: 16px;
+    min-width: 16px;
+  }
+
+  /* Topbar: smaller text and tighter on mobile */
+  .room-title {
+    font-size: 17px;
+  }
+  .room-back, .room-status {
+    font-size: 11px;
+  }
+}
+
 /* ── Portrait rotate overlay ── */
 #rotate-overlay {
   display: none;
