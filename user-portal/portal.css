@@ -410,33 +410,33 @@ a.pm-item { color: var(--muted); }
 .mte-icon { font-size: 52px; margin-bottom: 16px; }
 .my-tickets-empty p { font-size: 15px; margin-bottom: 20px; }
 
-.mt-group {
+/* compact row: draw name left, ticket count right */
+.mt-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 14px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 16px 16px 20px;
-  margin-bottom: 16px;
+  border-radius: 12px;
+  margin-bottom: 8px;
 }
-.mt-draw-header {
-  display: flex; align-items: center; gap: 10px; margin-bottom: 4px;
+.mt-row-left {
+  display: flex; align-items: center; gap: 8px; min-width: 0;
 }
-.mt-draw-title {
-  font-size: 16px; font-weight: 800; color: var(--text);
+.mt-row-title {
+  font-size: 14px; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mt-row-count {
+  font-size: 14px; font-weight: 800; color: var(--accent);
+  white-space: nowrap; flex-shrink: 0; padding-left: 8px;
 }
 .mt-badge {
-  font-size: 11px; font-weight: 700; padding: 3px 8px;
-  border-radius: 20px; white-space: nowrap;
+  font-size: 10px; font-weight: 700; padding: 2px 7px;
+  border-radius: 20px; white-space: nowrap; flex-shrink: 0;
 }
 .mt-badge-live  { background: rgba(239,68,68,.2);  color: #f87171; border: 1px solid rgba(239,68,68,.35); }
 .mt-badge-soon  { background: rgba(245,158,11,.15); color: #fbbf24; border: 1px solid rgba(245,158,11,.3); }
 .mt-badge-done  { background: rgba(255,255,255,.06);color: var(--muted); border: 1px solid var(--border); }
-.mt-draw-when {
-  font-size: 12px; color: var(--muted); margin-bottom: 8px;
-}
-.mt-ticket-count {
-  font-size: 14px; font-weight: 700; color: var(--text);
-  padding: 6px 0 2px;
-}
 .mt-cards {
   display: flex; flex-wrap: wrap; gap: 12px;
 }

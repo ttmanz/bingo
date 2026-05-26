@@ -295,11 +295,7 @@ async function loadMyTickets() {
     }
 
     panel.innerHTML = keys.map(key => {
-      const g    = groups[key];
-      const when = g.draw_date && g.draw_time
-        ? new Date(g.draw_date + 'T' + g.draw_time + '+03:00')
-            .toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
-        : '';
+      const g = groups[key];
       const statusBadge = g.draw_status === 'running'
         ? `<span class="mt-badge mt-badge-live">🔴 Live</span>`
         : g.draw_status === 'scheduled'
@@ -307,20 +303,14 @@ async function loadMyTickets() {
         : `<span class="mt-badge mt-badge-done">✓ Done</span>`;
 
       return `
-        <div class="mt-group">
-          <div class="mt-draw-header">
-            <span class="mt-draw-title">${g.draw_title}</span>
+        <div class="mt-row">
+          <div class="mt-row-left">
+            <span class="mt-row-title">${g.draw_title}</span>
             ${statusBadge}
           </div>
-          ${when ? `<div class="mt-draw-when">📅 ${when}</div>` : ''}
-          <div class="mt-ticket-count">🎟️ ${g.ticket_count} ticket${g.ticket_count !== 1 ? 's' : ''}</div>
+          <span class="mt-row-count">${g.ticket_count} 🎟️</span>
         </div>`;
     }).join('');
-
-    panel.innerHTML += `
-      <div style="text-align:center;padding:20px 0 8px">
-        <button class="btn btn-primary" onclick="window.location.href='/bingo-room'">🎯 Go to Bingo Room</button>
-      </div>`;
 
   } catch (err) {
     panel.innerHTML = `
