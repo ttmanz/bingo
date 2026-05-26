@@ -39,12 +39,23 @@ function hideErr(elId) { $(elId).classList.add('hidden'); }
 
 function pad(n) { return String(n).padStart(2, '0'); }
 
-async function apiFetch(path, opts = {}) {
+async function apiFetch(path, opts = {}, timeoutMs = 12000) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = 'Bearer ' + token;
-  const res = await fetch(API + path, { ...opts, headers });
-  const data = await res.json().catch(() => ({}));
-  return { ok: res.ok, status: res.status, data };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(API + path, { ...opts, headers, signal: controller.signal });
+    // Keep the abort timer active through the body read — if the server crashes
+    // mid-response the body will never complete; we need the timeout to fire then too.
+    const data = await res.json().catch(() => ({}));
+    clearTimeout(timer);
+    return { ok: res.ok, status: res.status, data };
+  } catch (err) {
+    clearTimeout(timer);
+    if (err.name === 'AbortError') throw new Error('Request timed out — please try again');
+    throw err;
+  }
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────
@@ -312,7 +323,12 @@ async function loadMyTickets() {
       </div>`;
 
   } catch (err) {
-    panel.innerHTML = `<div class="loading-state" style="color:#f87171">Error loading tickets: ${err.message || err}<br><button class="btn btn-primary" style="margin-top:12px" onclick="loadMyTickets()">↻ Retry</button></div>`;
+    panel.innerHTML = `
+      <div class="loading-state" style="color:#f87171">
+        ${err.message || 'Could not load tickets'}
+        <br>
+        <button class="btn btn-primary" style="margin-top:12px" onclick="loadMyTickets()">↻ Retry</button>
+      </div>`;
     console.error('loadMyTickets error', err);
   }
 }

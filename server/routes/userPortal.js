@@ -6,13 +6,15 @@ const router = Router()
 
 // GET /api/user-portal/me
 router.get('/me', requireUserAuth, (req, res) => {
+  const userId = req.user.user_id ?? req.user.id
+  if (!userId) return res.status(400).json({ error: 'Invalid token — please log out and log in again' })
   const user = queryOne(
     `SELECT u.id, u.name, u.email, u.phone, u.role, u.points, u.status, u.created_at,
        a.name as agent_name, a.email as agent_email
      FROM users u
      LEFT JOIN users a ON a.id = u.agent_id
      WHERE u.id = ?`,
-    [req.user.user_id]
+    [userId]
   )
   if (!user) return res.status(404).json({ error: 'User not found' })
   res.json(user)
@@ -57,16 +59,23 @@ router.get('/available-draws', requireUserAuth, (req, res) => {
   const soldMap = Object.fromEntries(soldRows.map(r => [r.draw_id, r.sold]))
   const TZ = 'Asia/Nicosia'
   function localToUtc(draw_date, draw_time) {
+    if (!draw_date || !draw_time) return null
     const t = draw_time.length === 5 ? draw_time + ':00' : draw_time
     // Parse the stored local time as UTC, then find the real offset for Asia/Nicosia at that date
     const probe = new Date(`${draw_date}T${t}Z`)
+    if (isNaN(probe.getTime())) return null
     const parts = new Intl.DateTimeFormat('en-US', {
       timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
     }).formatToParts(probe).reduce((a, p) => { a[p.type] = p.value; return a }, {})
+    // Node.js/ICU bug: hour12:false can return '24' instead of '00' for midnight —
+    // the day is already correct (next day), so just map '24' → '00'
+    if (parts.hour === '24') parts.hour = '00'
     const tzDate = new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}Z`)
     const offsetMs = probe - tzDate
-    return new Date(probe.getTime() + offsetMs).toISOString()
+    const result = new Date(probe.getTime() + offsetMs)
+    if (isNaN(result.getTime())) return null
+    return result.toISOString()
   }
 
   const nowMs = Date.now()
@@ -88,22 +97,27 @@ router.get('/available-draws', requireUserAuth, (req, res) => {
 
 // GET /api/user-portal/tickets
 router.get('/tickets', requireUserAuth, (req, res) => {
+  // Support both token shapes: { user_id } (current) and legacy { id }
+  const userId = req.user.user_id ?? req.user.id
+  if (!userId) return res.status(400).json({ error: 'Invalid token — please log out and log in again' })
   const tickets = query(
     `SELECT t.*, d.title as draw_title, d.draw_date, d.draw_time, d.timezone, d.status as draw_status
      FROM tickets t
      JOIN draws d ON d.id = t.draw_id
      WHERE t.user_id = ?
      ORDER BY t.created_at DESC LIMIT 50`,
-    [req.user.user_id]
+    [userId]
   )
   res.json(tickets)
 })
 
 // GET /api/user-portal/transactions
 router.get('/transactions', requireUserAuth, (req, res) => {
+  const userId = req.user.user_id ?? req.user.id
+  if (!userId) return res.status(400).json({ error: 'Invalid token — please log out and log in again' })
   const txns = query(
     `SELECT * FROM transactions WHERE user_id = ? ORDER BY created_at DESC LIMIT 100`,
-    [req.user.user_id]
+    [userId]
   )
   res.json(txns)
 })

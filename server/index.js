@@ -1,3 +1,11 @@
+// ── Catch any crash BEFORE it silently kills the process ─────────────────
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] uncaughtException:', err)
+})
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] unhandledRejection:', reason)
+})
+
 import express from 'express'
 import compression from 'compression'
 import { createServer } from 'http'
@@ -176,6 +184,9 @@ function drawLocalToUtcMs(draw_date, draw_time) {
     timeZone: TZ_GAME, year:'numeric', month:'2-digit', day:'2-digit',
     hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false
   }).formatToParts(probe).reduce((a, p) => { a[p.type] = p.value; return a }, {})
+  // Node.js/ICU bug: hour12:false can return '24' instead of '00' for midnight —
+  // the day is already correct (next day), so just map '24' → '00'
+  if (parts.hour === '24') parts.hour = '00'
   const tzDate = new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}Z`)
   return probe.getTime() + (probe - tzDate)
 }
@@ -291,7 +302,16 @@ function scheduleNextDraw() {
   }
 
   const startMs = drawLocalToUtcMs(next.draw_date, next.draw_time)
-  const delay   = startMs - Date.now()
+
+  // Guard against draws with missing/invalid date-time — skip them silently
+  if (isNaN(startMs)) {
+    console.error(`[scheduleNextDraw] Draw ${next.id} "${next.title}" has invalid date/time (${next.draw_date} ${next.draw_time}) — marking completed and retrying`)
+    try { dbRun(`UPDATE draws SET status = 'completed' WHERE id = ?`, [next.id]) } catch {}
+    waitTimer = setTimeout(scheduleNextDraw, 500)
+    return
+  }
+
+  const delay = startMs - Date.now()
 
   io.emit('waiting', {
     drawId:          next.id,
