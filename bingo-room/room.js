@@ -61,11 +61,27 @@ async function fetchNextDrawTime() {
   } catch { return null }
 }
 
-function showDrawInProgress() {
-  // Show cards but overlay a waiting banner — don't fully block
+function showDrawInProgress(nextDrawTime, nextDrawTitle) {
+  // Cover the room with the curtain — user arrived mid-draw, show next draw info
+  const blocked = document.getElementById('room-blocked')
+  if (blocked) {
+    const inner = blocked.querySelector('.room-blocked-inner')
+    if (inner) {
+      const nextTime = nextDrawTime
+        ? new Date(nextDrawTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        : null
+      inner.innerHTML = `
+        <img src="/bingo-room/bm.png" alt="" style="width:120px;height:auto;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;">
+        <h2 class="room-blocked-title">Draw in Progress</h2>
+        <p class="room-blocked-msg">This draw is underway.<br>Please wait for the next one.</p>
+        ${nextDrawTitle || nextTime ? `<div class="room-blocked-next"><span class="rbn-label">${nextDrawTitle || 'Next draw'}</span><span class="rbn-time">${nextTime || '—'}</span></div>` : ''}
+        <a href="/user-portal" class="room-blocked-btn" style="margin-top:16px">← Back to Portal</a>
+      `
+    }
+    blocked.style.opacity = '1'
+    blocked.classList.remove('hidden')
+  }
   renderPlayerCard()
-  const banner = document.getElementById('room-waiting-banner')
-  if (banner) banner.classList.remove('hidden')
 }
 
 function hideWaitingBanner() {
@@ -527,8 +543,14 @@ async function runRemoteWinCeremony(type, amount) {
       onComplete: () => { overlay.remove(); r() } })
   )
 
-  if (type === 'line') announcer.sayText('Continuing.', () => { paused = false; drainPendingBalls() })
-  else { paused = false; drainPendingBalls(); tryShowDrawResults() }
+  if (type === 'line') {
+    announcer.sayText('Continuing.', () => { paused = false; drainPendingBalls() })
+  } else {
+    paused = false
+    drainPendingBalls()
+    await new Promise(resolve => announcer.sayText('Congratulations to all the winners!', resolve))
+    tryShowDrawResults()
+  }
 }
 
 function showNextDrawCountdown(seconds) {
@@ -628,7 +650,7 @@ function connectSocket() {
     }
     // phase === 'drawing'
     if (called.length > 0 && !gameOver) {
-      showDrawInProgress()
+      showDrawInProgress(nextDrawTime, nextDrawTitle)
       return
     }
     refreshCardMarks()
@@ -754,26 +776,22 @@ function connectSocket() {
 
   socket.on('draw-results', (data) => {
     _drawResults = data
-    // Clients with no ceremony (no ticket or spectators) show results after a short delay
-    if (!playerCards?.cards?.length) {
-      setTimeout(() => tryShowDrawResults(), 3000)
-    }
+    // Spectators / no-ticket clients show results after 5 s (no ceremony to wait for).
+    // Ticket-holders rely on the ceremony calling tryShowDrawResults(); 20 s is a safety net.
+    const delay = playerCards?.cards?.length ? 20000 : 5000
+    setTimeout(() => tryShowDrawResults(), delay)
   })
 
   // Broadcast prize announcements to ALL connected clients
   socket.on('prize-awarded', ({ type, amount }) => {
     if (type === 'line') {
-      lineWon = true   // stop every client from triggering a second line
-      // Local ceremony already running on the winner — show remote version on everyone else
-      // Guard: skip if this client is already running its own ceremony (overlay present)
-      if (!document.getElementById('line-flash') && !document.getElementById('line-check-overlay')) {
-        runRemoteWinCeremony('line', amount)
-      }
+      if (lineWon) return   // winner already ran local ceremony; or ceremony already started here
+      lineWon = true
+      runRemoteWinCeremony('line', amount)
     } else if (type === 'bingo') {
+      if (bingoWon) return
       bingoWon = true
-      if (!document.getElementById('line-flash') && !document.getElementById('line-check-overlay')) {
-        runRemoteWinCeremony('bingo', amount)
-      }
+      runRemoteWinCeremony('bingo', amount)
     }
   })
 

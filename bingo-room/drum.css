@@ -341,7 +341,7 @@ body {
 
 /* ── Announcer character ─────────────────────────────────────────────────── */
 .announcer {
-  position: fixed;
+  position: absolute;
   left: 836px;
   top: 200px;
   width: 200px;
