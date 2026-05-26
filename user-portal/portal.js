@@ -600,17 +600,26 @@ $('btnBuyConfirm').addEventListener('click', async () => {
     // close buy modal
     $('modal-buy').classList.add('hidden');
 
-    // Store cards in localStorage so bingo room tab can read them
+    // Store cards in localStorage so bingo room tab can read them.
+    // Structure: { [drawId]: { cards, drawTitle } } — one key per draw
+    // so buying tickets for multiple draws never overwrites each other.
     try {
       const boughtDraw = [...allDraws, ...specialDraws].find(d => d.id === activeBuyDrawId);
       if (data.tickets && data.tickets.length) {
-        const existing = JSON.parse(localStorage.getItem('bingoRoomTicket') || '{"cards":[]}');
-        const existingCards = Array.isArray(existing.cards) ? existing.cards : [];
+        const store = JSON.parse(localStorage.getItem('bingoRoomTickets') || '{}');
+        const drawKey = String(activeBuyDrawId);
+        const existingCards = Array.isArray(store[drawKey]?.cards) ? store[drawKey].cards : [];
         const newCards = data.tickets.flatMap(t => t.cards || []);
-        localStorage.setItem('bingoRoomTicket', JSON.stringify({
+        store[drawKey] = {
           cards:     [...existingCards, ...newCards],
+          drawTitle: (boughtDraw && (boughtDraw.title || boughtDraw.name)) || store[drawKey]?.drawTitle || 'Bingo Draw'
+        };
+        localStorage.setItem('bingoRoomTickets', JSON.stringify(store));
+        // Keep legacy key in sync for backward compat with old room.js
+        localStorage.setItem('bingoRoomTicket', JSON.stringify({
+          cards:     store[drawKey].cards,
           draw_id:   activeBuyDrawId,
-          drawTitle: (boughtDraw && (boughtDraw.title || boughtDraw.name)) || existing.drawTitle || 'Bingo Draw'
+          drawTitle: store[drawKey].drawTitle
         }));
       }
     } catch (e) { console.warn('localStorage write failed', e); }

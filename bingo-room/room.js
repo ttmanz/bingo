@@ -222,13 +222,32 @@ function updateStageScale() {
 updateStageScale()
 window.addEventListener('resize', () => { setVh(); updateStageScale() })
 
-// ── Load player card from localStorage (shared across all portal tabs) ─
-// Format: { cards: [{row1,row2,row3,code},...], drawTitle: "..." }
-let playerCards = null
-try {
-  const raw = localStorage.getItem('bingoRoomTicket')
-  if (raw) playerCards = JSON.parse(raw)
-} catch {}
+// ── Load player cards from localStorage for a specific draw ──────────────
+// New format (bingoRoomTickets): { [drawId]: { cards, drawTitle } }
+// Legacy format (bingoRoomTicket): { cards, draw_id, drawTitle }
+let playerCards = null   // set by loadCardsForDraw() once we know the draw_id
+let _currentDrawId = null
+
+function loadCardsForDraw(drawId) {
+  _currentDrawId = drawId
+  if (!drawId) { playerCards = null; return }
+  const key = String(drawId)
+  try {
+    // New per-draw store (preferred)
+    const store = JSON.parse(localStorage.getItem('bingoRoomTickets') || '{}')
+    if (store[key]?.cards?.length) {
+      playerCards = store[key]
+      return
+    }
+    // Legacy single-draw store — only use if draw_id matches
+    const legacy = JSON.parse(localStorage.getItem('bingoRoomTicket') || '{}')
+    if (String(legacy.draw_id) === key && legacy.cards?.length) {
+      playerCards = legacy
+      return
+    }
+  } catch {}
+  playerCards = null
+}
 
 function renderPlayerCard() {
   if (!playerCards || !playerCards.cards?.length) {
@@ -545,7 +564,16 @@ function showDrawResultsCard({ drawTitle, lineWinner, bingoWinner }) {
   setTimeout(() => {
     gsap.to(card, { opacity: 0, y: -20, duration: 0.5, ease: 'power2.in',
       onComplete: () => {
-        localStorage.removeItem('bingoRoomTicket')
+        // Remove only the completed draw from the per-draw store (not the whole object)
+        try {
+          if (_currentDrawId) {
+            const store = JSON.parse(localStorage.getItem('bingoRoomTickets') || '{}')
+            delete store[String(_currentDrawId)]
+            localStorage.setItem('bingoRoomTickets', JSON.stringify(store))
+          }
+          // Also clear the legacy key so old behaviour doesn't resurface
+          localStorage.removeItem('bingoRoomTicket')
+        } catch {}
         window.location.href = '/user-portal'
       }
     })
@@ -700,16 +728,18 @@ function connectSocket() {
   })
 
   // Initial state on connect
-  socket.on('state', ({ called, gameOver, phase, nextDrawTime, nextDrawTitle, announcer: annType }) => {
+  socket.on('state', ({ called, gameOver, phase, drawId, nextDrawTime, nextDrawTitle, announcer: annType }) => {
     calledSet = new Set(called)
     if (phase === 'waiting') {
       _nextDrawTitle = nextDrawTitle || 'this draw'
       if (annType) { announcer.setType(annType); updateStageScale() }
+      loadCardsForDraw(drawId)   // drawId is the upcoming draw here
       renderPlayerCard()
       showWaitingPanel(nextDrawTime, nextDrawTitle)
       return
     }
     // phase === 'drawing'
+    loadCardsForDraw(drawId)
     if (called.length > 0 && !gameOver) {
       showDrawInProgress(nextDrawTime, nextDrawTitle)
       return
@@ -720,12 +750,13 @@ function connectSocket() {
   })
 
   // Server signals waiting for next draw
-  socket.on('waiting', ({ nextDrawTime, nextDrawTitle, announcer: annType }) => {
+  socket.on('waiting', ({ drawId, nextDrawTime, nextDrawTitle, announcer: annType }) => {
     _nextDrawTitle = nextDrawTitle || 'this draw'
     _introPlayed   = false        // allow intro for the new draw
     _curtainFaded  = false        // allow curtain to lift for the new draw
     if (annType) { announcer.setType(annType); updateStageScale() }
     gsap.to(announcer._el, { opacity: 0, duration: 0.5 })  // hide announcer between draws
+    loadCardsForDraw(drawId)
     renderPlayerCard()
     showWaitingPanel(nextDrawTime, nextDrawTitle)
     drum.reset(Array.from({ length: 90 }, (_, i) => i + 1))
@@ -856,7 +887,7 @@ function connectSocket() {
     }
   })
 
-  socket.on('game-reset', () => {
+  socket.on('game-reset', ({ drawId } = {}) => {
     calledSet  = new Set()
     lineWon    = false
     bingoWon   = false
@@ -876,6 +907,8 @@ function connectSocket() {
     hideWaitingBanner()
     hideWaitingPanel()
     statusTextEl.textContent = 'Draw starting…'
+    // Load cards for the new draw, then render
+    loadCardsForDraw(drawId ?? _currentDrawId)
     renderPlayerCard()
     drum.reset(Array.from({ length: 90 }, (_, i) => i + 1))
     // Fade announcer out — intro will bring her back at T-3s of new countdown

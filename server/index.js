@@ -285,7 +285,7 @@ function scheduleNextDraw() {
   currentDraw = next
 
   if (!next) {
-    io.emit('waiting', { nextDrawTime: null, nextDrawTitle: null })
+    io.emit('waiting', { drawId: null, nextDrawTime: null, nextDrawTitle: null })
     waitTimer = setTimeout(scheduleNextDraw, 60_000)
     return
   }
@@ -294,6 +294,7 @@ function scheduleNextDraw() {
   const delay   = startMs - Date.now()
 
   io.emit('waiting', {
+    drawId:          next.id,
     nextDrawTime:    new Date(startMs).toISOString(),
     nextDrawTitle:   next.title,
     announcer:       next.announcer ?? null,
@@ -319,7 +320,7 @@ function startDraw(draw) {
   bingoWinnerEmail  = null
   resetGame(game)
   try { dbRun(`UPDATE draws SET status = 'running' WHERE id = ?`, [draw.id]) } catch {}
-  io.emit('game-reset')
+  io.emit('game-reset', { drawId: draw.id })
   drawNextBall(intervalMs, draw.id)
 }
 
@@ -361,6 +362,7 @@ io.on('connection', (socket) => {
     const startMs = drawLocalToUtcMs(currentDraw.draw_date, currentDraw.draw_time)
     socket.emit('state', {
       ...getState(game), phase: 'waiting',
+      drawId:          currentDraw.id,
       nextDrawTime:    new Date(startMs).toISOString(),
       nextDrawTitle:   currentDraw.title,
       announcer:       currentDraw.announcer ?? null,
@@ -368,7 +370,7 @@ io.on('connection', (socket) => {
       full_house_prize: currentDraw.full_house_prize ?? 0,
     })
   } else if (gamePhase === 'waiting') {
-    socket.emit('state', { ...getState(game), phase: 'waiting', nextDrawTime: null, nextDrawTitle: null })
+    socket.emit('state', { ...getState(game), phase: 'waiting', drawId: null, nextDrawTime: null, nextDrawTitle: null })
   } else {
     // Include the NEXT scheduled draw so the "Draw in Progress" curtain
     // can tell the user when to come back.  getNextScheduledDraw() skips
@@ -376,6 +378,7 @@ io.on('connection', (socket) => {
     const afterCurrent = getNextScheduledDraw()
     socket.emit('state', {
       ...getState(game), phase: 'drawing',
+      drawId:          currentDraw?.id ?? null,
       drawTitle:       currentDraw?.title ?? '',
       nextDrawTime:    afterCurrent
         ? new Date(drawLocalToUtcMs(afterCurrent.draw_date, afterCurrent.draw_time)).toISOString()
