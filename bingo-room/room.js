@@ -937,7 +937,7 @@ function connectSocket() {
   // A number is drawn — animate ball
   socket.on('number-drawn', ({ number, called }) => {
     // Safety: if countdown never fired remaining=0, the curtain is still up and paused is still
-    // true. Lift the curtain and unpause so the draw can proceed.
+    // true. Lift the curtain, fade in announcer and unpause so the draw can proceed.
     if (!_curtainFaded) {
       _curtainFaded = true
       const blocked = document.getElementById('room-blocked')
@@ -947,11 +947,14 @@ function connectSocket() {
           onComplete: () => {
             blocked.classList.add('hidden')
             blocked.style.opacity = ''
+            gsap.to(announcer._el, { opacity: 1, duration: 0.5, ease: 'power2.out' })
             paused = false
             drainPendingBalls()
           }
         })
       } else {
+        // No curtain to lift — still show the announcer
+        gsap.to(announcer._el, { opacity: 1, duration: 0.5, ease: 'power2.out' })
         paused = false
       }
     }

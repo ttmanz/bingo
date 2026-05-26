@@ -221,14 +221,16 @@ $('btnSignOut').addEventListener('click', () => {
 // ── Section navigation ────────────────────────────────────────────────────
 
 window.openSection = function(name) {
-  document.getElementById('game-main').style.display = 'none';
+  const gamMain = document.getElementById('game-main');
+  if (gamMain) gamMain.style.display = 'none';
   document.querySelectorAll('.section-panel').forEach(p => {
     p.classList.remove('active', 'hidden');
   });
   const panel = document.getElementById('section-' + name);
   if (panel) { panel.classList.remove('hidden'); panel.classList.add('active'); }
-  if (name === 'tickets') loadMyTickets();
-  if (name === 'schedule') loadSchedule();
+  else { console.warn('openSection: no panel found for', name); }
+  if (name === 'tickets') { try { loadMyTickets(); } catch(e) { console.error('loadMyTickets threw:', e); } }
+  if (name === 'schedule') { try { loadSchedule(); } catch(e) { console.error('loadSchedule threw:', e); } }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
@@ -242,7 +244,7 @@ window.closeSection = function() {
 // Shows draw name + ticket count per draw — no card grids (kept lightweight).
 // Full card grids are visible in the Bingo Room itself.
 
-window.loadMyTickets = async function loadMyTickets() {
+async function loadMyTickets() {
   const panel = document.getElementById('myTicketsPanel');
   if (!panel) return;
   panel.innerHTML = '<div class="loading-state">Loading…</div>';
@@ -310,10 +312,11 @@ window.loadMyTickets = async function loadMyTickets() {
       </div>`;
 
   } catch (err) {
-    panel.innerHTML = '<div class="loading-state">Could not load tickets. Please try again.</div>';
+    panel.innerHTML = `<div class="loading-state" style="color:#f87171">Error loading tickets: ${err.message || err}<br><button class="btn btn-primary" style="margin-top:12px" onclick="loadMyTickets()">↻ Retry</button></div>`;
     console.error('loadMyTickets error', err);
   }
 }
+window.loadMyTickets = loadMyTickets;  // expose for inline onclick="loadMyTickets()"
 
 // ── Game Schedule ─────────────────────────────────────────────────────────
 
