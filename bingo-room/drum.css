@@ -343,10 +343,10 @@ body {
 
 /* ── Announcer character ─────────────────────────────────────────────────── */
 /* Position and size are set dynamically by updateStageScale() in room.js     */
-/* so the announcer tracks the scaled machine on all screen sizes.            */
+/* position: fixed so it tracks the machine in viewport coords on all sizes.  */
 .announcer {
-  position: absolute;
-  z-index: 160;             /* above bingo overlay (z=150) so always visible */
+  position: fixed;
+  z-index: 1050;            /* above curtain (z=1000) and bingo overlay (z=150) */
   pointer-events: none;
   display: flex;
   align-items: flex-end;

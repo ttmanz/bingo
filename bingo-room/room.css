@@ -386,7 +386,7 @@ body {
   /* solid fallback first so the overlay is never transparent/black
      if the background image is slow to load (black-screen guard) */
   background: rgba(3,5,20,0.88) url('/bingo-room/win-line.png') center/cover no-repeat;
-  z-index: 150;
+  z-index: 1010;  /* above curtain (z=1000) so ceremony always stays visible */
   pointer-events: none;
 }
 #line-check-overlay.bingo-overlay {

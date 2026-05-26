@@ -36,6 +36,7 @@ let _pendingBalls = []     // balls received while paused — drained on resume
 let _introPlayed   = false  // prevents intro replaying within same draw cycle
 let _nextDrawTitle = ''     // stored from 'waiting'/'state' for intro speech
 let _curtainFaded  = false  // guards the 00:00 curtain lift — reset each waiting cycle
+let _ceremonyActive = false // true while a bingo check ceremony is running; blocks waiting curtain
 
 const _token = localStorage.getItem('bp_token') || ''
 
@@ -206,16 +207,46 @@ function updateStageScale() {
   scaler.style.width  = Math.round(580 * scale) + 'px'
   scaler.style.height = Math.round(460 * scale) + 'px'
 
-  // Reposition the announcer after layout settles (it lives in body, tracks machine)
+  // Reposition the announcer after layout settles (position:fixed, viewport coords)
   requestAnimationFrame(() => {
     const np = _announcerNaturalPos()
     if (!np || !announcer?._el) return
-    const mRect = machine.getBoundingClientRect()
-    const el    = announcer._el
-    el.style.left   = Math.round(mRect.left + np.ox * scale) + 'px'
-    el.style.top    = Math.round(mRect.top + window.scrollY + np.oy * scale) + 'px'
-    el.style.width  = Math.round(np.w * scale) + 'px'
-    el.style.height = Math.round(np.h * scale) + 'px'
+    const mRect   = machine.getBoundingClientRect()
+    const colRect = drumCol.getBoundingClientRect()
+    const el      = announcer._el
+    const isCD    = el.classList.contains('announcer-c') || el.classList.contains('announcer-d')
+    const annW    = Math.round(np.w * scale)
+    const annH    = Math.round(np.h * scale)
+
+    if (scale >= 0.95) {
+      // Desktop — use natural unscaled sizes; position in viewport coordinates
+      if (isCD) {
+        // Left-side announcers: offset from machine's left edge by natural ox
+        el.style.left   = Math.round(mRect.left + np.ox) + 'px'
+        el.style.top    = np.oy + 'px'
+        el.style.width  = np.w + 'px'
+        el.style.height = np.h + 'px'
+      } else {
+        // Right-side announcers: pin to drum column's right edge (avoids call-card overlap)
+        el.style.left   = Math.round(colRect.right - np.w - 16) + 'px'
+        el.style.top    = np.oy + 'px'
+        el.style.width  = np.w + 'px'
+        el.style.height = np.h + 'px'
+      }
+    } else {
+      // Mobile / small screen — scale relative to machine rect, clamp to viewport
+      if (isCD) {
+        el.style.left = Math.round(mRect.left + np.ox * scale) + 'px'
+        el.style.top  = Math.round(mRect.top  + np.oy * scale) + 'px'
+      } else {
+        // Right-side: anchor near machine right edge, never overflow viewport
+        const rawLeft = Math.round(mRect.right - annW * 0.6)
+        el.style.left = Math.max(0, Math.min(rawLeft, window.innerWidth - annW)) + 'px'
+        el.style.top  = Math.round(mRect.top + np.oy * scale) + 'px'
+      }
+      el.style.width  = annW + 'px'
+      el.style.height = annH + 'px'
+    }
   })
 }
 
@@ -420,6 +451,7 @@ function buildBingoOverlayTable(card) {
 }
 
 async function runBingoCheck(card) {
+  _ceremonyActive = true   // block the 'waiting' curtain during this ceremony
   paused = true
   announcer.reset()  // cancel any in-progress number call immediately
 
@@ -513,6 +545,7 @@ async function runBingoCheck(card) {
     gsap.to(overlay, { opacity: 0, y: -30, duration: 0.5, ease: 'power2.in', onComplete: () => { overlay.remove(); r() } })
   )
 
+  _ceremonyActive = false  // ceremony complete — allow curtain for future draws
   tryShowDrawResults()
 }
 
@@ -589,6 +622,7 @@ function tryShowDrawResults() {
 
 // Played on every client that did NOT win — shows the flash + checking overlay
 async function runRemoteWinCeremony(type, amount) {
+  if (type === 'bingo') _ceremonyActive = true  // block waiting curtain during bingo ceremony
   paused = true
 
   const flash = document.createElement('div')
@@ -638,6 +672,7 @@ async function runRemoteWinCeremony(type, amount) {
     paused = false
     drainPendingBalls()
     await new Promise(resolve => announcer.sayText('Congratulations to all the winners!', resolve))
+    _ceremonyActive = false  // ceremony complete
     tryShowDrawResults()
   }
 }
@@ -755,11 +790,14 @@ function connectSocket() {
     _introPlayed   = false        // allow intro for the new draw
     _curtainFaded  = false        // allow curtain to lift for the new draw
     if (annType) { announcer.setType(annType); updateStageScale() }
-    gsap.to(announcer._el, { opacity: 0, duration: 0.5 })  // hide announcer between draws
     loadCardsForDraw(drawId)
+    drum.reset(Array.from({ length: 90 }, (_, i) => i + 1))
+    // If a bingo ceremony is actively running, don't interrupt it with the curtain.
+    // The ceremony's own completion (tryShowDrawResults → redirect) handles cleanup.
+    if (_ceremonyActive) return
+    gsap.to(announcer._el, { opacity: 0, duration: 0.5 })  // hide announcer between draws
     renderPlayerCard()
     showWaitingPanel(nextDrawTime, nextDrawTitle)
-    drum.reset(Array.from({ length: 90 }, (_, i) => i + 1))
   })
 
   // Countdown tick — update fill bar; at T-3 fade in announcer; at T=0 lift curtain
@@ -893,10 +931,11 @@ function connectSocket() {
     bingoWon   = false
     drawing    = false
     paused     = false
-    _drawResults  = null
-    _pendingBalls = []
-    _introPlayed  = false   // new draw cycle — allow intro at T-3s
-    _curtainFaded = false   // allow curtain to lift for the new draw
+    _drawResults    = null
+    _pendingBalls   = []
+    _introPlayed    = false   // new draw cycle — allow intro at T-3s
+    _curtainFaded   = false   // allow curtain to lift for the new draw
+    _ceremonyActive = false   // reset in case it was still set from a prior ceremony
     winBannerEl.classList.add('hidden')
     if (lastNumEl) lastNumEl.textContent = '—'
     // Clear any lingering bingo-check highlights on the call card
