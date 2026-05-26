@@ -23,13 +23,15 @@ router.get('/me', requireUserAuth, (req, res) => {
 // "Today" uses the draw_schedule day_of_week (0=Mon … 6=Sun).
 // SQLite strftime('%w','now') = 0=Sun,1=Mon…6=Sat  →  ((%w+6)%7) = Mon-first.
 router.get('/available-draws', requireUserAuth, (req, res) => {
-  // Regular draws: today and future (not just today, so tomorrow's draws show up too)
+  // Regular draws: today's completed + today's and future scheduled/running
   const regular = query(
     `SELECT d.*, 'regular' as draw_type
      FROM draws d
      WHERE d.type = 'regular'
-       AND d.draw_date >= date('now')
-       AND d.status IN ('scheduled','running')
+       AND (
+         (d.draw_date >= date('now') AND d.status IN ('scheduled','running'))
+         OR (d.draw_date = date('now') AND d.status = 'completed')
+       )
      ORDER BY d.draw_date ASC, d.draw_time ASC
      LIMIT 30`
   )
@@ -79,7 +81,7 @@ router.get('/available-draws', requireUserAuth, (req, res) => {
       available_tickets: presetTotal > 0 ? presetTotal - (soldMap[d.id] ?? 0) : null,
       total_tickets: presetTotal || null,
     }
-  }).filter(d => d.status === 'running' || !d.scheduled_utc || new Date(d.scheduled_utc) > nowMs)
+  }).filter(d => d.status === 'completed' || d.status === 'running' || !d.scheduled_utc || new Date(d.scheduled_utc) > nowMs)
 
   res.json({ regular: addAvail(regular), special: addAvail(special) })
 })

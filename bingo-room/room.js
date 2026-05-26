@@ -452,6 +452,7 @@ function buildBingoOverlayTable(card) {
 
 async function runBingoCheck(card) {
   _ceremonyActive = true   // block the 'waiting' curtain during this ceremony
+  const _ownDrawId = _currentDrawId  // capture now — 'waiting' event may update it during ceremony
   paused = true
   announcer.reset()  // cancel any in-progress number call immediately
 
@@ -546,7 +547,7 @@ async function runBingoCheck(card) {
   )
 
   _ceremonyActive = false  // ceremony complete — allow curtain for future draws
-  tryShowDrawResults()
+  tryShowDrawResults(_ownDrawId)
 }
 
 // ── Drain balls received during a ceremony pause ─────────────────────────
@@ -576,7 +577,7 @@ function drainPendingBalls() {
 
 // ── Draw results card ─────────────────────────────────────────────────────
 
-function showDrawResultsCard({ drawTitle, lineWinner, bingoWinner }) {
+function showDrawResultsCard({ drawTitle, lineWinner, bingoWinner }, completedDrawId) {
   const existing = document.getElementById('draw-results-card')
   if (existing) existing.remove()
 
@@ -597,15 +598,23 @@ function showDrawResultsCard({ drawTitle, lineWinner, bingoWinner }) {
   setTimeout(() => {
     gsap.to(card, { opacity: 0, y: -20, duration: 0.5, ease: 'power2.in',
       onComplete: () => {
-        // Remove only the completed draw from the per-draw store (not the whole object)
+        // Remove only the COMPLETED draw's tickets from storage.
+        // Use completedDrawId (captured at draw-results time), NOT _currentDrawId
+        // which may already have been updated to the next draw by the 'waiting' event.
+        const drawIdToClear = completedDrawId ?? _currentDrawId
         try {
-          if (_currentDrawId) {
+          if (drawIdToClear) {
             const store = JSON.parse(localStorage.getItem('bingoRoomTickets') || '{}')
-            delete store[String(_currentDrawId)]
+            delete store[String(drawIdToClear)]
             localStorage.setItem('bingoRoomTickets', JSON.stringify(store))
           }
-          // Also clear the legacy key so old behaviour doesn't resurface
-          localStorage.removeItem('bingoRoomTicket')
+          // Only clear legacy key if it's for the completed draw
+          try {
+            const legacy = JSON.parse(localStorage.getItem('bingoRoomTicket') || '{}')
+            if (!legacy.draw_id || String(legacy.draw_id) === String(drawIdToClear)) {
+              localStorage.removeItem('bingoRoomTicket')
+            }
+          } catch {}
         } catch {}
         window.location.href = '/user-portal'
       }
@@ -613,9 +622,9 @@ function showDrawResultsCard({ drawTitle, lineWinner, bingoWinner }) {
   }, 12000)
 }
 
-function tryShowDrawResults() {
+function tryShowDrawResults(completedDrawId) {
   if (_drawResults) {
-    showDrawResultsCard(_drawResults)
+    showDrawResultsCard(_drawResults, completedDrawId ?? _currentDrawId)
     _drawResults = null
   }
 }
@@ -623,6 +632,7 @@ function tryShowDrawResults() {
 // Played on every client that did NOT win — shows the flash + checking overlay
 async function runRemoteWinCeremony(type, amount) {
   if (type === 'bingo') _ceremonyActive = true  // block waiting curtain during bingo ceremony
+  const _ownDrawId = _currentDrawId  // capture now — 'waiting' event may update it during ceremony
   paused = true
 
   const flash = document.createElement('div')
@@ -673,7 +683,7 @@ async function runRemoteWinCeremony(type, amount) {
     drainPendingBalls()
     await new Promise(resolve => announcer.sayText('Congratulations to all the winners!', resolve))
     _ceremonyActive = false  // ceremony complete
-    tryShowDrawResults()
+    tryShowDrawResults(_ownDrawId)
   }
 }
 
@@ -906,10 +916,13 @@ function connectSocket() {
 
   socket.on('draw-results', (data) => {
     _drawResults = data
+    // Capture the completed draw's ID RIGHT NOW before the 'waiting' event fires
+    // and updates _currentDrawId to the next draw's ID (happens ~5s later).
+    const completedDrawId = _currentDrawId
     // Spectators / no-ticket clients show results after 5 s (no ceremony to wait for).
     // Ticket-holders rely on the ceremony calling tryShowDrawResults(); 20 s is a safety net.
     const delay = playerCards?.cards?.length ? 20000 : 5000
-    setTimeout(() => tryShowDrawResults(), delay)
+    setTimeout(() => tryShowDrawResults(completedDrawId), delay)
   })
 
   // Broadcast prize announcements to ALL connected clients

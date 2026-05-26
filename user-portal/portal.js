@@ -331,7 +331,7 @@ async function loadMyTickets() {
         ? new Date(g.draw_date + 'T' + g.draw_time + '+03:00')
             .toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
         : '';
-      const statusBadge = g.draw_status === 'active'
+      const statusBadge = g.draw_status === 'running'
         ? `<span class="mt-badge mt-badge-live">🔴 Live</span>`
         : g.draw_status === 'scheduled'
         ? `<span class="mt-badge mt-badge-soon">⏰ Upcoming</span>`
