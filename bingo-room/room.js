@@ -166,16 +166,19 @@ function showWaitingPanel(nextDrawTime, nextDrawTitle) {
       ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
       : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
     if (countEl) countEl.textContent = timeStr
-    // NOTE: curtain-countdown-display is NOT updated here — only the server's
-    // 'countdown' socket event writes to it to avoid clock-skew double-update.
+    // Also drive the on-curtain countdown, but hand off to the server's
+    // per-ball countdown events in the final 10 s.  Beyond 10 s the client
+    // clock is accurate enough; within 10 s the server's 'countdown' events
+    // take over and "DRAW STARTING!" fires at remaining≤3 — avoiding any
+    // clock-skew jump-back artefact.
+    if (!_introPlayed && diff > 10_000) {
+      const ccEl2 = document.getElementById('curtain-countdown-display')
+      if (ccEl2) ccEl2.textContent = timeStr
+    }
   }
   tick()
   _cdTimer = setInterval(tick, 1000)
 }
-// NOTE: curtain-countdown-display is intentionally NOT updated by the local
-// _cdTimer above — only server 'countdown' socket events write to it. This
-// prevents the display jumping back to a higher number when the client clock
-// is a few seconds ahead of the server clock.
 
 function hideWaitingPanel() {
   clearInterval(_cdTimer)
@@ -874,10 +877,17 @@ function _enterMidDraw(calledCount, annType) {
 }
 
 // ── Boot drum ─────────────────────────────────────────────────────────────
+// ?preview=1 — design review mode: show the machine without curtain/announcer/ball
+const _previewMode = new URLSearchParams(location.search).get('preview') === '1'
+if (_previewMode) {
+  document.getElementById('room-blocked')?.classList.add('hidden')
+  document.getElementById('current-ball')?.style.setProperty('display', 'none')
+  document.querySelector('.room-layout').style.display = ''
+}
 setTimeout(() => {
   drum.init(Array.from({ length: 90 }, (_, i) => i + 1))
   renderPlayerCard()
-  connectSocket()
+  if (!_previewMode) connectSocket()
 }, 500)
 
 // ── Announcer intro at draw start (shared by curtain-fade and no-curtain paths) ─
@@ -957,9 +967,10 @@ function connectSocket() {
     const pct = remaining / total
     if (countdownFill) countdownFill.style.width = (pct * 100) + '%'
 
-    // Keep curtain countdown display in sync with server seconds
+    // Keep curtain countdown display in sync with server seconds —
+    // but stop once _introPlayed is set (T≤3) so "DRAW STARTING!" isn't overwritten.
     const ccEl = document.getElementById('curtain-countdown-display')
-    if (ccEl && remaining > 0) {
+    if (ccEl && remaining > 0 && !_introPlayed) {
       const cm = Math.floor(remaining / 60)
       const cs = remaining % 60
       ccEl.textContent = cm > 0
@@ -971,6 +982,13 @@ function connectSocket() {
     if (remaining <= 3 && !_introPlayed) {
       _introPlayed = true
       paused = true   // queue any balls the server sends during the curtain transition
+
+      // Replace numeric countdown with a non-numeric indicator so clock-skew
+      // (client ~4s ahead of server) never shows phantom extra seconds to the user.
+      if (ccEl) {
+        ccEl.textContent = 'DRAW STARTING!'
+        ccEl.style.fontSize = ''   // let CSS control size (may have been shrunk for long times)
+      }
 
       // Fade out the room-next-draw panel (behind the curtain, but hide it cleanly)
       const panel = document.getElementById('room-next-draw')

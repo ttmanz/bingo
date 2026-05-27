@@ -1170,6 +1170,7 @@ document.getElementById('add-special-btn').addEventListener('click', () => {
   document.getElementById('sp-fh-prize').value      = 5000
   document.getElementById('sp-line-prize').value    = 500
   document.getElementById('sp-status').value        = 'scheduled'
+  document.getElementById('sp-announcer').value     = ''
   document.getElementById('special-modal').classList.add('open')
 })
 
@@ -1186,6 +1187,7 @@ function openSpecialEditModal(d) {
   document.getElementById('sp-fh-prize').value           = d.full_house_prize
   document.getElementById('sp-line-prize').value         = d.line_prize
   document.getElementById('sp-status').value             = d.status
+  document.getElementById('sp-announcer').value          = d.announcer ?? ''
   document.getElementById('special-modal').classList.add('open')
 }
 
@@ -1208,6 +1210,7 @@ document.getElementById('special-modal-save').addEventListener('click', async ()
     full_house_prize: Number(document.getElementById('sp-fh-prize').value),
     line_prize:       Number(document.getElementById('sp-line-prize').value),
     status:           document.getElementById('sp-status').value,
+    announcer:        document.getElementById('sp-announcer').value || null,
   }
 
   const res = editId
