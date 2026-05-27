@@ -825,6 +825,7 @@ function showWin(text, type) {
 // Called when (re-)joining during a live draw instead of showing the curtain.
 function _enterMidDraw(calledCount, annType) {
   _curtainFaded = true   // no curtain to fade
+  _introPlayed  = true   // suppress the T-3s paused=true / curtain-lift path for this draw
   paused        = false
   drawing       = true
 
@@ -844,6 +845,10 @@ function _enterMidDraw(calledCount, annType) {
   renderPlayerCard()
   refreshCardMarks()
   checkWins()
+
+  // Drain any balls that arrived while paused (shouldn't normally have any,
+  // but guard against race between countdown T-3 and mid-draw entry)
+  drainPendingBalls()
 
   // Update status bar
   if (statusTextEl) statusTextEl.textContent = 'Live'

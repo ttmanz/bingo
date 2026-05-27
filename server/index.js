@@ -400,6 +400,7 @@ io.on('connection', (socket) => {
       ...getState(game), phase: 'drawing',
       drawId:          currentDraw?.id ?? null,
       drawTitle:       currentDraw?.title ?? '',
+      announcer:       currentDraw?.announcer ?? null,
       nextDrawTime:    afterCurrent
         ? new Date(drawLocalToUtcMs(afterCurrent.draw_date, afterCurrent.draw_time)).toISOString()
         : null,
