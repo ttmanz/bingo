@@ -38,7 +38,7 @@ const VIDEO_TIMING = {
   c: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  8, bkEdge: 25 },  // dark hair/clothing — very conservative keying
   d: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh: 10, bkEdge: 28 },  // blue dress, dark hair — lower threshold to preserve hair
   e: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh: 10, bkEdge: 28 },  // white crop top, light blue skirt — lower threshold to preserve dark hair
-  f: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh: 12, bkEdge: 35 },  // dark charcoal skirt — lower threshold to preserve clothing
+  f: { idleSeek: 2.8, segStart: 2.8, segEnd: 4.8, bkThresh: 10, bkEdge: 28 },  // dark charcoal skirt, dark hair — tuned timing + conservative keying
   g: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  4, bkEdge: 14 },  // dark black top — ultra-conservative keying
 }
 
