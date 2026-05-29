@@ -471,6 +471,15 @@ function checkWins() {
           paused = true   // pause immediately; ceremony starts once prize-awarded confirms winner
           _socket?.emit('line')
           _pendingLineCard = { card, rowIdx: ri }  // ceremony deferred — see prize-awarded handler
+          // Safety: if prize-awarded never arrives (server race / no response), unfreeze after 7s
+          setTimeout(() => {
+            if (_pendingLineCard) {
+              console.warn('[bingo] prize-awarded timeout — resuming draw')
+              _pendingLineCard = null
+              paused = false
+              drainPendingBalls()
+            }
+          }, 7000)
           return
         }
       }
