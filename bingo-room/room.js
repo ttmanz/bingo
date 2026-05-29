@@ -212,9 +212,9 @@ function _announcerNaturalPos() {
     b: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
     c: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
     d: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx: -20 },
-    e: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
-    f: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
-    g: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
+    e: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0, ms: 0.80 },
+    f: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0, ms: 0.80 },
+    g: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0, ms: 0.80 },
   }
   return POS[announcer._type] ?? POS.a
 }
@@ -243,8 +243,9 @@ function updateStageScale() {
     const colRect = drumCol.getBoundingClientRect()
     const el      = announcer._el
     const isLeft  = np.side === 'left'
-    const annW    = Math.round(np.w * scale)
-    const annH    = Math.round(np.h * scale)
+    const ms      = (scale < 0.95 && np.ms) ? np.ms : 1  // mobile-only size multiplier
+    const annW    = Math.round(np.w * scale * ms)
+    const annH    = Math.round(np.h * scale * ms)
     const dx      = np.dx ?? 0   // per-type horizontal fine-tune (negative = left)
 
     if (scale >= 0.95) {
