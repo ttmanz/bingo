@@ -36,7 +36,7 @@ const VIDEO_TIMING = {
   a: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh: 25, bkEdge: 55 },  // blue dress, blonde
   b: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh: 12, bkEdge: 35 },  // dark plaid skirt — lower threshold to preserve clothing
   c: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  8, bkEdge: 25 },  // dark hair/clothing — very conservative keying
-  d: { idleSeek: 1.2, segStart: 1.4, segEnd: 4.4, bkThresh: 10, bkEdge: 28 },  // blue dress, dark hair — frontal idle at 1.2s, raise starts 1.4s
+  d: { idleSeek: 0.0, segStart: 2.0, segEnd: 4.4, bkThresh: 22, bkEdge: 50 },  // rose/pink sequin dress, blonde — clean frontal idle at 0.0s, mic reaches mouth at 2.4s
   e: { idleSeek: 4.8, segStart: 2.8, segEnd: 4.8, bkThresh:  6, bkEdge: 16 },  // white crop top, blue skirt — end-frame idle, mic rising at 2.8s
   f: { idleSeek: 2.4, segStart: 3.2, segEnd: 4.8, bkThresh:  6, bkEdge: 16 },  // dark charcoal skirt, dark hair — idle 2.4s, raise starts 3.2s
   g: { idleSeek: 0.4, segStart: 2.8, segEnd: 5.0, bkThresh: 18, bkEdge: 40 },  // gold champagne dress — frontal idle 0.4s, skip turn, raise from 2.8s
