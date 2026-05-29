@@ -208,13 +208,13 @@ function _announcerNaturalPos() {
   // side: 'right' → pinned to drum-col right edge (avoids call-card overlap)
   //       'left'  → ox from machine left edge
   const POS = {
-    a: { side: 'right', ox: 836, oy: 150, w: 200, h: 340 },
-    b: { side: 'right', ox: 836, oy: 150, w: 200, h: 340 },
-    c: { side: 'right', ox: 836, oy: 150, w: 200, h: 340 },
-    d: { side: 'right', ox: 836, oy: 150, w: 200, h: 340 },
-    e: { side: 'right', ox: 836, oy: 150, w: 200, h: 340 },
-    f: { side: 'right', ox: 836, oy: 150, w: 200, h: 340 },
-    g: { side: 'right', ox: 836, oy: 150, w: 200, h: 340 },
+    a: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
+    b: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
+    c: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
+    d: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx: -20 },
+    e: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
+    f: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
+    g: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
   }
   return POS[announcer._type] ?? POS.a
 }
@@ -233,8 +233,7 @@ function updateStageScale() {
   document.documentElement.style.setProperty('--stage-scale', scale)
   scaler.style.width  = Math.round(580 * scale) + 'px'
   scaler.style.height = Math.round(460 * scale) + 'px'
-  // On mobile, shift the machine 250px to the right so the announcer has room beside it
-  scaler.style.marginLeft = scale < 0.95 ? '250px' : ''
+  scaler.style.marginLeft = ''
 
   // Reposition the announcer after layout settles (position:fixed, viewport coords)
   requestAnimationFrame(() => {
@@ -246,19 +245,20 @@ function updateStageScale() {
     const isLeft  = np.side === 'left'
     const annW    = Math.round(np.w * scale)
     const annH    = Math.round(np.h * scale)
+    const dx      = np.dx ?? 0   // per-type horizontal fine-tune (negative = left)
 
     if (scale >= 0.95) {
       // Desktop — use natural unscaled sizes; position in viewport coordinates
       const desktopTop = Math.round(mRect.top + np.oy) + 'px'
       if (isLeft) {
         // Left-side announcers: offset from machine's left edge by natural ox
-        el.style.left   = Math.round(mRect.left + np.ox) + 'px'
+        el.style.left   = Math.round(mRect.left + np.ox + dx) + 'px'
         el.style.top    = desktopTop
         el.style.width  = np.w + 'px'
         el.style.height = np.h + 'px'
       } else {
         // Right-side announcers: pin to drum column's right edge (avoids call-card overlap)
-        el.style.left   = Math.round(colRect.right - np.w - 16) + 'px'
+        el.style.left   = Math.round(colRect.right - np.w - 16 + dx) + 'px'
         el.style.top    = desktopTop
         el.style.width  = np.w + 'px'
         el.style.height = np.h + 'px'
@@ -266,11 +266,11 @@ function updateStageScale() {
     } else {
       // Mobile / small screen — scale relative to machine rect
       if (isLeft) {
-        el.style.left = Math.round(mRect.left + np.ox * scale) + 'px'
+        el.style.left = Math.round(mRect.left + np.ox * scale + dx * scale) + 'px'
         el.style.top  = Math.round(mRect.top  + np.oy * scale) + 'px'
       } else {
         // Right-side: sit just to the right of the machine, feet at machine base
-        el.style.left = Math.round(mRect.right + 4) + 'px'
+        el.style.left = Math.round(mRect.right + 4 + dx * scale) + 'px'
         el.style.top  = Math.round(mRect.bottom - annH * 0.85) + 'px'
       }
       el.style.width  = annW + 'px'
