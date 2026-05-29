@@ -38,8 +38,11 @@ let _introPlayed   = false  // prevents intro replaying within same draw cycle
 let _nextDrawTitle = ''     // stored from 'waiting'/'state' for intro speech
 let _curtainFaded  = false  // guards the 00:00 curtain lift — reset each waiting cycle
 let _ceremonyActive = false // true while a bingo check ceremony is running; blocks waiting curtain
+let _firstBallCalled = false  // gates the walk-in zoom — fires once per draw
+let _announcerZoomed = false  // true while announcer is at zoom scale
 
 const _token = localStorage.getItem('bp_token') || ''
+const _previewMode = new URLSearchParams(location.search).has('preview')
 
 // Decode user_id from the JWT payload (no signature verify needed — server owns that)
 function _decodeJwtPayload(token) {
@@ -105,6 +108,7 @@ function hideWaitingBanner() {
 }
 
 function showWaitingPanel(nextDrawTime, nextDrawTitle) {
+  if (_previewMode) return  // preview mode — never block the stage view
   clearInterval(_cdTimer)
   const panel      = document.getElementById('room-next-draw')
   const titleEl    = document.getElementById('rnd-title')
@@ -199,12 +203,20 @@ setVh()
 // The machine uses transform:scale(--stage-scale); we compensate the announcer
 // position via JS because it lives in body (outside the machine stacking context).
 function _announcerNaturalPos() {
-  const el = announcer?._el
-  if (!el) return null
-  const isCD = el.classList.contains('announcer-c') || el.classList.contains('announcer-d')
-  return isCD
-    ? { ox: 65,  oy: 190, w: 125, h: 325 }   // types c & d — left stage
-    : { ox: 836, oy: 200, w: 200, h: 340 }   // types a & b — right stage
+  if (!announcer?._el) return null
+  // Per-type natural position/size. ox/oy are offsets from the machine bounding rect.
+  // side: 'right' → pinned to drum-col right edge (avoids call-card overlap)
+  //       'left'  → ox from machine left edge
+  const POS = {
+    a: { side: 'right', ox: 836, oy: 150, w: 200, h: 340 },
+    b: { side: 'right', ox: 836, oy: 150, w: 200, h: 340 },
+    c: { side: 'right', ox: 836, oy: 150, w: 200, h: 340 },
+    d: { side: 'right', ox: 836, oy: 150, w: 200, h: 340 },
+    e: { side: 'right', ox: 836, oy: 150, w: 200, h: 340 },
+    f: { side: 'right', ox: 836, oy: 150, w: 200, h: 340 },
+    g: { side: 'right', ox: 836, oy: 150, w: 200, h: 340 },
+  }
+  return POS[announcer._type] ?? POS.a
 }
 
 function updateStageScale() {
@@ -221,6 +233,8 @@ function updateStageScale() {
   document.documentElement.style.setProperty('--stage-scale', scale)
   scaler.style.width  = Math.round(580 * scale) + 'px'
   scaler.style.height = Math.round(460 * scale) + 'px'
+  // On mobile, shift the machine 250px to the right so the announcer has room beside it
+  scaler.style.marginLeft = scale < 0.95 ? '250px' : ''
 
   // Reposition the announcer after layout settles (position:fixed, viewport coords)
   requestAnimationFrame(() => {
@@ -229,14 +243,14 @@ function updateStageScale() {
     const mRect   = machine.getBoundingClientRect()
     const colRect = drumCol.getBoundingClientRect()
     const el      = announcer._el
-    const isCD    = el.classList.contains('announcer-c') || el.classList.contains('announcer-d')
+    const isLeft  = np.side === 'left'
     const annW    = Math.round(np.w * scale)
     const annH    = Math.round(np.h * scale)
 
     if (scale >= 0.95) {
       // Desktop — use natural unscaled sizes; position in viewport coordinates
       const desktopTop = Math.round(mRect.top + np.oy) + 'px'
-      if (isCD) {
+      if (isLeft) {
         // Left-side announcers: offset from machine's left edge by natural ox
         el.style.left   = Math.round(mRect.left + np.ox) + 'px'
         el.style.top    = desktopTop
@@ -250,14 +264,14 @@ function updateStageScale() {
         el.style.height = np.h + 'px'
       }
     } else {
-      // Mobile / small screen — scale relative to machine rect, clamp to viewport
-      if (isCD) {
+      // Mobile / small screen — scale relative to machine rect
+      if (isLeft) {
         el.style.left = Math.round(mRect.left + np.ox * scale) + 'px'
         el.style.top  = Math.round(mRect.top  + np.oy * scale) + 'px'
       } else {
-        // Right-side: snap to right edge of screen (studio right wing), moved up ~40 natural units
-        el.style.left = Math.max(0, window.innerWidth - annW - 4) + 'px'
-        el.style.top  = Math.round(mRect.top + (np.oy - 40) * scale) + 'px'
+        // Right-side: sit just to the right of the machine, feet at machine base
+        el.style.left = Math.round(mRect.right + 4) + 'px'
+        el.style.top  = Math.round(mRect.bottom - annH * 0.85) + 'px'
       }
       el.style.width  = annW + 'px'
       el.style.height = annH + 'px'
@@ -266,6 +280,54 @@ function updateStageScale() {
 }
 
 updateStageScale()
+
+// ── Preview mode: show the full stage without needing an active draw ──────
+// Visit /bingo-room?preview to see the layout (announcer, machine, call card)
+if (_previewMode) {
+  document.getElementById('room-blocked')?.classList.add('hidden')
+  document.getElementById('room-nodraw-overlay')?.classList.add('hidden')
+  document.querySelector('.room-layout')?.style.setProperty('display', '')
+  announcer._el.style.setProperty('opacity', '1', 'important')
+  announcer.setType(new URLSearchParams(location.search).get('ann') || localStorage.getItem('bp_ann_type') || 'a')
+  updateStageScale()
+  // Seek the announcer video to the idle-pose frame (mic down, standing)
+  // so the keying loop has a visible frame to display rather than black.
+  const _seekPreviewIdle = () => {
+    const v = announcer._video
+    if (!v) return
+    const doSeek = () => { v.loop = false; v.currentTime = 4.5; v.addEventListener('seeked', () => v.pause(), { once: true }) }
+    if (v.readyState >= 1) doSeek()
+    else v.addEventListener('loadedmetadata', doSeek, { once: true })
+  }
+  _seekPreviewIdle()
+  setTimeout(_seekPreviewIdle, 600)   // retry once in case video element wasn't ready
+}
+
+// ── Announcer zoom helpers ────────────────────────────────────────────────
+// Called once on first ball: cinematic zoom in, then freeze video at standing frame
+function _zoomAnnouncerIn() {
+  if (_announcerZoomed) return
+  _announcerZoomed = true
+  gsap.to(announcer._el, {
+    scale: 1.45,
+    transformOrigin: 'center bottom',
+    duration: 1.5,
+    ease: 'power2.inOut',
+    onComplete: () => announcer.enableIdlePause()
+  })
+}
+
+// Called on bingo congrats: zoom back to natural size (video already looping)
+function _zoomAnnouncerOut() {
+  _announcerZoomed = false
+  announcer.disableIdlePause()   // let video loop freely during congratulations walk
+  return gsap.to(announcer._el, {
+    scale: 1,
+    transformOrigin: 'center bottom',
+    duration: 1.5,
+    ease: 'power2.inOut'
+  })
+}
 
 // On iOS Safari, scrolling causes the address bar to show/hide which fires 'resize'
 // with only a small innerHeight change and NO innerWidth change. That would reposition
@@ -582,51 +644,74 @@ async function runBingoCheck(card) {
   // Keep mouth moving through the entire check — direct call, not relying on speech callback
   announcer._startSeq('win')
 
+  // Build per-row td arrays including blank cells so column index stays aligned.
+  // Card-code-cell (rowspan=3 at end) is excluded; blank cells are kept for alignment.
+  const allORows = []
+  const allRRows = []
   for (let ri = 0; ri < 3; ri++) {
-    const oTds = [...overlayRows[ri].querySelectorAll('td')]
-      .filter(td => !td.classList.contains('blank') && !td.classList.contains('card-code-cell'))
-    const rTds = origTable
+    allORows.push([...overlayRows[ri].querySelectorAll('td')]
+      .filter(td => !td.classList.contains('card-code-cell')))
+    allRRows.push(origTable
       ? [...origTable.querySelectorAll('tr')[ri].querySelectorAll('td')]
-          .filter(td => !td.classList.contains('blank') && !td.classList.contains('card-code-cell'))
-      : []
-    for (let i = 0; i < oTds.length; i++) {
-      const num = Number(oTds[i].dataset.n)
+          .filter(td => !td.classList.contains('card-code-cell'))
+      : [])
+  }
+  const numCols = allORows[0].length  // 9 columns on a 90-ball card
+
+  // Column-major sweep: column 0 top→bottom, column 1 top→bottom, …
+  for (let ci = 0; ci < numCols; ci++) {
+    for (let ri = 0; ri < 3; ri++) {
+      const oTd = allORows[ri][ci]
+      const rTd = allRRows[ri]?.[ci]
+      if (!oTd || oTd.classList.contains('blank')) continue   // blank cell — skip
+
+      const num = Number(oTd.dataset.n)
       const ccCell = num ? document.querySelector(`.cc-cell[data-n="${num}"]`) : null
 
-      // Force call card visible on every iteration in case something tried to hide it
-      calledEl.style.display = ''
+      calledEl.style.display = ''   // keep call card visible throughout
 
-      oTds[i].classList.add('checking')
+      oTd.classList.add('checking')
       if (ccCell) {
         ccCell.classList.remove('cc-bingo-checked')
-        ccCell.classList.add('cc-bingo-highlight')  // pulse while being checked
+        ccCell.classList.add('cc-bingo-highlight')
       }
 
       await new Promise(r => setTimeout(r, 600))
 
-      oTds[i].classList.remove('checking')
-      oTds[i].className = 'bingo-win'
-      if (rTds[i]) rTds[i].className = 'bingo-win'
+      oTd.classList.remove('checking')
+      oTd.className = 'bingo-win'
+      if (rTd && !rTd.classList.contains('blank')) rTd.className = 'bingo-win'
       if (ccCell) {
         ccCell.classList.remove('cc-bingo-highlight')
-        ccCell.classList.add('cc-bingo-checked')  // stays bright green permanently
+        ccCell.classList.add('cc-bingo-checked')
       }
     }
   }
 
-  // ── Step 4: Show banner, hold 10 s ───────────────────────────────────────
+  // ── Step 4: Show banner, hold 5 s ────────────────────────────────────────
   await new Promise(r => setTimeout(r, 350))
   showWin('BINGO!', 'bingo')
-  await new Promise(r => setTimeout(r, 10000))
+  await new Promise(r => setTimeout(r, 5000))
 
-  // ── Step 5: Congratulations speech ───────────────────────────────────────
-  await new Promise(resolve => announcer.sayText('Congratulations to the winners!', resolve))
-  await new Promise(r => setTimeout(r, 400))
-
-  // ── Step 6: Fade out overlay ─────────────────────────────────────────────
+  // ── Step 5: Fade out overlay + banner ────────────────────────────────────
   winBannerEl.classList.add('hidden')
   await new Promise(r =>
     gsap.to(overlay, { opacity: 0, y: -30, duration: 0.5, ease: 'power2.in', onComplete: () => { overlay.remove(); r() } })
+  )
+
+  // ── Step 6: Show announcer, zoom out, congratulations walk ───────────────
+  await new Promise(r =>
+    gsap.to(announcer._el, { opacity: 1, duration: 0.5, ease: 'power2.out', onComplete: r })
+  )
+  _zoomAnnouncerOut()   // unfreeze video (walk loop) + zoom back to 1×
+  await new Promise(r => setTimeout(r, 600))   // let zoom begin, video in motion
+
+  await new Promise(resolve => announcer.sayText('Congratulations to all the winners!', resolve))
+  await new Promise(r => setTimeout(r, 400))
+
+  // ── Step 7: Fade announcer out → show results ────────────────────────────
+  await new Promise(r =>
+    gsap.to(announcer._el, { opacity: 0, duration: 0.8, ease: 'power2.in', onComplete: r })
   )
 
   _ceremonyActive = false  // ceremony complete — allow curtain for future draws
@@ -647,6 +732,7 @@ function drainPendingBalls() {
     (num, group, color) => {
       callCard.display(num)
       announcer.announce(num)
+      if (!_firstBallCalled) { _firstBallCalled = true; _zoomAnnouncerIn() }
       gsap.fromTo(ballEl,
         { scale: 1.4, filter: `drop-shadow(0 0 28px ${color})` },
         { scale: 1,   filter: 'none', duration: 0.55, ease: 'elastic.out(1,0.5)' })
@@ -747,7 +833,7 @@ async function runRemoteWinCeremony(type, amount) {
 
   gsap.fromTo(overlay, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' })
 
-  const holdMs = type === 'bingo' ? 9000 : 3500
+  const holdMs = type === 'bingo' ? 5000 : 3500
   await new Promise(r => setTimeout(r, holdMs))
 
   showWin(type === 'bingo'
@@ -765,10 +851,22 @@ async function runRemoteWinCeremony(type, amount) {
     gsap.to(announcer._el, { opacity: 1, duration: 0.4, ease: 'power2.out' })
     announcer.sayText('Continuing.', () => { paused = false; drainPendingBalls() })
   } else {
+    // Bingo: show announcer, zoom out, walk + congratulations, then results
     paused = false
     drainPendingBalls()
+    await new Promise(r =>
+      gsap.to(announcer._el, { opacity: 1, duration: 0.5, ease: 'power2.out', onComplete: r })
+    )
+    _zoomAnnouncerOut()   // unfreeze video (walk loop) + zoom back to 1×
+    await new Promise(r => setTimeout(r, 600))
+
     await new Promise(resolve => announcer.sayText('Congratulations to all the winners!', resolve))
-    _ceremonyActive = false  // ceremony complete
+    await new Promise(r => setTimeout(r, 400))
+
+    await new Promise(r =>
+      gsap.to(announcer._el, { opacity: 0, duration: 0.8, ease: 'power2.in', onComplete: r })
+    )
+    _ceremonyActive = false
     tryShowDrawResults(_ownDrawId)
   }
 }
@@ -877,13 +975,6 @@ function _enterMidDraw(calledCount, annType) {
 }
 
 // ── Boot drum ─────────────────────────────────────────────────────────────
-// ?preview=1 — design review mode: show the machine without curtain/announcer/ball
-const _previewMode = new URLSearchParams(location.search).get('preview') === '1'
-if (_previewMode) {
-  document.getElementById('room-blocked')?.classList.add('hidden')
-  document.getElementById('current-ball')?.style.setProperty('display', 'none')
-  document.querySelector('.room-layout').style.display = ''
-}
 setTimeout(() => {
   drum.init(Array.from({ length: 90 }, (_, i) => i + 1))
   renderPlayerCard()
@@ -948,16 +1039,22 @@ function connectSocket() {
 
   // Server signals waiting for next draw
   socket.on('waiting', ({ drawId, nextDrawTime, nextDrawTitle, announcer: annType }) => {
-    _nextDrawTitle = nextDrawTitle || 'this draw'
-    _introPlayed   = false        // allow intro for the new draw
-    _curtainFaded  = false        // allow curtain to lift for the new draw
+    _nextDrawTitle   = nextDrawTitle || 'this draw'
+    _introPlayed     = false        // allow intro for the new draw
+    _curtainFaded    = false        // allow curtain to lift for the new draw
+    _firstBallCalled = false        // allow zoom-in for the new draw
+    if (_announcerZoomed) {
+      _announcerZoomed = false
+      gsap.set(announcer._el, { scale: 1, transformOrigin: 'center bottom' })
+    }
+    announcer.disableIdlePause()   // reset between draws — video loops freely until next first ball
     loadCardsForDraw(drawId)
     drum.reset(Array.from({ length: 90 }, (_, i) => i + 1))
     // If a bingo ceremony is actively running, don't interrupt it with the curtain.
     // Defer the announcer type swap too — don't change the character mid-ceremony.
     if (_ceremonyActive) return
     if (annType) { announcer.setType(annType); updateStageScale() }
-    gsap.to(announcer._el, { opacity: 0, duration: 0.5 })  // hide announcer between draws
+    if (!_previewMode) gsap.to(announcer._el, { opacity: 0, duration: 0.5 })  // hide announcer between draws
     renderPlayerCard()
     showWaitingPanel(nextDrawTime, nextDrawTitle)
   })
@@ -1061,7 +1158,10 @@ function connectSocket() {
       // onReveal — ball reaches tube peak
       (num, group, color) => {
         callCard.display(num)
-        if (!paused) announcer.announce(num)
+        if (!paused) {
+          announcer.announce(num)
+          if (!_firstBallCalled) { _firstBallCalled = true; _zoomAnnouncerIn() }
+        }
         gsap.fromTo(ballEl,
           { scale: 1.4, filter: `drop-shadow(0 0 28px ${color})` },
           { scale: 1,   filter: 'none', duration: 0.55, ease: 'elastic.out(1,0.5)' })
@@ -1144,6 +1244,6 @@ function connectSocket() {
     renderPlayerCard()
     drum.reset(Array.from({ length: 90 }, (_, i) => i + 1))
     // Fade announcer out — she fades back in at T=0 when the curtain lifts
-    gsap.to(announcer._el, { opacity: 0, duration: 0.5 })
+    if (!_previewMode) gsap.to(announcer._el, { opacity: 0, duration: 0.5 })
   })
 }
