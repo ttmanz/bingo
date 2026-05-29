@@ -39,7 +39,7 @@ const VIDEO_TIMING = {
   d: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh: 25, bkEdge: 55 },  // tune after frame analysis
   e: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh: 25, bkEdge: 55 },  // white crop top, light blue skirt — standard keying
   f: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh: 12, bkEdge: 35 },  // dark charcoal skirt — lower threshold to preserve clothing
-  g: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  8, bkEdge: 25 },  // dark black top — very conservative keying
+  g: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  4, bkEdge: 14 },  // dark black top — ultra-conservative keying
 }
 
 // ── PNG announcers (types b / c / d) ──────────────────────────────────────
