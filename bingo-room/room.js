@@ -269,9 +269,14 @@ function updateStageScale() {
         el.style.left = Math.round(mRect.left + np.ox * scale + dx * scale) + 'px'
         el.style.top  = Math.round(mRect.top  + np.oy * scale) + 'px'
       } else {
-        // Right-side: sit just to the right of the machine, feet at machine base
+        // Right-side: sit just to the right of the machine, feet near machine base
+        // Factor 1.1 moves her up so feet are above the viewport bottom edge;
+        // clamp ensures she never extends below the visible screen area.
         el.style.left = Math.round(mRect.right + 4 + dx * scale) + 'px'
-        el.style.top  = Math.round(mRect.bottom - annH * 0.85) + 'px'
+        el.style.top  = Math.round(Math.min(
+          mRect.bottom - annH * 1.1,
+          window.innerHeight - annH - 4
+        )) + 'px'
       }
       el.style.width  = annW + 'px'
       el.style.height = annH + 'px'

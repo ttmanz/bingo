@@ -548,9 +548,32 @@ body {
   /* width & height set dynamically by JS updateStageScale() */
 }
 
+/* ── Desktop: grid layout — drum | callcard as two columns ───────────────── */
+@media (min-width: 861px) {
+  .room-layout {
+    display: grid;
+    grid-template-columns: 1fr var(--callcard-width);
+    align-items: start;
+  }
+  /* Callcard: right column, spans drum row + tickets row, sticky */
+  .room-callcard-col {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    position: sticky;
+    top: 52px;
+    max-height: calc(var(--real-vh, 100vh) - 52px);
+    overflow-y: auto;
+    flex: unset;
+  }
+  /* Tickets: left column, row 2 (auto) */
+  .room-tickets-section {
+    grid-column: 1;
+  }
+}
+
 /* ── Mobile responsive layout ─────────────────────────────────────────────── */
 @media (max-width: 860px) {
-  /* Stack drum col and callcard vertically instead of side-by-side */
+  /* Drum column only in sticky top — callcard is now a sibling below */
   .room-top {
     flex-direction: column;
   }
