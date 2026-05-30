@@ -13,8 +13,6 @@ const CALLS = {
 const say = n => CALLS[n] || `Number ${n}!`
 
 // ── Video announcers ───────────────────────────────────────────────────────
-// Any type listed here uses canvas black-key compositing instead of PNGs.
-// Add new types here as their videos are generated and uploaded.
 const VIDEO_SRC = {
   a: '/bingo-room/announcer-a.mp4',
   b: '/bingo-room/announcer-b.mp4',
@@ -31,29 +29,15 @@ const VIDEO_SRC = {
 // segEnd    : end of lower gesture (mic fully back down)
 // bkThresh  : pixels with max(R,G,B) below this are fully transparent
 // bkEdge    : soft anti-alias ramp from bkThresh → bkEdge
-// Lower bkThresh = more conservative keying (keeps dark clothing). Default 25/55.
 const VIDEO_TIMING = {
   a: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh: 25, bkEdge: 55 },  // blue dress, blonde
-  b: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh: 12, bkEdge: 35 },  // dark plaid skirt — lower threshold to preserve clothing
-  c: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  8, bkEdge: 25 },  // dark hair/clothing — very conservative keying
-  d: { idleSeek: 0.0, segStart: 2.0, segEnd: 4.4, bkThresh: 22, bkEdge: 50 },  // rose/pink sequin dress, blonde — clean frontal idle at 0.0s, mic reaches mouth at 2.4s
-  e: { idleSeek: 4.8, segStart: 2.8, segEnd: 4.8, bkThresh:  6, bkEdge: 16 },  // white crop top, blue skirt — end-frame idle, mic rising at 2.8s
-  f: { idleSeek: 2.4, segStart: 3.2, segEnd: 4.8, bkThresh:  6, bkEdge: 16 },  // dark charcoal skirt, dark hair — idle 2.4s, raise starts 3.2s
-  g: { idleSeek: 0.4, segStart: 2.8, segEnd: 5.0, bkThresh: 18, bkEdge: 40 },  // gold champagne dress — frontal idle 0.4s, skip turn, raise from 2.8s
+  b: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh: 12, bkEdge: 35 },  // dark plaid skirt
+  c: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  8, bkEdge: 25 },  // dark hair/clothing
+  d: { idleSeek: 0.0, segStart: 2.0, segEnd: 4.4, bkThresh: 22, bkEdge: 50 },  // rose/pink sequin dress, blonde
+  e: { idleSeek: 4.8, segStart: 2.8, segEnd: 4.8, bkThresh:  6, bkEdge: 16 },  // white crop top, blue skirt
+  f: { idleSeek: 2.4, segStart: 3.2, segEnd: 4.8, bkThresh:  6, bkEdge: 16 },  // dark charcoal skirt, dark hair
+  g: { idleSeek: 0.4, segStart: 2.8, segEnd: 5.0, bkThresh: 18, bkEdge: 40 },  // gold champagne dress
 }
-
-// ── PNG announcers (types b / c / d) ──────────────────────────────────────
-const IMG = (type, pose) => `/bingo-room/announcers/ann-${type}-${pose}.png`
-
-// Frame sequences from the announcer-demo tool
-// 0 = closed, 1 = talking, 2 = excited
-// TICKS_PER_STEP at ~60fps: 6 ticks ≈ 100ms per step — natural speech rhythm
-const SEQS = {
-  talk: [0,0, 1,1,1, 0,0, 1,1, 0, 1,1,1,1, 0,0,0, 1,1, 0],
-  win:  [2,2,2, 1, 2,2, 1, 2,2,2, 1,1, 2,2, 1, 2,2,2],
-}
-const TICKS_PER_STEP = 6
-const POSES = ['closed', 'talking', 'excited']
 
 function pickVoice() {
   const voices = speechSynthesis.getVoices()
@@ -74,42 +58,33 @@ export class Announcer {
     this._voice     = null
     this._speaking  = false
     this._unlocked  = false
-    this._rafId     = null     // rAF handle for PNG frame sequence
-    this._tick      = 0
-    this._seq       = null     // current PNG frame sequence
     this._speakGen  = 0        // guards stale onerror callbacks
 
-    this._videoMode      = false   // true when type has a VIDEO_SRC entry
     this._videoKeyRafId  = null    // rAF handle for canvas key loop
     this._videoKeyActive = false
     this._idlePause      = false   // when true: video pauses between speeches
-    this._idleSeek       = 4.5    // seconds to seek to when going idle (mic-down standing pose)
+    this._idleSeek       = 4.5    // seconds to seek to when going idle (mic-down pose)
     this._speakSegStart  = 2.4    // seconds — she turns & starts raising mic
     this._speakSegEnd    = 4.4    // seconds — mic fully lowered again
     this._segWatcher     = null   // timeupdate handler ref for cleanup
-    this._bkThresh       = 25     // black-key threshold (per type, set by _applyVideoTiming)
+    this._bkThresh       = 25     // black-key threshold (per type)
     this._bkEdge         = 55     // black-key soft ramp edge
 
     speechSynthesis.onvoiceschanged = () => { this._voice = pickVoice() }
     this._voice = pickVoice()
 
     this._build()
-    this._idleAnim()
     this._unlock()
   }
 
-  // ── Switch announcer type (a / b / c / d) ─────────────────────────────────
+  // ── Switch announcer type (a–g) ───────────────────────────────────────────
   setType(type) {
     if (!type || !['a','b','c','d','e','f','g'].includes(type)) return
     this._el.classList.remove(`announcer-${this._type}`)
     this._type = type
     this._el.classList.add(`announcer-${this._type}`)
-    if (type in VIDEO_SRC) {
-      this._applyVideoTiming(type)
-      this._buildVideoContent(type)
-    } else {
-      this._buildImgContent(type)
-    }
+    this._applyVideoTiming(type)
+    this._buildVideoContent(type)
   }
 
   // ── Private: apply per-type timing config ────────────────────────────────
@@ -121,36 +96,6 @@ export class Announcer {
     this._speakSegEnd   = t.segEnd
     this._bkThresh      = t.bkThresh ?? 25
     this._bkEdge        = t.bkEdge   ?? 55
-  }
-
-  // ── Private: image swap (PNG mode only) ───────────────────────────────────
-  _setImg(pose) {
-    if (this._videoMode) return          // video provides its own frames
-    if (this._img) this._img.src = IMG(this._type, pose)
-  }
-
-  // ── Private: rAF-based PNG frame sequence ─────────────────────────────────
-  _startSeq(seqName) {
-    if (this._videoMode) return          // video already has motion
-    this._stopSeq()
-    this._seq  = SEQS[seqName]
-    this._tick = 0
-    const step = () => {
-      this._tick++
-      const seqIdx   = Math.floor(this._tick / TICKS_PER_STEP) % this._seq.length
-      const frameIdx = this._seq[seqIdx]
-      this._setImg(POSES[frameIdx])
-      this._rafId = requestAnimationFrame(step)
-    }
-    this._rafId = requestAnimationFrame(step)
-  }
-
-  _stopSeq() {
-    if (this._videoMode) return
-    if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = null }
-    this._seq  = null
-    this._tick = 0
-    this._setImg('closed')
   }
 
   // ── Private: speech unlock ────────────────────────────────────────────────
@@ -179,40 +124,22 @@ export class Announcer {
     el.className = `announcer announcer-${this._type}`
     document.body.appendChild(el)
     this._el = el
-
-    if (this._type in VIDEO_SRC) {
-      this._applyVideoTiming(this._type)
-      this._buildVideoContent(this._type)
-    } else {
-      this._buildImgContent(this._type)
-    }
-  }
-
-  // ── Private: build PNG img content ────────────────────────────────────────
-  _buildImgContent(type) {
-    this._stopVideoKey()
-    this._videoMode = false
-    this._el.innerHTML = `<img class="announcer-img" src="${IMG(type, 'closed')}" alt="announcer"/>`
-    this._img    = this._el.querySelector('.announcer-img')
-    this._canvas = null
-    this._ctx    = null
-    this._video  = null
+    this._applyVideoTiming(this._type)
+    this._buildVideoContent(this._type)
   }
 
   // ── Private: build canvas+video content ───────────────────────────────────
   _buildVideoContent(type) {
     this._stopVideoKey()
-    this._videoMode = true
 
-    // Remove old content
     this._el.innerHTML = ''
 
     // Hidden video element — drives the canvas
     const video = document.createElement('video')
-    video.src        = VIDEO_SRC[type]
-    video.autoplay   = true
-    video.loop       = true
-    video.muted      = true
+    video.src         = VIDEO_SRC[type]
+    video.autoplay    = true
+    video.loop        = true
+    video.muted       = true
     video.playsInline = true
     video.style.display = 'none'
 
@@ -227,13 +154,11 @@ export class Announcer {
     this._video  = video
     this._canvas = canvas
     this._ctx    = canvas.getContext('2d', { willReadFrequently: true })
-    this._img    = null   // no img element in video mode
 
-    // Start the keying loop
     this._startVideoKey()
 
     // Ensure video plays (browser autoplay may be blocked until user interaction)
-    const tryPlay = () => { if (this._videoMode) video.play().catch(() => {}) }
+    const tryPlay = () => video.play().catch(() => {})
     if (video.readyState >= 2) tryPlay()
     else video.addEventListener('canplay', tryPlay, { once: true })
     setTimeout(tryPlay, 800)
@@ -278,34 +203,26 @@ export class Announcer {
     }
   }
 
-  // No idle animation — announcer stays perfectly still (video provides its own motion)
-  _idleAnim() {}
-
   // ── Public: say arbitrary text ────────────────────────────────────────────
   sayText(text, onDone) {
-    if (this._speaking) { speechSynthesis.cancel(); this._stopSeq() }
+    if (this._speaking) speechSynthesis.cancel()
     this._speaking = true
-    this._startSeq(/bingo|line!/i.test(text) ? 'win' : 'talk')
     this._speak(text, () => {
       this._speaking = false
-      this._stopSeq()
       if (onDone) onDone()
     })
   }
 
   // ── Public: announce a drawn ball number ──────────────────────────────────
   announce(number) {
-    if (this._speaking) { speechSynthesis.cancel(); this._stopSeq() }
+    if (this._speaking) speechSynthesis.cancel()
     this._speaking = true
-    this._startSeq('talk')
     this._speak(say(number), () => {
       this._speaking = false
-      this._stopSeq()
     })
   }
 
   // ── Public: enable idle-pause mode (video pauses between speeches) ────────
-  // Call after walk-in zoom completes. idleSeek = seconds to park on between calls.
   enableIdlePause(idleSeek = 4.5) {
     this._idlePause = true
     this._idleSeek  = idleSeek
@@ -315,7 +232,7 @@ export class Announcer {
   // ── Public: disable idle-pause mode (video loops freely) ─────────────────
   disableIdlePause() {
     this._idlePause = false
-    if (this._video && this._videoMode) {
+    if (this._video) {
       this._video.loop = true
       this._video.play().catch(() => {})
     }
@@ -323,11 +240,11 @@ export class Announcer {
 
   // ── Private: seek to idle frame and pause ─────────────────────────────────
   _parkVideo() {
-    if (!this._video || !this._videoMode) return
+    if (!this._video) return
     this._video.loop = false
     this._video.currentTime = this._idleSeek
     this._video.addEventListener('seeked', () => {
-      if (this._idlePause && !this._speaking) this._video.pause()
+      if (this._idlePause && !this._speaking) this._video?.pause()
     }, { once: true })
   }
 
@@ -343,12 +260,11 @@ export class Announcer {
     if (!('speechSynthesis' in window)) { onEnd(); return }
 
     // If in idle-pause mode, play only the hand-raise→lower segment
-    if (this._idlePause && this._video && this._videoMode) {
+    if (this._idlePause && this._video) {
       this._clearSegWatcher()
       this._video.loop = false
       this._video.currentTime = this._speakSegStart
 
-      // Pause the video once it reaches the end of the lower gesture
       this._segWatcher = () => {
         if (this._video && this._video.currentTime >= this._speakSegEnd) {
           this._clearSegWatcher()
@@ -366,7 +282,6 @@ export class Announcer {
     utt.pitch = 1.15; utt.rate = 0.88; utt.volume = 1
     const done = () => {
       if (this._speakGen !== gen) return
-      // Park video back to idle frame once speech ends
       if (this._idlePause) this._parkVideo()
       onEnd()
     }
@@ -379,17 +294,17 @@ export class Announcer {
 
   // ── Public: freeze video at a "standing still" frame ─────────────────────
   freezeVideo(seekTime = 4.0) {
-    if (!this._video || !this._videoMode) return
+    if (!this._video) return
     this._video.loop = false
     this._video.currentTime = seekTime
     this._video.addEventListener('seeked', () => {
-      if (this._videoMode) this._video.pause()
+      this._video?.pause()
     }, { once: true })
   }
 
   // ── Public: unfreeze — restart video from beginning ───────────────────────
   unfreezeVideo() {
-    if (!this._video || !this._videoMode) return
+    if (!this._video) return
     this._video.loop = true
     this._video.currentTime = 0
     this._video.play().catch(() => {})
@@ -399,6 +314,5 @@ export class Announcer {
     speechSynthesis.cancel()
     this._speaking = false
     this._clearSegWatcher()
-    this._stopSeq()
   }
 }

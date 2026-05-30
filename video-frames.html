@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head><style>
+body { background:#111; font-family:monospace; color:#fff; padding:8px; }
+h3 { color:#a78bfa; margin:10px 0 4px; font-size:13px; }
+.strip { display:flex; flex-wrap:nowrap; gap:4px; margin-bottom:10px; overflow-x:auto; }
+.frame { text-align:center; flex-shrink:0; }
+canvas { display:block; border:1px solid #444; }
+.label { font-size:10px; color:#0f0; margin-top:2px; }
+hr { border-color:#333; margin:8px 0; }
+</style></head>
+<body>
+
+<h3>A — announcer-a.mp4</h3>
+<div class="strip" id="framesA"></div>
+<hr>
+<h3>B — announcer-b.mp4</h3>
+<div class="strip" id="framesB"></div>
+<hr>
+<h3>C — announcer-c.mp4</h3>
+<div class="strip" id="framesC"></div>
+
+<script>
+const TIMES = [0, 0.4, 0.8, 1.2, 1.6, 2.0, 2.4, 2.8, 3.2, 3.6, 3.8, 4.0, 4.4, 4.8];
+const VIDS = [
+  { src: '/bingo-room/announcer-a.mp4', id: 'framesA' },
+  { src: '/bingo-room/announcer-b.mp4', id: 'framesB' },
+  { src: '/bingo-room/announcer-c.mp4', id: 'framesC' },
+];
+
+function captureVideo({ src, id }) {
+  const v = document.createElement('video');
+  v.src = src; v.crossOrigin = 'anonymous';
+  v.style.display = 'none';
+  document.body.appendChild(v);
+  const box = document.getElementById(id);
+  let idx = 0;
+
+  v.addEventListener('error', () => {
+    box.innerHTML = `<span style="color:#f66">Not found: ${src}</span>`;
+  });
+  v.addEventListener('loadedmetadata', next);
+  v.load();
+
+  function next() {
+    if (idx >= TIMES.length) { v.remove(); return; }
+    v.currentTime = TIMES[idx];
+  }
+  v.addEventListener('seeked', () => {
+    const t = TIMES[idx];
+    const c = document.createElement('canvas');
+    c.width = 80; c.height = 135;
+    c.getContext('2d').drawImage(v, 0, 0, 80, 135);
+    const d = document.createElement('div');
+    d.className = 'frame';
+    const lbl = document.createElement('div');
+    lbl.className = 'label';
+    lbl.textContent = t.toFixed(1) + 's';
+    d.appendChild(c); d.appendChild(lbl);
+    box.appendChild(d);
+    idx++; next();
+  });
+}
+
+VIDS.forEach(captureVideo);
+</script>
+</body>
+</html>

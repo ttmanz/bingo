@@ -1,7 +1,7 @@
 import { gsap }          from 'gsap'
 import { DrumPhysics3D } from '/bingo-room/DrumPhysics3D.js'
 import { CallCard }      from '/bingo-room/CallCard.js'
-import { Announcer }     from '/bingo-room/Announcer.js?v=2'
+import { Announcer }     from '/bingo-room/Announcer.js?v=3'
 import { COL_COLORS }    from '/bingo-room/bingoLogic.js'
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
