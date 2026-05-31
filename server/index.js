@@ -243,8 +243,8 @@ function checkWins(drawId, draw) {
         const cardNums = rows.flat().filter(n => n !== null)
         const missingFromCalled = cardNums.filter(n => !called.has(n))
 
-        // LINE: any row fully called
-        if (!linePrizeAwarded) {
+        // LINE: any row fully called — house tickets are never eligible for the line prize
+        if (!linePrizeAwarded && ticket.user_id !== getHouseUserId()) {
           for (const row of rows) {
             const nums = row.filter(n => n !== null)
             if (nums.length && nums.every(n => called.has(n))) {
@@ -252,7 +252,7 @@ function checkWins(drawId, draw) {
               const prize = draw.line_prize ?? 0
               if (prize > 0) awardPrize(ticket.user_id, drawId, ticket.id, prize, 'LINE win')
               const lu = dbQueryOne('SELECT email FROM users WHERE id = ?', [ticket.user_id])
-              lineWinnerEmail = (ticket.user_id === getHouseUserId()) ? null : (lu?.email ?? null)
+              lineWinnerEmail = lu?.email ?? null
               io.emit('prize-awarded', { type: 'line', user_id: ticket.user_id, amount: prize })
               console.log(`LINE win — user ${ticket.user_id}, prize ${prize}`)
               break
