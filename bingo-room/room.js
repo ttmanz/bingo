@@ -42,6 +42,8 @@ let _ceremonyActive = false // true while a bingo check ceremony is running; blo
 let _firstBallCalled = false  // gates the walk-in zoom — fires once per draw
 let _announcerZoomed = false  // true while announcer is at zoom scale
 let _serverTicketCheckPending = false  // true while _refreshCardsFromServer is in flight
+let _pendingWaiting = null             // 'waiting' payload stored during a bingo ceremony
+let _gameOverAt     = 0               // timestamp of last game-over — used to guard waiting curtain
 
 const _token = localStorage.getItem('bp_token') || ''
 const _previewMode = new URLSearchParams(location.search).has('preview')
@@ -72,6 +74,27 @@ async function fetchNextDrawTime() {
       ? new Date(next.draw_date + 'T' + next.draw_time + '+03:00')
       : next.scheduled_time ? new Date(next.scheduled_time) : null
   } catch { return null }
+}
+
+// Apply a deferred 'waiting' payload — called either directly from the socket handler
+// (no ceremony running) or by ceremony-end code after _pendingWaiting was stored.
+function _applyWaiting({ drawId, nextDrawTime, nextDrawTitle, annType }) {
+  _nextDrawTitle   = nextDrawTitle || 'this draw'
+  _introPlayed     = false
+  _curtainFaded    = false
+  _firstBallCalled = false
+  _allowedToWatch  = true
+  if (_announcerZoomed) {
+    _announcerZoomed = false
+    gsap.set(announcer._el, { scale: 1, transformOrigin: 'center bottom' })
+  }
+  announcer.disableIdlePause()
+  loadCardsForDraw(drawId)
+  drum.reset(Array.from({ length: 90 }, (_, i) => i + 1))
+  if (annType) { announcer.setType(annType); updateStageScale() }
+  if (!_previewMode) gsap.to(announcer._el, { opacity: 0, duration: 0.5 })
+  renderPlayerCard()
+  showWaitingPanel(nextDrawTime, nextDrawTitle)
 }
 
 function showDrawInProgress(nextDrawTime, nextDrawTitle) {
@@ -805,13 +828,16 @@ async function runBingoCheck(card) {
     gsap.to(announcer._el, { opacity: 0, duration: 0.8, ease: 'power2.in', onComplete: r })
   )
 
-  _ceremonyActive = false  // ceremony complete — allow curtain for future draws
+  _ceremonyActive = false  // ceremony complete
   clearTimeout(_safetyTimer)
+  // Apply any 'waiting' event that was deferred during the ceremony
+  if (_pendingWaiting) { const pw = _pendingWaiting; _pendingWaiting = null; _applyWaiting(pw) }
   tryShowDrawResults(_ownDrawId)
   } catch(err) {
     console.error('[bingo] runBingoCheck error — forcing ceremony end:', err)
     clearTimeout(_safetyTimer)
     _ceremonyActive = false
+    if (_pendingWaiting) { const pw = _pendingWaiting; _pendingWaiting = null; _applyWaiting(pw) }
     tryShowDrawResults(_ownDrawId)
   }
 }
@@ -844,17 +870,22 @@ function drainPendingBalls() {
 
 // ── Draw results card ─────────────────────────────────────────────────────
 
-function showDrawResultsCard({ drawTitle, lineWinner, bingoWinner }, completedDrawId) {
+function showDrawResultsCard({ drawTitle, lineWinner, bingoWinner, linePrizeAwarded, bingoPrizeAwarded }, completedDrawId) {
   const existing = document.getElementById('draw-results-card')
   if (existing) existing.remove()
+
+  // null winner means the house/system ticket won (email is withheld).
+  // Distinguish that from "nobody won" using the awarded flags.
+  const lineDisplay  = lineWinner  || (linePrizeAwarded  ? 'House' : '—')
+  const bingoDisplay = bingoWinner || (bingoPrizeAwarded ? 'House' : '—')
 
   const card = document.createElement('div')
   card.id = 'draw-results-card'
   card.innerHTML = `
     <div class="drc-title">Draw Results</div>
     <div class="drc-draw">${drawTitle || 'Draw'}</div>
-    <div class="drc-row"><span class="drc-label">Line</span><span class="drc-email">${lineWinner || '—'}</span></div>
-    <div class="drc-row"><span class="drc-label">Bingo</span><span class="drc-email">${bingoWinner || '—'}</span></div>
+    <div class="drc-row"><span class="drc-label">Line</span><span class="drc-email">${lineDisplay}</span></div>
+    <div class="drc-row"><span class="drc-label">Bingo</span><span class="drc-email">${bingoDisplay}</span></div>
   `
   document.body.appendChild(card)
   gsap.fromTo(card,
@@ -898,7 +929,8 @@ function tryShowDrawResults(completedDrawId) {
 
 // Played on every client that did NOT win — shows the flash + checking overlay
 async function runRemoteWinCeremony(type, amount) {
-  if (type === 'bingo') _ceremonyActive = true  // block waiting curtain during bingo ceremony
+  // _ceremonyActive is already set in the prize-awarded handler before this is called (bingo).
+  // Keep the guard here as a safety net for line wins (which don't need it but it's harmless).
   const _ownDrawId = _currentDrawId  // capture now — 'waiting' event may update it during ceremony
   paused = true
   gsap.to(announcer._el, { opacity: 0, duration: 0.25 })  // hide announcer so it doesn't show over overlay
@@ -965,6 +997,8 @@ async function runRemoteWinCeremony(type, amount) {
       gsap.to(announcer._el, { opacity: 0, duration: 0.8, ease: 'power2.in', onComplete: r })
     )
     _ceremonyActive = false
+    // Apply any 'waiting' event that was deferred during the ceremony
+    if (_pendingWaiting) { const pw = _pendingWaiting; _pendingWaiting = null; _applyWaiting(pw) }
     tryShowDrawResults(_ownDrawId)
   }
 }
@@ -1145,25 +1179,17 @@ function connectSocket() {
 
   // Server signals waiting for next draw
   socket.on('waiting', ({ drawId, nextDrawTime, nextDrawTitle, announcer: annType }) => {
-    _nextDrawTitle   = nextDrawTitle || 'this draw'
-    _introPlayed     = false        // allow intro for the new draw
-    _curtainFaded    = false        // allow curtain to lift for the new draw
-    _firstBallCalled = false        // allow zoom-in for the new draw
-    _allowedToWatch  = true         // user is still in room — pre-cleared for next draw
-    if (_announcerZoomed) {
-      _announcerZoomed = false
-      gsap.set(announcer._el, { scale: 1, transformOrigin: 'center bottom' })
+    // Guard: if a bingo ceremony is running on ANY client (winner or observer), suppress
+    // the curtain entirely — it would abruptly interrupt the ceremony overlay.
+    // Also suppress for 35 s after game-over when bingo was won, because the observer
+    // ceremony (_ceremonyActive) may have already finished while the winner's longer
+    // ceremony (runBingoCheck) is still running on another device.
+    const msSinceGameOver = _gameOverAt ? (Date.now() - _gameOverAt) : Infinity
+    if (_ceremonyActive || (bingoWon && msSinceGameOver < 35000)) {
+      _pendingWaiting = { drawId, nextDrawTime, nextDrawTitle, annType }
+      return   // applied by _applyPendingWaiting() when ceremony ends
     }
-    announcer.disableIdlePause()   // reset between draws — video loops freely until next first ball
-    loadCardsForDraw(drawId)
-    drum.reset(Array.from({ length: 90 }, (_, i) => i + 1))
-    // If a bingo ceremony is actively running, don't interrupt it with the curtain.
-    // Defer the announcer type swap too — don't change the character mid-ceremony.
-    if (_ceremonyActive) return
-    if (annType) { announcer.setType(annType); updateStageScale() }
-    if (!_previewMode) gsap.to(announcer._el, { opacity: 0, duration: 0.5 })  // hide announcer between draws
-    renderPlayerCard()
-    showWaitingPanel(nextDrawTime, nextDrawTitle)
+    _applyWaiting({ drawId, nextDrawTime, nextDrawTitle, annType })
   })
 
   // Countdown tick — update fill bar; at T-3 fade in announcer; at T=0 lift curtain
@@ -1285,6 +1311,7 @@ function connectSocket() {
   socket.on('game-over', () => {
     statusTextEl.textContent = 'Draw complete'
     if (countdownFill) countdownFill.style.width = '0'
+    _gameOverAt = Date.now()   // timestamp used to suppress 'waiting' curtain during ceremony
   })
 
   socket.on('draw-results', (data) => {
@@ -1320,6 +1347,7 @@ function connectSocket() {
     } else if (type === 'bingo') {
       if (bingoWon) return
       bingoWon = true
+      _ceremonyActive = true   // set synchronously so any 'waiting' arriving after this is suppressed
       runRemoteWinCeremony('bingo', amount)
     }
   })
@@ -1332,7 +1360,9 @@ function connectSocket() {
     paused     = false
     _drawResults    = null
     _pendingBalls   = []
-    _pendingLineCard = null   // clear any deferred line ceremony
+    _pendingLineCard  = null   // clear any deferred line ceremony
+    _pendingWaiting   = null   // clear any deferred 'waiting' payload
+    _gameOverAt       = 0      // reset game-over timestamp
     _introPlayed    = false   // new draw cycle — allow intro at T-3s
     _curtainFaded   = false   // allow curtain to lift for the new draw
     _ceremonyActive = false   // reset in case it was still set from a prior ceremony

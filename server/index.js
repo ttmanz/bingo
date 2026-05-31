@@ -368,9 +368,11 @@ function drawNextBall(intervalMs, drawId) {
       checkWins(drawId, currentDraw)
       io.emit('game-over')
       io.emit('draw-results', {
-        drawTitle:   currentDraw?.title ?? '',
-        lineWinner:  lineWinnerEmail,
-        bingoWinner: bingoWinnerEmail,
+        drawTitle:        currentDraw?.title ?? '',
+        lineWinner:       lineWinnerEmail,
+        bingoWinner:      bingoWinnerEmail,
+        linePrizeAwarded,
+        bingoPrizeAwarded,
       })
       setTimeout(scheduleNextDraw, 5_000)
     }
@@ -458,9 +460,11 @@ io.on('connection', (socket) => {
     }
     io.emit('game-over')
     io.emit('draw-results', {
-      drawTitle:   currentDraw?.title ?? '',
-      lineWinner:  lineWinnerEmail,
-      bingoWinner: bingoWinnerEmail,
+      drawTitle:        currentDraw?.title ?? '',
+      lineWinner:       lineWinnerEmail,
+      bingoWinner:      bingoWinnerEmail,
+      linePrizeAwarded,
+      bingoPrizeAwarded,
     })
     setTimeout(scheduleNextDraw, 5_000)
   })
