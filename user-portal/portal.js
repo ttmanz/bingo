@@ -262,21 +262,37 @@ async function loadMyTickets() {
 
   try {
     const { ok, data } = await apiFetch('/api/user-portal/tickets');
-    // Server returns one row per draw (grouped), each with ticket_count.
-    const rows = (ok && Array.isArray(data)) ? data : [];
+    let rows = (ok && Array.isArray(data)) ? data : [];
+
+    // Group by draw — count tickets per draw (each server row = 1 ticket).
+    // Server orders active draws first so they're never cut off by the LIMIT.
+    const groups = {};
+    rows.forEach(t => {
+      const key = String(t.draw_id);
+      if (!groups[key]) {
+        groups[key] = {
+          draw_title:   t.draw_title  || 'Bingo Draw',
+          draw_date:    t.draw_date,
+          draw_time:    t.draw_time,
+          draw_status:  t.draw_status,
+          ticket_count: 0,
+        };
+      }
+      groups[key].ticket_count++;
+    });
 
     // Only show active draws — filter out completed/voided ones.
     // Future special draws (status='scheduled', even weeks away) are kept.
-    const allRows    = rows;
-    const activeRows = rows.filter(r => {
-      const s = r.draw_status;
+    const allKeys  = Object.keys(groups);
+    const keys     = allKeys.filter(k => {
+      const s = groups[k].draw_status;
       return s === 'running' || s === 'scheduled';
     });
 
-    if (!activeRows.length) {
+    if (!keys.length) {
       const who = currentUser?.name ? ` for <strong>${currentUser.name}</strong>` : '';
-      // Distinguish "all past" vs "never bought"
-      const hadTickets = allRows.length > 0;
+      // Distinguish "all past draws finished" vs "never bought any"
+      const hadTickets = allKeys.length > 0;
       panel.innerHTML = hadTickets
         ? `<div class="my-tickets-empty">
              <div class="mte-icon">🎟️</div>
@@ -294,19 +310,19 @@ async function loadMyTickets() {
       return;
     }
 
-    panel.innerHTML = activeRows.map(g => {
+    panel.innerHTML = keys.map(key => {
+      const g = groups[key];
       const statusBadge = g.draw_status === 'running'
         ? `<span class="mt-badge mt-badge-live">🔴 Live</span>`
         : `<span class="mt-badge mt-badge-soon">⏰ Upcoming</span>`;
-      const count = g.ticket_count || 0;
 
       return `
         <div class="mt-row">
           <div class="mt-row-left">
-            <span class="mt-row-title">${g.draw_title || 'Bingo Draw'}</span>
+            <span class="mt-row-title">${g.draw_title}</span>
             ${statusBadge}
           </div>
-          <span class="mt-row-count">${count} 🎟️</span>
+          <span class="mt-row-count">${g.ticket_count} 🎟️</span>
         </div>`;
     }).join('');
 

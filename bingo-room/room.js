@@ -430,6 +430,30 @@ function loadCardsForDraw(drawId) {
   _refreshCardsFromServer(drawId)
 }
 
+// Cross-tab update: when the user buys tickets in the portal tab while the
+// bingo room is already open, the portal writes to localStorage and the browser
+// fires a 'storage' event in this tab.  Pick it up and show the cards immediately
+// without waiting for the next socket event.
+window.addEventListener('storage', (e) => {
+  if (e.key !== 'bingoRoomTickets') return
+  if (!_currentDrawId) return
+  // Already have cards — nothing to update
+  if (playerCards?.cards?.length) return
+  try {
+    const store = JSON.parse(e.newValue || '{}')
+    const key   = String(_currentDrawId)
+    if (!store[key]?.cards?.length) return
+    playerCards = store[key]
+    _serverTicketCheckPending = false
+    renderPlayerCard()
+    refreshCardMarks()
+    // If a draw is already underway and the curtain is up, lift it now
+    const blocked   = document.getElementById('room-blocked')
+    const isBlocked = blocked && !blocked.classList.contains('hidden')
+    if (isBlocked && calledSet.size > 0) _enterMidDraw(calledSet.size)
+  } catch {}
+})
+
 async function _refreshCardsFromServer(drawId) {
   // Helper: clear pending flag and re-render if we're still on the same draw
   const _done = () => {
