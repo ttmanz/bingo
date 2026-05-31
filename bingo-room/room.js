@@ -540,6 +540,15 @@ function buildOverlayTable(card, winRowIdx) {
 
 async function runLineCheck(card, rowIdx) {
   paused = true
+  // Safety: no matter what crashes inside, always unfreeze after 30s
+  const _safetyTimer = setTimeout(() => {
+    if (paused) {
+      console.warn('[bingo] runLineCheck safety timeout — forcing resume')
+      paused = false; drainPendingBalls()
+    }
+  }, 30000)
+
+  try {
   gsap.to(announcer._el, { opacity: 0, duration: 0.25 })  // hide announcer so it doesn't show over overlay
 
   // ── Step 1: Flash "LINE!" over the drum ──────────────────────────────────
@@ -577,9 +586,6 @@ async function runLineCheck(card, rowIdx) {
 
   await new Promise(r => setTimeout(r, 300))
 
-  // Keep mouth moving during the cell check — direct call, not relying on speech callback
-  announcer._startSeq('talk')
-
   // ── Animate winning row cells in overlay ─────────────────────────────────
   const overlayRows  = overlay.querySelectorAll('.overlay-card-table tr')
   const overlayWinTds = [...overlayRows[rowIdx].querySelectorAll('td')]
@@ -614,7 +620,17 @@ async function runLineCheck(card, rowIdx) {
   // ── Announcer says "Continuing" then resume ──────────────────────────────
   // Fade her back in — she was hidden at ceremony start so the overlay was unobstructed
   gsap.to(announcer._el, { opacity: 1, duration: 0.4, ease: 'power2.out' })
-  announcer.sayText('Continuing.', () => { paused = false; drainPendingBalls() })
+  announcer.sayText('Continuing.', () => {
+    clearTimeout(_safetyTimer)
+    paused = false
+    drainPendingBalls()
+  })
+  } catch(err) {
+    console.error('[bingo] runLineCheck error — forcing resume:', err)
+    clearTimeout(_safetyTimer)
+    paused = false
+    drainPendingBalls()
+  }
 }
 
 // ── Bingo check ceremony ──────────────────────────────────────────────────
@@ -638,6 +654,15 @@ async function runBingoCheck(card) {
   paused = true
   announcer.reset()  // cancel any in-progress number call immediately
   gsap.to(announcer._el, { opacity: 0, duration: 0.25 })  // hide announcer so it doesn't show over overlay
+
+  // Safety: if anything inside throws, still close out the ceremony
+  const _safetyTimer = setTimeout(() => {
+    console.warn('[bingo] runBingoCheck safety timeout — forcing ceremony end')
+    _ceremonyActive = false
+    tryShowDrawResults(_ownDrawId)
+  }, 45000)
+
+  try {
 
   // ── Step 1: BINGO! flash ─────────────────────────────────────────────────
   const flash = document.createElement('div')
@@ -679,8 +704,6 @@ async function runBingoCheck(card) {
   // Ensure call card column is visible and any waiting panel is hidden
   calledEl.style.display = ''
   document.getElementById('room-next-draw')?.classList.add('hidden')
-  // Keep mouth moving through the entire check — direct call, not relying on speech callback
-  announcer._startSeq('win')
 
   // Build per-row td arrays including blank cells so column index stays aligned.
   // Card-code-cell (rowspan=3 at end) is excluded; blank cells are kept for alignment.
@@ -753,7 +776,14 @@ async function runBingoCheck(card) {
   )
 
   _ceremonyActive = false  // ceremony complete — allow curtain for future draws
+  clearTimeout(_safetyTimer)
   tryShowDrawResults(_ownDrawId)
+  } catch(err) {
+    console.error('[bingo] runBingoCheck error — forcing ceremony end:', err)
+    clearTimeout(_safetyTimer)
+    _ceremonyActive = false
+    tryShowDrawResults(_ownDrawId)
+  }
 }
 
 // ── Drain balls received during a ceremony pause ─────────────────────────
