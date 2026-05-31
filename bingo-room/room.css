@@ -555,6 +555,11 @@ body {
     grid-template-columns: 1fr var(--callcard-width);
     align-items: start;
   }
+  /* Lower machine (and announcer, which tracks it) 35px on desktop.
+     Base padding-bottom is 40px; 40 - 35 = 5px. */
+  .room-drum-col {
+    padding-bottom: 5px;
+  }
   /* Callcard: right column, spans drum row + tickets row, sticky */
   .room-callcard-col {
     grid-column: 2;
