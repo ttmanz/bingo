@@ -96,16 +96,27 @@ router.get('/available-draws', requireUserAuth, (req, res) => {
 })
 
 // GET /api/user-portal/tickets
+// Returns one row per draw (not per ticket) so large purchases for one draw
+// never push earlier draws past the LIMIT.
 router.get('/tickets', requireUserAuth, (req, res) => {
   // Support both token shapes: { user_id } (current) and legacy { id }
   const userId = req.user.user_id ?? req.user.id
   if (!userId) return res.status(400).json({ error: 'Invalid token — please log out and log in again' })
   const tickets = query(
-    `SELECT t.*, d.title as draw_title, d.draw_date, d.draw_time, d.timezone, d.status as draw_status
+    `SELECT d.id as draw_id,
+            d.title as draw_title,
+            d.draw_date,
+            d.draw_time,
+            d.timezone,
+            d.status as draw_status,
+            COUNT(t.id) as ticket_count,
+            MAX(t.created_at) as last_purchased
      FROM tickets t
      JOIN draws d ON d.id = t.draw_id
      WHERE t.user_id = ?
-     ORDER BY t.created_at DESC LIMIT 50`,
+     GROUP BY d.id
+     ORDER BY last_purchased DESC
+     LIMIT 30`,
     [userId]
   )
   res.json(tickets)

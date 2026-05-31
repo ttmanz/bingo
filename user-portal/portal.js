@@ -262,36 +262,21 @@ async function loadMyTickets() {
 
   try {
     const { ok, data } = await apiFetch('/api/user-portal/tickets');
-    let rows = (ok && Array.isArray(data)) ? data : [];
-
-    // Group by draw — count tickets per draw (each server row = 1 ticket)
-    const groups = {};
-    rows.forEach(t => {
-      const key = String(t.draw_id || t.id);
-      if (!groups[key]) {
-        groups[key] = {
-          draw_title:  t.draw_title  || 'Bingo Draw',
-          draw_date:   t.draw_date,
-          draw_time:   t.draw_time,
-          draw_status: t.draw_status,
-          ticket_count: 0
-        };
-      }
-      groups[key].ticket_count++;
-    });
+    // Server returns one row per draw (grouped), each with ticket_count.
+    const rows = (ok && Array.isArray(data)) ? data : [];
 
     // Only show active draws — filter out completed/voided ones.
     // Future special draws (status='scheduled', even weeks away) are kept.
-    const allKeys  = Object.keys(groups);
-    const keys     = allKeys.filter(k => {
-      const s = groups[k].draw_status;
+    const allRows    = rows;
+    const activeRows = rows.filter(r => {
+      const s = r.draw_status;
       return s === 'running' || s === 'scheduled';
     });
 
-    if (!keys.length) {
+    if (!activeRows.length) {
       const who = currentUser?.name ? ` for <strong>${currentUser.name}</strong>` : '';
       // Distinguish "all past" vs "never bought"
-      const hadTickets = allKeys.length > 0;
+      const hadTickets = allRows.length > 0;
       panel.innerHTML = hadTickets
         ? `<div class="my-tickets-empty">
              <div class="mte-icon">🎟️</div>
@@ -309,19 +294,19 @@ async function loadMyTickets() {
       return;
     }
 
-    panel.innerHTML = keys.map(key => {
-      const g = groups[key];
+    panel.innerHTML = activeRows.map(g => {
       const statusBadge = g.draw_status === 'running'
         ? `<span class="mt-badge mt-badge-live">🔴 Live</span>`
         : `<span class="mt-badge mt-badge-soon">⏰ Upcoming</span>`;
+      const count = g.ticket_count || 0;
 
       return `
         <div class="mt-row">
           <div class="mt-row-left">
-            <span class="mt-row-title">${g.draw_title}</span>
+            <span class="mt-row-title">${g.draw_title || 'Bingo Draw'}</span>
             ${statusBadge}
           </div>
-          <span class="mt-row-count">${g.ticket_count} 🎟️</span>
+          <span class="mt-row-count">${count} 🎟️</span>
         </div>`;
     }).join('');
 
@@ -687,9 +672,10 @@ $('btnBuyConfirm').addEventListener('click', async () => {
       }
     } catch (e) { console.warn('localStorage write failed', e); }
 
-    // return to main game screen
+    // return to main game screen and refresh tickets panel
     document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('game-main').style.display = '';
+    loadMyTickets();   // refresh so newly-bought draw appears immediately
 
     // success toast
     const plural = purchased > 1 ? 's' : '';
