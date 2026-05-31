@@ -687,21 +687,23 @@ async function runBingoCheck(card) {
 
   try {
 
-  // ── Step 1: BINGO! flash ─────────────────────────────────────────────────
+  // ── Step 1: BINGO! flash — wait for speech before moving on ─────────────
   const flash = document.createElement('div')
   flash.id = 'line-flash'
   flash.classList.add('bingo-flash')
   flash.textContent = 'BINGO!'
   document.body.appendChild(flash)
 
+  // Animate flash in, then await the speech — flash holds until she finishes
   await new Promise(r =>
     gsap.fromTo(flash,
       { opacity: 0, scale: 0.5 },
       { opacity: 1, scale: 1, duration: 0.45, ease: 'back.out(1.6)', onComplete: r }
     )
   )
-  announcer.sayText('BINGO!')
-  await new Promise(r => setTimeout(r, 1800))
+  // Wait for "BINGO!" speech to fully complete before overlay appears
+  await new Promise(resolve => announcer.sayText('BINGO!', resolve))
+  await new Promise(r => setTimeout(r, 300))   // brief pause after speech
   await new Promise(r =>
     gsap.to(flash, { opacity: 0, scale: 1.3, duration: 0.3, ease: 'power2.in', onComplete: () => { flash.remove(); r() } })
   )
@@ -713,13 +715,15 @@ async function runBingoCheck(card) {
   overlay.innerHTML = `<div class="lco-title">Full house — checking card…</div>` + buildBingoOverlayTable(card)
   document.body.appendChild(overlay)
 
-  gsap.fromTo(overlay,
-    { opacity: 0, y: 40 },
-    { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' }
+  await new Promise(r =>
+    gsap.fromTo(overlay,
+      { opacity: 0, y: 40 },
+      { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out', onComplete: r }
+    )
   )
   await new Promise(r => setTimeout(r, 300))
 
-  // ── Step 3: Check all 3 rows cell by cell ────────────────────────────────
+  // ── Step 3: Check all 3 rows cell by cell (silent — no speech during check) ─
   const cardIdx   = playerCards.cards.indexOf(card)
   const origTable = document.querySelectorAll('.room-card-grid-table')[cardIdx]
   const overlayRows = overlay.querySelectorAll('.overlay-card-table tr')
@@ -772,26 +776,29 @@ async function runBingoCheck(card) {
     }
   }
 
-  // ── Step 4: Show banner, hold 5 s ────────────────────────────────────────
+  // ── Step 4: Show BINGO! banner — hold 5 s with ALL overlays still visible ─
   await new Promise(r => setTimeout(r, 350))
   showWin('BINGO!', 'bingo')
   await new Promise(r => setTimeout(r, 5000))
 
-  // ── Step 5: Fade out overlay + banner ────────────────────────────────────
-  winBannerEl.classList.add('hidden')
+  // ── Step 5: Fade out overlay AND banner together — clean simultaneous exit ─
+  gsap.to(winBannerEl, { opacity: 0, duration: 0.5, ease: 'power2.in',
+    onComplete: () => { winBannerEl.classList.add('hidden'); winBannerEl.style.opacity = '' }
+  })
   await new Promise(r =>
     gsap.to(overlay, { opacity: 0, y: -30, duration: 0.5, ease: 'power2.in', onComplete: () => { overlay.remove(); r() } })
   )
+  await new Promise(r => setTimeout(r, 300))   // brief clear pause — screen is clean
 
-  // ── Step 6: Show announcer, zoom out, congratulations walk ───────────────
-  await new Promise(r =>
-    gsap.to(announcer._el, { opacity: 1, duration: 0.5, ease: 'power2.out', onComplete: r })
-  )
+  // ── Step 6: Announcer appears only after all overlays are gone ────────────
   _zoomAnnouncerOut()   // unfreeze video (walk loop) + zoom back to 1×
-  await new Promise(r => setTimeout(r, 600))   // let zoom begin, video in motion
+  await new Promise(r =>
+    gsap.to(announcer._el, { opacity: 1, duration: 0.6, ease: 'power2.out', onComplete: r })
+  )
+  await new Promise(r => setTimeout(r, 400))   // let her settle before speaking
 
   await new Promise(resolve => announcer.sayText('Congratulations to all the winners!', resolve))
-  await new Promise(r => setTimeout(r, 400))
+  await new Promise(r => setTimeout(r, 500))
 
   // ── Step 7: Fade announcer out → show results ────────────────────────────
   await new Promise(r =>
