@@ -876,8 +876,8 @@ function showDrawResultsCard({ drawTitle, lineWinner, bingoWinner, linePrizeAwar
 
   // null winner means the house/system ticket won (email is withheld).
   // Distinguish that from "nobody won" using the awarded flags.
-  const lineDisplay  = lineWinner  || (linePrizeAwarded  ? 'House' : '—')
-  const bingoDisplay = bingoWinner || (bingoPrizeAwarded ? 'House' : '—')
+  const lineDisplay  = lineWinner  || (linePrizeAwarded  ? 'Undisclosed email' : '—')
+  const bingoDisplay = bingoWinner || (bingoPrizeAwarded ? 'Undisclosed email' : '—')
 
   const card = document.createElement('div')
   card.id = 'draw-results-card'
