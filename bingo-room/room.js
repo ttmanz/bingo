@@ -234,7 +234,7 @@ function _announcerNaturalPos() {
   //       'left'  → ox from machine left edge
   const POS = {
     a: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
-    b: { side: 'right', ox: 836, oy: 112, w: 200, h: 340, dx:   0 },  // raised 38px
+    b: { side: 'right', ox: 836, oy: 112, w: 200, h: 340, dx:   0, ms: 0.85 },  // raised 38px
     c: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
     d: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx: -20 },
     e: { side: 'right', ox: 836, oy: 110, w: 200, h: 340, dx:   0, ms: 0.80 },  // raised 40px
@@ -1106,6 +1106,11 @@ function showWin(text, type) {
 // ── Mid-draw entry: player has tickets for the running draw ───────────────
 // Called when (re-)joining during a live draw instead of showing the curtain.
 function _enterMidDraw(calledCount, annType) {
+  // Ensure the call card is visible (showWaitingPanel hides it; this covers both
+  // the "rejoined mid-draw from scratch" case and any timing where hideWaitingPanel
+  // wasn't explicitly called before _enterMidDraw).
+  hideWaitingPanel()
+
   _curtainFaded = true   // no curtain to fade
   _introPlayed  = true   // suppress the T-3s paused=true / curtain-lift path for this draw
   paused        = false
@@ -1273,6 +1278,9 @@ function connectSocket() {
           onComplete: () => { panel.classList.add('hidden'); panel.style.opacity = '' }
         })
       }
+      // Un-hide the call card (showWaitingPanel hid it while waiting for the draw)
+      const calledEl3 = document.getElementById('called-numbers')
+      if (calledEl3) calledEl3.style.display = ''
       // Announcer fades in AFTER the curtain lifts (see T=0 block below)
     }
 
@@ -1307,6 +1315,9 @@ function connectSocket() {
       _curtainFaded = true
       _introPlayed  = true   // prevent T-3 block from pausing again after this
       paused        = true   // queue this ball until intro finishes
+      // Un-hide the call card in case showWaitingPanel hid it during pre-draw waiting
+      const calledEl4 = document.getElementById('called-numbers')
+      if (calledEl4) calledEl4.style.display = ''
       const blocked = document.getElementById('room-blocked')
       if (blocked && !blocked.classList.contains('hidden')) {
         gsap.to(blocked, {
