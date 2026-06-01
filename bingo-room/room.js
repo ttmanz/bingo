@@ -1013,39 +1013,47 @@ async function runRemoteWinCeremony(type, amount) {
     const CHECK_MS = 9000   // matches 15 cells × 600 ms in runBingoCheck
     const HOLD_MS  = 5000
 
-    // Hold the "Checking winner's card…" overlay for the full check duration
-    await new Promise(r => setTimeout(r, CHECK_MS))
+    try {
+      // Hold the "Checking winner's card…" overlay for the full check duration
+      await new Promise(r => setTimeout(r, CHECK_MS))
 
-    // Win banner appears — same moment winner's check ends and their banner shows
-    showWin(amount > 0 ? `BINGO! +${amount} pts` : 'BINGO!', 'bingo')
-    await new Promise(r => setTimeout(r, HOLD_MS))   // 5 s hold — banner + overlay both visible
+      // Win banner appears — same moment winner's check ends and their banner shows
+      showWin(amount > 0 ? `BINGO! +${amount} pts` : 'BINGO!', 'bingo')
+      await new Promise(r => setTimeout(r, HOLD_MS))   // 5 s hold — banner + overlay both visible
 
-    // Fade overlay AND banner simultaneously (mirrors runBingoCheck step 5)
-    gsap.to(winBannerEl, { opacity: 0, duration: 0.5, ease: 'power2.in',
-      onComplete: () => { winBannerEl.classList.add('hidden'); winBannerEl.style.opacity = '' }
-    })
-    await new Promise(r =>
-      gsap.to(overlay, { opacity: 0, y: -30, duration: 0.5, ease: 'power2.in',
-        onComplete: () => { overlay.remove(); r() }
+      // Fade overlay AND banner simultaneously (mirrors runBingoCheck step 5)
+      gsap.to(winBannerEl, { opacity: 0, duration: 0.5, ease: 'power2.in',
+        onComplete: () => { winBannerEl.classList.add('hidden'); winBannerEl.style.opacity = '' }
       })
-    )
-    await new Promise(r => setTimeout(r, 300))   // brief clear pause — screen is clean
+      await new Promise(r =>
+        gsap.to(overlay, { opacity: 0, y: -30, duration: 0.5, ease: 'power2.in',
+          onComplete: () => { overlay.remove(); r() }
+        })
+      )
+      await new Promise(r => setTimeout(r, 300))   // brief clear pause — screen is clean
 
-    // Announcer appears + congratulations (mirrors runBingoCheck step 6)
-    paused = false
-    drainPendingBalls()
-    await new Promise(r =>
-      gsap.to(announcer._el, { opacity: 1, duration: 0.5, ease: 'power2.out', onComplete: r })
-    )
-    _zoomAnnouncerOut()
-    await new Promise(r => setTimeout(r, 400))
+      // Announcer appears + congratulations (mirrors runBingoCheck step 6)
+      paused = false
+      drainPendingBalls()
+      await new Promise(r =>
+        gsap.to(announcer._el, { opacity: 1, duration: 0.5, ease: 'power2.out', onComplete: r })
+      )
+      _zoomAnnouncerOut()
+      await new Promise(r => setTimeout(r, 400))
 
-    await new Promise(resolve => announcer.sayText('Congratulations to all the winners!', resolve))
-    await new Promise(r => setTimeout(r, 500))
+      await new Promise(resolve => announcer.sayText('Congratulations to all the winners!', resolve))
+      await new Promise(r => setTimeout(r, 500))
 
-    await new Promise(r =>
-      gsap.to(announcer._el, { opacity: 0, duration: 0.8, ease: 'power2.in', onComplete: r })
-    )
+      await new Promise(r =>
+        gsap.to(announcer._el, { opacity: 0, duration: 0.8, ease: 'power2.in', onComplete: r })
+      )
+    } catch (err) {
+      console.error('[bingo] runRemoteWinCeremony error — recovering', err)
+      // Clean up any leftover overlay elements so they don't block the UI
+      document.getElementById('line-check-overlay')?.remove()
+      if (winBannerEl) { winBannerEl.classList.add('hidden'); winBannerEl.style.opacity = '' }
+      paused = false
+    }
     _ceremonyActive = false
     // Apply any 'waiting' event that was deferred during the ceremony
     if (_pendingWaiting) { const pw = _pendingWaiting; _pendingWaiting = null; _applyWaiting(pw) }
@@ -1203,6 +1211,7 @@ function connectSocket() {
       if (annType) { announcer.setType(annType); updateStageScale() }
       loadCardsForDraw(drawId)   // drawId is the upcoming draw here
       renderPlayerCard()
+      callCard.reset()   // clear stale call card data from previous draw (e.g. bfcache restore)
       showWaitingPanel(nextDrawTime, nextDrawTitle)
       return
     }
@@ -1227,6 +1236,7 @@ function connectSocket() {
       }
       return
     }
+    if (calledSet.size > 0) callCard.restore(Array.from(calledSet))
     refreshCardMarks()
     checkWins()
     if (gameOver) statusTextEl.textContent = 'Draw ended'
