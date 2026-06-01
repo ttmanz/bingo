@@ -234,7 +234,7 @@ function _announcerNaturalPos() {
   //       'left'  → ox from machine left edge
   const POS = {
     a: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
-    b: { side: 'right', ox: 836, oy: 112, w: 200, h: 340, dx:   0, ms: 0.85 },  // raised 38px
+    b: { side: 'right', ox: 836, oy:  90, w: 170, h: 289, dx:   0, ms: 1.00 },  // compact size, same on mobile+desktop
     c: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
     d: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx: -20 },
     e: { side: 'right', ox: 836, oy: 110, w: 200, h: 340, dx:   0, ms: 0.80 },  // raised 40px
@@ -497,6 +497,11 @@ async function _refreshCardsFromServer(drawId) {
     _serverTicketCheckPending = false
     renderPlayerCard()
     refreshCardMarks()
+    // Always restore the call card here — the curtain may have already lifted
+    // (T=0 animation) by the time the server ticket fetch completes, so the
+    // isBlocked-gated _enterMidDraw below might not run.  Calling restore()
+    // unconditionally is safe (idempotent if called twice via _enterMidDraw).
+    if (calledSet.size > 0) callCard.restore(Array.from(calledSet))
 
     // If the player joined mid-draw and the curtain is still up (no cached ticket),
     // lift it now that we've confirmed they have a ticket on the server.
