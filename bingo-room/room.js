@@ -37,6 +37,7 @@ let _pendingLineCard = null // set when client detects a line; cleared by prize-
 let _introPlayed   = false  // prevents intro replaying within same draw cycle
 let _nextDrawTitle = ''     // stored from 'waiting'/'state' for intro speech
 let _curtainFaded  = false  // guards the 00:00 curtain lift — reset each waiting cycle
+let _wasWatchingDrawId = null  // drawId the user was present for pre-draw; enables ticket-less watching
 let _ceremonyActive = false // true while a bingo check ceremony is running; blocks waiting curtain
 let _firstBallCalled = false  // gates the walk-in zoom — fires once per draw
 let _announcerZoomed = false  // true while announcer is at zoom scale
@@ -78,10 +79,11 @@ async function fetchNextDrawTime() {
 // Apply a deferred 'waiting' payload — called either directly from the socket handler
 // (no ceremony running) or by ceremony-end code after _pendingWaiting was stored.
 function _applyWaiting({ drawId, nextDrawTime, nextDrawTitle, annType }) {
-  _nextDrawTitle   = nextDrawTitle || 'this draw'
-  _introPlayed     = false
-  _curtainFaded    = false
-  _firstBallCalled = false
+  _nextDrawTitle      = nextDrawTitle || 'this draw'
+  _wasWatchingDrawId  = drawId   // mark that this user is in the room for this draw's start
+  _introPlayed        = false
+  _curtainFaded       = false
+  _firstBallCalled    = false
   if (_announcerZoomed) {
     _announcerZoomed = false
     gsap.set(announcer._el, { scale: 1, transformOrigin: 'center bottom' })
@@ -1223,7 +1225,8 @@ function connectSocket() {
   socket.on('state', ({ called, gameOver, phase, drawId, nextDrawTime, nextDrawTitle, announcer: annType, linePrizeAwarded: lpa, bingoPrizeAwarded: bpa }) => {
     calledSet = new Set(called)
     if (phase === 'waiting') {
-      _nextDrawTitle = nextDrawTitle || 'this draw'
+      _nextDrawTitle     = nextDrawTitle || 'this draw'
+      _wasWatchingDrawId = drawId   // user is in room before draw start — allow ticket-less watching
       if (annType) { announcer.setType(annType); updateStageScale() }
       loadCardsForDraw(drawId)
       renderPlayerCard()
@@ -1238,11 +1241,14 @@ function connectSocket() {
     if (called.length > 0 && !gameOver) {
       if (annType) { announcer.setType(annType); updateStageScale() }
       if (playerCards) {
-        // Has ticket cached — enter live draw immediately
+        // Has ticket — enter live draw immediately
+        _enterMidDraw(called.length, annType)
+      } else if (String(_wasWatchingDrawId) === String(drawId)) {
+        // Was in the room before this draw started (no ticket) — let them continue watching
         _enterMidDraw(called.length, annType)
       } else {
-        // No ticket — show next draw panel; _refreshCardsFromServer (started inside
-        // loadCardsForDraw) will call _enterMidDraw if it finds a ticket on the server
+        // Late entry with no ticket — show next draw info;
+        // _refreshCardsFromServer (via loadCardsForDraw) calls _enterMidDraw if ticket found
         showWaitingPanel(nextDrawTime, nextDrawTitle)
       }
       return
