@@ -202,7 +202,7 @@ async function enterGame() {
   renderTopBar();
   showScreen('screen-game');
   closeSection();
-  await loadDraws();
+  try { await loadDraws(); } catch(e) { console.error('loadDraws failed:', e); }
   loadMyTickets();
 }
 

@@ -987,35 +987,56 @@ async function runRemoteWinCeremony(type, amount) {
 
   gsap.fromTo(overlay, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' })
 
-  const holdMs = type === 'bingo' ? 5000 : 3500
-  await new Promise(r => setTimeout(r, holdMs))
-
-  showWin(type === 'bingo'
-    ? (amount > 0 ? `BINGO! +${amount} pts` : 'BINGO!')
-    : (amount > 0 ? `LINE! +${amount} pts` : 'LINE!'), type)
-
-  await new Promise(r => setTimeout(r, 1200))
-  await new Promise(r =>
-    gsap.to(overlay, { opacity: 0, y: -30, duration: 0.5, ease: 'power2.in',
-      onComplete: () => { overlay.remove(); r() } })
-  )
-
   if (type === 'line') {
-    // Fade her back in — hidden at ceremony start so overlay was unobstructed
+    // ── Line: short hold, banner, fade overlay, resume ───────────────────────
+    await new Promise(r => setTimeout(r, 3500))
+    showWin(amount > 0 ? `LINE! +${amount} pts` : 'LINE!', 'line')
+    await new Promise(r => setTimeout(r, 1200))
+    await new Promise(r =>
+      gsap.to(overlay, { opacity: 0, y: -30, duration: 0.5, ease: 'power2.in',
+        onComplete: () => { overlay.remove(); r() } })
+    )
     gsap.to(announcer._el, { opacity: 1, duration: 0.4, ease: 'power2.out' })
     announcer.sayText('Continuing.', () => { paused = false; drainPendingBalls() })
+
   } else {
-    // Bingo: show announcer, zoom out, walk + congratulations, then results
+    // ── Bingo observer ceremony — mirrors runBingoCheck timing exactly ──────
+    // Winner's check: 15 non-blank cells × 600 ms = 9 000 ms
+    // Then 5 000 ms banner hold, then overlay+banner fade simultaneously,
+    // then announcer + congratulations.
+    // We replicate those durations so ALL screens clear at the same moment.
+    const CHECK_MS = 9000   // matches 15 cells × 600 ms in runBingoCheck
+    const HOLD_MS  = 5000
+
+    // Hold the "Checking winner's card…" overlay for the full check duration
+    await new Promise(r => setTimeout(r, CHECK_MS))
+
+    // Win banner appears — same moment winner's check ends and their banner shows
+    showWin(amount > 0 ? `BINGO! +${amount} pts` : 'BINGO!', 'bingo')
+    await new Promise(r => setTimeout(r, HOLD_MS))   // 5 s hold — banner + overlay both visible
+
+    // Fade overlay AND banner simultaneously (mirrors runBingoCheck step 5)
+    gsap.to(winBannerEl, { opacity: 0, duration: 0.5, ease: 'power2.in',
+      onComplete: () => { winBannerEl.classList.add('hidden'); winBannerEl.style.opacity = '' }
+    })
+    await new Promise(r =>
+      gsap.to(overlay, { opacity: 0, y: -30, duration: 0.5, ease: 'power2.in',
+        onComplete: () => { overlay.remove(); r() }
+      })
+    )
+    await new Promise(r => setTimeout(r, 300))   // brief clear pause — screen is clean
+
+    // Announcer appears + congratulations (mirrors runBingoCheck step 6)
     paused = false
     drainPendingBalls()
     await new Promise(r =>
       gsap.to(announcer._el, { opacity: 1, duration: 0.5, ease: 'power2.out', onComplete: r })
     )
-    _zoomAnnouncerOut()   // unfreeze video (walk loop) + zoom back to 1×
-    await new Promise(r => setTimeout(r, 600))
+    _zoomAnnouncerOut()
+    await new Promise(r => setTimeout(r, 400))
 
     await new Promise(resolve => announcer.sayText('Congratulations to all the winners!', resolve))
-    await new Promise(r => setTimeout(r, 400))
+    await new Promise(r => setTimeout(r, 500))
 
     await new Promise(r =>
       gsap.to(announcer._el, { opacity: 0, duration: 0.8, ease: 'power2.in', onComplete: r })

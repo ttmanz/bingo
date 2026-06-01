@@ -80,15 +80,22 @@ router.get('/available-draws', requireUserAuth, (req, res) => {
 
   const nowMs = Date.now()
   const addAvail = draws => draws.map(d => {
-    const utcIso = (d.draw_date && d.draw_time) ? localToUtc(d.draw_date, d.draw_time) : null
-    const utcDate = utcIso ? new Date(utcIso) : null
-    return {
-      ...d,
-      draw_date: utcDate ? utcDate.toISOString().slice(0, 10) : d.draw_date,
-      draw_time: utcDate ? utcDate.toISOString().slice(11, 19) : d.draw_time,
-      scheduled_utc: utcIso,
-      available_tickets: presetTotal > 0 ? presetTotal - (soldMap[d.id] ?? 0) : null,
-      total_tickets: presetTotal || null,
+    try {
+      const utcIso = (d.draw_date && d.draw_time) ? localToUtc(d.draw_date, d.draw_time) : null
+      const utcDate = utcIso ? new Date(utcIso) : null
+      return {
+        ...d,
+        draw_date: utcDate ? utcDate.toISOString().slice(0, 10) : d.draw_date,
+        draw_time: utcDate ? utcDate.toISOString().slice(11, 19) : d.draw_time,
+        scheduled_utc: utcIso,
+        available_tickets: presetTotal > 0 ? presetTotal - (soldMap[d.id] ?? 0) : null,
+        total_tickets: presetTotal || null,
+      }
+    } catch {
+      // Draw has an unparseable date — return it as-is without UTC conversion
+      return { ...d, scheduled_utc: null,
+               available_tickets: presetTotal > 0 ? presetTotal - (soldMap[d.id] ?? 0) : null,
+               total_tickets: presetTotal || null }
     }
   }).filter(d => d.status === 'completed' || d.status === 'running' || !d.scheduled_utc || new Date(d.scheduled_utc) > nowMs)
 
