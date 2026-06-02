@@ -43,6 +43,7 @@ function _setWatchingDraw(id) {
   if (id) sessionStorage.setItem('bingo_watching_draw', String(id))
   else     sessionStorage.removeItem('bingo_watching_draw')
 }
+let _lateEntry = false  // true when user is blocked (late, no ticket) — suppresses curtain-lift logic
 let _ceremonyActive = false // true while a bingo check ceremony is running; blocks waiting curtain
 let _firstBallCalled = false  // gates the walk-in zoom — fires once per draw
 let _announcerZoomed = false  // true while announcer is at zoom scale
@@ -86,6 +87,7 @@ async function fetchNextDrawTime() {
 function _applyWaiting({ drawId, nextDrawTime, nextDrawTitle, annType }) {
   _nextDrawTitle      = nextDrawTitle || 'this draw'
   _setWatchingDraw(drawId)       // mark that this user is in the room for this draw's start
+  _lateEntry          = false    // new draw waiting phase — reset late-entry flag
   _introPlayed        = false
   _curtainFaded       = false
   _firstBallCalled    = false
@@ -1124,6 +1126,7 @@ function _enterMidDraw(calledCount, annType) {
 
   _curtainFaded = true   // no curtain to fade
   _introPlayed  = true   // suppress the T-3s paused=true / curtain-lift path for this draw
+  _lateEntry    = false  // entering live draw — no longer blocked
   paused        = false
   drawing       = false  // drum is idle — next number-drawn event must not be skipped
 
@@ -1254,6 +1257,8 @@ function connectSocket() {
       } else {
         // Late entry with no ticket — show next draw info;
         // _refreshCardsFromServer (via loadCardsForDraw) calls _enterMidDraw if ticket found
+        _lateEntry = true
+        if (!_previewMode) gsap.to(announcer._el, { opacity: 0, duration: 0.3 })
         showWaitingPanel(nextDrawTime, nextDrawTitle)
       }
       return
@@ -1345,6 +1350,10 @@ function connectSocket() {
 
   // A number is drawn — animate ball
   socket.on('number-drawn', ({ number, called }) => {
+    // Guard: late-entry user is blocked by the next-draw curtain — they are not
+    // watching this draw. Silently update calledSet and do nothing else.
+    if (_lateEntry) { calledSet = new Set(called); return }
+
     // Safety: first ball arrives before countdown reaches remaining=0 (server timer
     // race) — the curtain is still up. Lift it and play the intro speech so the
     // announcer always introduces herself at draw start.
