@@ -689,3 +689,54 @@ body {
   60%  { transform: rotate(90deg) scale(1.1); }
   100% { transform: rotate(0deg) scale(1); }
 }
+
+/* ── Refresh overlay (bfcache restore) ─────────────────────────────────── */
+.refresh-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(4, 4, 14, 0.92);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+}
+.refresh-overlay.hidden { display: none; }
+.refresh-card {
+  background: linear-gradient(160deg, #12103a 0%, #0d0b2a 100%);
+  border: 1px solid rgba(167, 139, 250, 0.35);
+  border-radius: 24px;
+  padding: 44px 40px 40px;
+  text-align: center;
+  max-width: 340px; width: 88%;
+  box-shadow: 0 0 80px rgba(124, 58, 237, 0.25),
+              0 24px 48px rgba(0, 0, 0, 0.6);
+}
+.refresh-icon {
+  font-size: 52px; line-height: 1;
+  animation: refresh-spin-idle 4s ease-in-out infinite;
+  display: inline-block; margin-bottom: 18px;
+}
+@keyframes refresh-spin-idle {
+  0%, 85%, 100% { transform: rotate(0deg); }
+  90%           { transform: rotate(360deg); }
+}
+.refresh-title {
+  font-size: 22px; font-weight: 800; color: #e2d9f3;
+  letter-spacing: -.02em; margin-bottom: 10px;
+}
+.refresh-sub {
+  font-size: 14px; color: #9b8ec4; line-height: 1.55;
+  margin-bottom: 32px;
+}
+.refresh-btn {
+  display: block; width: 100%;
+  padding: 15px 24px; border-radius: 14px; border: none;
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  color: #fff; font-size: 16px; font-weight: 700;
+  letter-spacing: .01em; cursor: pointer;
+  box-shadow: 0 4px 24px rgba(124, 58, 237, 0.45);
+  transition: transform .12s, box-shadow .12s;
+}
+.refresh-btn:hover  { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(124,58,237,.55); }
+.refresh-btn:active { transform: translateY(0); }
+.refresh-countdown {
+  margin-top: 14px; font-size: 12px; color: #6b5e9a;
+}
+

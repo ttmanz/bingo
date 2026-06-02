@@ -236,7 +236,18 @@
     <p class="ro-text">Please rotate your device to landscape</p>
   </div>
 
+  <!-- Refresh overlay — shown on bfcache restore so state is always fresh -->
+  <div id="refresh-overlay" class="refresh-overlay hidden">
+    <div class="refresh-card">
+      <div class="refresh-icon">🔄</div>
+      <div class="refresh-title">Welcome Back</div>
+      <div class="refresh-sub">Tap below to rejoin — the draw may have moved on while you were away.</div>
+      <button class="refresh-btn" id="refresh-btn">↺ Refresh &amp; Rejoin</button>
+      <div class="refresh-countdown" id="refresh-countdown"></div>
+    </div>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
-  <script type="module" src="/bingo-room/room.js?v=29"></script>
+  <script type="module" src="/bingo-room/room.js?v=30"></script>
 </body>
 </html>

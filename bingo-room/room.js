@@ -1191,20 +1191,43 @@ document.addEventListener('visibilitychange', () => {
   }
 })
 
-// When the browser restores the page from bfcache (back button), the socket
-// auto-reconnects and fires 'state' which handles the full resync.  Give an
-// immediate visual hint that we're reconnecting, and pre-fill the call card
-// from whatever calledSet survived in the frozen JS heap.
-window.addEventListener('pageshow', (e) => {
-  if (e.persisted) {
-    liveDot.className = 'live-dot off'
-    statusTextEl.textContent = 'Reconnecting…'
-    if (calledSet.size > 0) {
-      callCard.restore(Array.from(calledSet))
-      refreshCardMarks()
-    }
+// When the browser restores the page from bfcache (back/forward navigation)
+// show a "Please Refresh" overlay rather than trusting the frozen JS state.
+// After the forced reload, sessionStorage restores _wasWatchingDrawId so the
+// user correctly rejoins the live draw (or sees the right curtain).
+;(function () {
+  const overlay     = document.getElementById('refresh-overlay')
+  const refreshBtn  = document.getElementById('refresh-btn')
+  const countdownEl = document.getElementById('refresh-countdown')
+  if (!overlay || !refreshBtn) return
+
+  let _cdInterval = null
+
+  function showRefreshOverlay() {
+    overlay.classList.remove('hidden')
+    // 8-second auto-reload countdown
+    let secs = 8
+    countdownEl.textContent = `Auto-refreshing in ${secs}s…`
+    _cdInterval = setInterval(() => {
+      secs--
+      if (secs <= 0) {
+        clearInterval(_cdInterval)
+        location.reload()
+      } else {
+        countdownEl.textContent = `Auto-refreshing in ${secs}s…`
+      }
+    }, 1000)
   }
-})
+
+  refreshBtn.addEventListener('click', () => {
+    clearInterval(_cdInterval)
+    location.reload()
+  })
+
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted) showRefreshOverlay()
+  })
+})()
 
 // ── Announcer intro at draw start (shared by curtain-fade and no-curtain paths) ─
 function _sayIntro() {
