@@ -37,7 +37,12 @@ let _pendingLineCard = null // set when client detects a line; cleared by prize-
 let _introPlayed   = false  // prevents intro replaying within same draw cycle
 let _nextDrawTitle = ''     // stored from 'waiting'/'state' for intro speech
 let _curtainFaded  = false  // guards the 00:00 curtain lift — reset each waiting cycle
-let _wasWatchingDrawId = null  // drawId the user was present for pre-draw; enables ticket-less watching
+let _wasWatchingDrawId = sessionStorage.getItem('bingo_watching_draw') || null  // survives page nav within session
+function _setWatchingDraw(id) {
+  _wasWatchingDrawId = id ? String(id) : null
+  if (id) sessionStorage.setItem('bingo_watching_draw', String(id))
+  else     sessionStorage.removeItem('bingo_watching_draw')
+}
 let _ceremonyActive = false // true while a bingo check ceremony is running; blocks waiting curtain
 let _firstBallCalled = false  // gates the walk-in zoom — fires once per draw
 let _announcerZoomed = false  // true while announcer is at zoom scale
@@ -80,7 +85,7 @@ async function fetchNextDrawTime() {
 // (no ceremony running) or by ceremony-end code after _pendingWaiting was stored.
 function _applyWaiting({ drawId, nextDrawTime, nextDrawTitle, annType }) {
   _nextDrawTitle      = nextDrawTitle || 'this draw'
-  _wasWatchingDrawId  = drawId   // mark that this user is in the room for this draw's start
+  _setWatchingDraw(drawId)       // mark that this user is in the room for this draw's start
   _introPlayed        = false
   _curtainFaded       = false
   _firstBallCalled    = false
@@ -1226,7 +1231,7 @@ function connectSocket() {
     calledSet = new Set(called)
     if (phase === 'waiting') {
       _nextDrawTitle     = nextDrawTitle || 'this draw'
-      _wasWatchingDrawId = drawId   // user is in room before draw start — allow ticket-less watching
+      _setWatchingDraw(drawId)       // user is in room before draw start — allow ticket-less watching
       if (annType) { announcer.setType(annType); updateStageScale() }
       loadCardsForDraw(drawId)
       renderPlayerCard()
@@ -1400,6 +1405,7 @@ function connectSocket() {
     statusTextEl.textContent = 'Draw complete'
     if (countdownFill) countdownFill.style.width = '0'
     _gameOverAt = Date.now()   // timestamp used to suppress 'waiting' curtain during ceremony
+    _setWatchingDraw(null)     // clear watching draw — next draw's waiting phase sets a fresh one
   })
 
   socket.on('draw-results', (data) => {
