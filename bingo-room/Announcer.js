@@ -34,7 +34,7 @@ const VIDEO_TIMING = {
   b: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  5, bkEdge: 13 },  // dark plaid skirt — tight key so skirt stays opaque
   c: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  4, bkEdge: 10 },  // dark hair/shoes — very tight so only true-black bg is keyed
   d: { idleSeek: 0.0, segStart: 2.0, segEnd: 4.4, bkThresh: 22, bkEdge: 50 },  // rose/pink sequin dress, blonde
-  e: { idleSeek: 0, segStart: 2.8, segEnd: 5.0, walkEnd: 2.8, bkThresh: 28, bkEdge: 58, bkFadeBottom: 80 },  // new-e: idle loop 0→2.8s; mic raise 2.8→5.0s; full play for intro/congrats
+  e: { idleSeek: 0, segStart: 2.8, segEnd: 5.0, walkEnd: 2.8, idleLoopStart: 2.5, bkThresh: 28, bkEdge: 58, bkFadeBottom: 80 },  // new-e: idle loop 2.5→5.0s; mic raise 2.8→5.0s; full play for intro/congrats
   f: { idleSeek: 2.4, segStart: 3.2, segEnd: 4.8, bkThresh:  6, bkEdge: 16 },  // dark charcoal skirt, dark hair
   g: { idleSeek: 0.4, segStart: 2.8, segEnd: 5.0, bkThresh: 18, bkEdge: 40 },  // gold champagne dress
 }
@@ -66,7 +66,8 @@ export class Announcer {
     this._idleSeek       = 4.5    // seconds to seek to when going idle (mic-down pose)
     this._speakSegStart  = 2.4    // seconds — she turns & starts raising mic
     this._speakSegEnd    = 4.4    // seconds — mic fully lowered again
-    this._walkEnd        = 0      // >0: play walk-in from 0→walkEnd then park (type-specific)
+    this._walkEnd        = 0      // >0: enables walk-in + idle-loop behaviour
+    this._idleLoopStart  = 0      // idle loop start time (loops idleLoopStart→segEnd)
     this._segWatcher     = null   // timeupdate handler ref for cleanup
     this._bkThresh       = 25     // black-key threshold (per type)
     this._bkEdge         = 55     // black-key soft ramp edge
@@ -97,6 +98,7 @@ export class Announcer {
     this._speakSegStart = t.segStart
     this._speakSegEnd   = t.segEnd
     this._walkEnd       = t.walkEnd      ?? 0
+    this._idleLoopStart = t.idleLoopStart ?? 0
     this._bkThresh      = t.bkThresh    ?? 25
     this._bkEdge        = t.bkEdge      ?? 55
     this._bkFadeBottom  = t.bkFadeBottom ?? 0
@@ -255,11 +257,12 @@ export class Announcer {
     if (!this._video) return
     this._clearSegWatcher()
     this._video.loop = false
-    this._video.currentTime = 0
-    const stopAt = this._walkEnd
+    const loopStart = this._idleLoopStart
+    const loopEnd   = this._speakSegEnd
+    this._video.currentTime = loopStart
     this._segWatcher = () => {
-      if (this._video && this._video.currentTime >= stopAt) {
-        this._video.currentTime = 0
+      if (this._video && this._video.currentTime >= loopEnd) {
+        this._video.currentTime = loopStart
       }
     }
     this._video.addEventListener('timeupdate', this._segWatcher)
