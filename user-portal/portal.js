@@ -585,6 +585,9 @@ function renderCountdown() {
       return;
     }
     _redirectTimer = setTimeout(() => { window.location.replace('/bingo-room'); }, msUntilRedirect);
+    // Show the scheduled entry time so we can confirm the timer is set
+    const entryTime = new Date(st.getTime() - 10000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    $('nextDrawSub').textContent = '🚪 Auto-entering room at ' + entryTime;
   }
 
   // Display-only tick — just updates the numbers, never redirects
