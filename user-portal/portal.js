@@ -214,8 +214,9 @@ function startDrawPoller() {
     try {
       const { ok, data } = await apiFetch('/api/user-portal/available-draws');
       if (!ok) return;
-      const draws = Array.isArray(data) ? data : (data.regular || []);
-      if (draws.some(d => d.status === 'running')) {
+      const regular = Array.isArray(data) ? data : (data.regular || []);
+      const special = data.special || [];
+      if ([...regular, ...special].some(d => d.status === 'running')) {
         clearInterval(_drawPollTimer);
         window.location.href = '/bingo-room';
       }
@@ -461,8 +462,9 @@ async function loadDraws() {
     specialDraws = data.special || [];
   }
 
-  // If a draw is already live, go straight to the bingo room
-  if (allDraws.some(d => d.status === 'running')) {
+  // If any draw (regular or special) is live, go straight to the bingo room
+  const allCombined = [...allDraws, ...specialDraws];
+  if (allCombined.some(d => d.status === 'running')) {
     window.location.href = '/bingo-room';
     return;
   }
