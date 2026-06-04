@@ -444,6 +444,12 @@ async function loadDraws() {
     specialDraws = data.special || [];
   }
 
+  // If a draw is already live, go straight to the bingo room
+  if (allDraws.some(d => d.status === 'running')) {
+    window.location.href = '/bingo-room';
+    return;
+  }
+
   // find next scheduled regular draw that hasn't started yet
   const now = Date.now();
   const scheduled = allDraws
@@ -485,7 +491,9 @@ function renderCountdown() {
     if (diff <= 0) {
       ['cd-h','cd-m','cd-s'].forEach(id => $(id).textContent = '00');
       stopCountdown();
-      loadDraws();
+      $('nextDrawTitle').textContent = '🎉 Draw Starting Now!';
+      $('nextDrawSub').textContent   = 'Taking you to the Bingo Room…';
+      setTimeout(() => { window.location.href = '/bingo-room'; }, 1500);
       return;
     }
     const h = Math.floor(diff / 3600000);
