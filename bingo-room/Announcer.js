@@ -34,7 +34,7 @@ const VIDEO_TIMING = {
   b: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  5, bkEdge: 13 },  // dark plaid skirt — tight key so skirt stays opaque
   c: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  4, bkEdge: 10 },  // dark hair/shoes — very tight so only true-black bg is keyed
   d: { idleSeek: 0.0, segStart: 2.0, segEnd: 4.4, bkThresh: 22, bkEdge: 50 },  // rose/pink sequin dress, blonde
-  e: { idleSeek: 1.7, segStart: 2.0, segEnd: 4.5, walkEnd: 1.5, bkThresh: 28, bkEdge: 58 },  // new-e: walk in → park at 1.7s; lift mic 2s, lower 4.5s
+  e: { idleSeek: 1.7, segStart: 2.0, segEnd: 4.5, walkEnd: 1.5, bkThresh: 28, bkEdge: 58, bkFadeBottom: 80 },  // new-e: walk in → park at 1.7s; lift mic 2s, lower 4.5s; fade bottom 80px removes floor shadow
   f: { idleSeek: 2.4, segStart: 3.2, segEnd: 4.8, bkThresh:  6, bkEdge: 16 },  // dark charcoal skirt, dark hair
   g: { idleSeek: 0.4, segStart: 2.8, segEnd: 5.0, bkThresh: 18, bkEdge: 40 },  // gold champagne dress
 }
@@ -70,6 +70,7 @@ export class Announcer {
     this._segWatcher     = null   // timeupdate handler ref for cleanup
     this._bkThresh       = 25     // black-key threshold (per type)
     this._bkEdge         = 55     // black-key soft ramp edge
+    this._bkFadeBottom   = 0      // rows from bottom to fade to transparent (removes floor shadows)
 
     speechSynthesis.onvoiceschanged = () => { this._voice = pickVoice() }
     this._voice = pickVoice()
@@ -95,9 +96,10 @@ export class Announcer {
     this._idleSeek      = t.idleSeek
     this._speakSegStart = t.segStart
     this._speakSegEnd   = t.segEnd
-    this._walkEnd       = t.walkEnd ?? 0
-    this._bkThresh      = t.bkThresh ?? 25
-    this._bkEdge        = t.bkEdge   ?? 55
+    this._walkEnd       = t.walkEnd      ?? 0
+    this._bkThresh      = t.bkThresh    ?? 25
+    this._bkEdge        = t.bkEdge      ?? 55
+    this._bkFadeBottom  = t.bkFadeBottom ?? 0
   }
 
   // ── Private: speech unlock ────────────────────────────────────────────────
@@ -177,12 +179,19 @@ export class Announcer {
         const imgData = ctx.getImageData(0, 0, 400, 680)
         const d = imgData.data
         const thresh = this._bkThresh, edge = this._bkEdge
+        const fadeBottom = this._bkFadeBottom, fadeStart = 680 - fadeBottom
         for (let i = 0; i < d.length; i += 4) {
           const bright = Math.max(d[i], d[i+1], d[i+2])
           if (bright < thresh) {
             d[i+3] = 0
           } else if (bright < edge) {
             d[i+3] = Math.round(255 * (bright - thresh) / (edge - thresh))
+          }
+          if (fadeBottom > 0) {
+            const row = Math.floor((i >> 2) / 400)
+            if (row >= fadeStart) {
+              d[i+3] = Math.round(d[i+3] * (1 - (row - fadeStart) / fadeBottom))
+            }
           }
         }
         ctx.putImageData(imgData, 0, 0)
