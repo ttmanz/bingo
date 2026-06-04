@@ -210,6 +210,11 @@ async function enterGame() {
 function connectDrawSocket() {
   try {
     const socket = io();
+    // 'state' fires immediately on connect — phase='drawing' means a draw is live right now
+    socket.on('state', ({ phase }) => {
+      if (phase === 'drawing') window.location.href = '/bingo-room';
+    });
+    // 'game-reset' fires when a new draw starts while we're waiting on the portal
     socket.on('game-reset', () => {
       window.location.href = '/bingo-room';
     });
