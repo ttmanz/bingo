@@ -67,9 +67,19 @@ const serveIndex = (dir) => (_req, res) => {
   res.setHeader('Expires', '0')
   res.sendFile(join(__dirname, dir, 'index.html'))
 }
-app.get('/user-portal',            serveIndex('../user-portal'))
-app.get('/user-portal/',           serveIndex('../user-portal'))
-app.get('/user-portal/index.html', serveIndex('../user-portal'))
+// If a draw is live when someone loads the portal, send them straight to the room
+const servePortal = (_req, res) => {
+  if (gamePhase === 'drawing' && currentDraw) {
+    return res.redirect('/bingo-room')
+  }
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+  res.setHeader('Pragma', 'no-cache')
+  res.setHeader('Expires', '0')
+  res.sendFile(join(__dirname, '../user-portal', 'index.html'))
+}
+app.get('/user-portal',            servePortal)
+app.get('/user-portal/',           servePortal)
+app.get('/user-portal/index.html', servePortal)
 app.get('/bingo-room',             serveIndex('../bingo-room'))
 app.get('/bingo-room/',            serveIndex('../bingo-room'))
 app.get('/bingo-room/index.html',  serveIndex('../bingo-room'))
