@@ -204,6 +204,23 @@ async function enterGame() {
   closeSection();
   try { await loadDraws(); } catch(e) { console.error('loadDraws failed:', e); }
   loadMyTickets();
+  startDrawPoller();
+}
+
+let _drawPollTimer = null;
+function startDrawPoller() {
+  if (_drawPollTimer) return;
+  _drawPollTimer = setInterval(async () => {
+    try {
+      const { ok, data } = await apiFetch('/api/user-portal/available-draws');
+      if (!ok) return;
+      const draws = Array.isArray(data) ? data : (data.regular || []);
+      if (draws.some(d => d.status === 'running')) {
+        clearInterval(_drawPollTimer);
+        window.location.href = '/bingo-room';
+      }
+    } catch {}
+  }, 15000);
 }
 
 function renderTopBar() {
