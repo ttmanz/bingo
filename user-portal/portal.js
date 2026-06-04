@@ -224,6 +224,8 @@ async function enterGame() {
   try { await loadDraws(); } catch(e) { console.error('loadDraws failed:', e); }
   loadMyTickets();
   connectDrawSocket();
+  // Refresh draw data every 30 s so draws created after page load are picked up
+  setInterval(() => { loadDraws().catch(() => {}); }, 30000);
 }
 
 function connectDrawSocket() {
