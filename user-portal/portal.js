@@ -7,18 +7,16 @@
 // We write the drawId into sessionStorage first so the bingo room treats this
 // user as a returning watcher (allows spectating even without a ticket).
 function _goToBingoRoom(drawId) {
-  if (drawId) sessionStorage.setItem('bingo_watching_draw', String(drawId));
-  window.location.href = '/bingo-room';
+  try { if (drawId) sessionStorage.setItem('bingo_watching_draw', String(drawId)); } catch(e) {}
+  window.location.replace('/bingo-room');
 }
-try {
-  const _earlySocket = io();
-  _earlySocket.on('state', ({ phase, drawId }) => {
-    if (phase === 'drawing') _goToBingoRoom(drawId);
-  });
-  _earlySocket.on('game-reset', ({ drawId }) => {
-    _goToBingoRoom(drawId);
-  });
-} catch(e) {}
+const _earlySocket = io();
+_earlySocket.on('state', ({ phase, drawId }) => {
+  if (phase === 'drawing') _goToBingoRoom(drawId);
+});
+_earlySocket.on('game-reset', ({ drawId }) => {
+  _goToBingoRoom(drawId);
+});
 // ─────────────────────────────────────────────────────────────────────────────
 
 const API = '';
