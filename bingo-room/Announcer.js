@@ -34,7 +34,7 @@ const VIDEO_TIMING = {
   b: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  5, bkEdge: 13 },  // dark plaid skirt — tight key so skirt stays opaque
   c: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  4, bkEdge: 10 },  // dark hair/shoes — very tight so only true-black bg is keyed
   d: { idleSeek: 0.0, segStart: 2.0, segEnd: 4.4, bkThresh: 22, bkEdge: 50 },  // rose/pink sequin dress, blonde
-  e: { idleSeek: 1.7, segStart: 2.0, segEnd: 4.5, walkEnd: 1.5, bkThresh: 28, bkEdge: 58, bkFadeBottom: 80 },  // new-e: walk in → park at 1.7s; lift mic 2s, lower 4.5s; fade bottom 80px removes floor shadow
+  e: { idleSeek: 0, segStart: 2.8, segEnd: 5.0, walkEnd: 2.8, bkThresh: 28, bkEdge: 58, bkFadeBottom: 80 },  // new-e: idle loop 0→2.8s; mic raise 2.8→5.0s; full play for intro/congrats
   f: { idleSeek: 2.4, segStart: 3.2, segEnd: 4.8, bkThresh:  6, bkEdge: 16 },  // dark charcoal skirt, dark hair
   g: { idleSeek: 0.4, segStart: 2.8, segEnd: 5.0, bkThresh: 18, bkEdge: 40 },  // gold champagne dress
 }
@@ -214,58 +214,56 @@ export class Announcer {
     }
   }
 
-  // ── Public: say arbitrary text ────────────────────────────────────────────
+  // ── Public: say arbitrary text (intro / congrats) — plays full video ──────
   sayText(text, onDone) {
     if (this._speaking) speechSynthesis.cancel()
     this._speaking = true
-    this._speak(text, () => {
-      this._speaking = false
-      if (onDone) onDone()
-    })
+    this._speak(text, () => { this._speaking = false; if (onDone) onDone() }, true)
   }
 
-  // ── Public: announce a drawn ball number ──────────────────────────────────
+  // ── Public: announce a drawn ball number — plays call segment only ────────
   announce(number) {
     if (this._speaking) speechSynthesis.cancel()
     this._speaking = true
-    this._speak(say(number), () => {
-      this._speaking = false
-    })
+    this._speak(say(number), () => { this._speaking = false }, false)
   }
 
-  // ── Public: enable idle-pause mode (video pauses between speeches) ────────
+  // ── Public: enable idle-pause mode (between-call waiting) ────────────────
   enableIdlePause(idleSeek) {
     this._idlePause = true
     if (idleSeek !== undefined) this._idleSeek = idleSeek
-    if (!this._speaking) this._parkVideo()
+    if (!this._speaking) {
+      if (this._walkEnd > 0) this._startIdleLoop()
+      else this._parkVideo()
+    }
   }
 
-  // ── Public: disable idle-pause mode ──────────────────────────────────────
-  // If the type has a walk-in segment (walkEnd > 0): play from 0, park at
-  // idleSeek once the walk ends — used for the intro walk-on sequence.
-  // Otherwise: loop the video freely (standard behaviour).
+  // ── Public: disable idle-pause mode (draw reset / congrats) ──────────────
   disableIdlePause() {
     this._idlePause = false
     if (!this._video) return
     if (this._walkEnd > 0) {
-      this._clearSegWatcher()
-      this._video.loop = false
-      this._video.currentTime = 0
-      const stopAt = this._walkEnd
-      const parkAt = this._idleSeek
-      this._segWatcher = () => {
-        if (this._video && this._video.currentTime >= stopAt) {
-          this._clearSegWatcher()
-          this._video.currentTime = parkAt
-          this._video.addEventListener('seeked', () => this._video?.pause(), { once: true })
-        }
-      }
-      this._video.addEventListener('timeupdate', this._segWatcher)
-      this._video.play().catch(() => {})
+      this._startIdleLoop()
     } else {
       this._video.loop = true
       this._video.play().catch(() => {})
     }
+  }
+
+  // ── Private: loop 0 → walkEnd continuously (idle stance between calls) ───
+  _startIdleLoop() {
+    if (!this._video) return
+    this._clearSegWatcher()
+    this._video.loop = false
+    this._video.currentTime = 0
+    const stopAt = this._walkEnd
+    this._segWatcher = () => {
+      if (this._video && this._video.currentTime >= stopAt) {
+        this._video.currentTime = 0
+      }
+    }
+    this._video.addEventListener('timeupdate', this._segWatcher)
+    this._video.play().catch(() => {})
   }
 
   // ── Public: slide announcer off screen (walk-away) ────────────────────────
@@ -304,22 +302,29 @@ export class Announcer {
     this._segWatcher = null
   }
 
-  _speak(text, onEnd) {
+  _speak(text, onEnd, fullPlay = false) {
     if (!('speechSynthesis' in window)) { onEnd(); return }
 
-    // If in idle-pause mode, play only the hand-raise→lower segment
-    if (this._idlePause && this._video) {
-      this._clearSegWatcher()
-      this._video.loop = false
-      this._video.currentTime = this._speakSegStart
-
-      this._segWatcher = () => {
-        if (this._video && this._video.currentTime >= this._speakSegEnd) {
-          this._video.currentTime = this._speakSegStart
+    if (this._video) {
+      if (fullPlay && this._walkEnd > 0) {
+        // intro / congrats: play full video from 0
+        this._clearSegWatcher()
+        this._video.loop = false
+        this._video.currentTime = 0
+        this._video.play().catch(() => {})
+      } else if (this._idlePause || this._walkEnd > 0) {
+        // number announcement (any phase): loop the call segment 2.8→5.0s
+        this._clearSegWatcher()
+        this._video.loop = false
+        this._video.currentTime = this._speakSegStart
+        this._segWatcher = () => {
+          if (this._video && this._video.currentTime >= this._speakSegEnd) {
+            this._video.currentTime = this._speakSegStart
+          }
         }
+        this._video.addEventListener('timeupdate', this._segWatcher)
+        this._video.play().catch(() => {})
       }
-      this._video.addEventListener('timeupdate', this._segWatcher)
-      this._video.play().catch(() => {})
     }
 
     const gen = ++this._speakGen
@@ -329,7 +334,8 @@ export class Announcer {
     utt.pitch = 1.15; utt.rate = 0.88; utt.volume = 1
     const done = () => {
       if (this._speakGen !== gen) return
-      if (this._idlePause) this._parkVideo()
+      if (this._walkEnd > 0) this._startIdleLoop()
+      else if (this._idlePause) this._parkVideo()
       onEnd()
     }
     const minMs = Math.max(1200, text.split(/\s+/).length * 380)
