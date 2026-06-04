@@ -8,7 +8,7 @@
 // user as a returning watcher (allows spectating even without a ticket).
 function _goToBingoRoom(drawId) {
   try { if (drawId) sessionStorage.setItem('bingo_watching_draw', String(drawId)); } catch(e) {}
-  window.location.replace('/bingo-room');
+  window.location.href = '/bingo-room';
 }
 const _earlySocket = io();
 _earlySocket.on('state', ({ phase, drawId }) => {
@@ -241,7 +241,7 @@ function startSchedulePoller() {
       const all = [...regular, ...special];
       // If a draw just went live → redirect immediately
       if (all.some(d => d.status === 'running')) {
-        window.location.replace('/bingo-room');
+        window.location.href = '/bingo-room';
         return;
       }
       // If no countdown is running yet, check whether a new draw was scheduled
@@ -581,10 +581,10 @@ function renderCountdown() {
   if (st) {
     const msUntilRedirect = st.getTime() - 10000 - Date.now();
     if (msUntilRedirect <= 0) {
-      window.location.replace('/bingo-room');
+      window.location.href = '/bingo-room';
       return;
     }
-    _redirectTimer = setTimeout(() => { window.location.replace('/bingo-room'); }, msUntilRedirect);
+    _redirectTimer = setTimeout(() => { window.location.href = '/bingo-room'; }, msUntilRedirect);
     // Show the scheduled entry time so we can confirm the timer is set
     const entryTime = new Date(st.getTime() - 10000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
     $('nextDrawSub').textContent = '🚪 Auto-entering room at ' + entryTime;
