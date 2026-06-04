@@ -224,8 +224,39 @@ async function enterGame() {
   try { await loadDraws(); } catch(e) { console.error('loadDraws failed:', e); }
   loadMyTickets();
   connectDrawSocket();
-  // Refresh draw data every 30 s so draws created after page load are picked up
-  setInterval(() => { loadDraws().catch(() => {}); }, 30000);
+  startSchedulePoller();
+}
+
+// Poll every 10s to pick up newly scheduled draws WITHOUT touching the countdown
+// (separate from the running-draw check so they don't interfere with each other)
+let _schedulePollTimer = null;
+function startSchedulePoller() {
+  if (_schedulePollTimer) return;
+  _schedulePollTimer = setInterval(async () => {
+    try {
+      const { ok, data } = await apiFetch('/api/user-portal/available-draws');
+      if (!ok) return;
+      const regular = Array.isArray(data) ? data : (data.regular || []);
+      const special  = data.special || [];
+      const all = [...regular, ...special];
+      // If a draw just went live → redirect immediately
+      if (all.some(d => d.status === 'running')) {
+        window.location.replace('/bingo-room');
+        return;
+      }
+      // If no countdown is running yet, check whether a new draw was scheduled
+      if (!countdownTimer) {
+        const now = Date.now();
+        const upcoming = regular
+          .filter(d => d.status === 'scheduled' && drawScheduledTime(d) > now)
+          .sort((a, b) => drawScheduledTime(a) - drawScheduledTime(b));
+        if (upcoming.length) {
+          nextDraw = upcoming[0];
+          renderCountdown();
+        }
+      }
+    } catch {}
+  }, 10000);
 }
 
 function connectDrawSocket() {
