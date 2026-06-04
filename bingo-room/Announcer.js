@@ -34,7 +34,7 @@ const VIDEO_TIMING = {
   b: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  5, bkEdge: 13 },  // dark plaid skirt — tight key so skirt stays opaque
   c: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  4, bkEdge: 10 },  // dark hair/shoes — very tight so only true-black bg is keyed
   d: { idleSeek: 0.0, segStart: 2.0, segEnd: 4.4, bkThresh: 22, bkEdge: 50 },  // rose/pink sequin dress, blonde
-  e: { idleSeek: 4.8, segStart: 2.0, segEnd: 4.5, bkThresh:  4, bkEdge: 10 },  // new-e: walk/stop/turn then lift mic at ~2s, lower at ~4.5s
+  e: { idleSeek: 1.7, segStart: 2.0, segEnd: 4.5, walkEnd: 1.5, bkThresh: 28, bkEdge: 58 },  // new-e: walk in → park at 1.7s; lift mic 2s, lower 4.5s
   f: { idleSeek: 2.4, segStart: 3.2, segEnd: 4.8, bkThresh:  6, bkEdge: 16 },  // dark charcoal skirt, dark hair
   g: { idleSeek: 0.4, segStart: 2.8, segEnd: 5.0, bkThresh: 18, bkEdge: 40 },  // gold champagne dress
 }
@@ -66,6 +66,7 @@ export class Announcer {
     this._idleSeek       = 4.5    // seconds to seek to when going idle (mic-down pose)
     this._speakSegStart  = 2.4    // seconds — she turns & starts raising mic
     this._speakSegEnd    = 4.4    // seconds — mic fully lowered again
+    this._walkEnd        = 0      // >0: play walk-in from 0→walkEnd then park (type-specific)
     this._segWatcher     = null   // timeupdate handler ref for cleanup
     this._bkThresh       = 25     // black-key threshold (per type)
     this._bkEdge         = 55     // black-key soft ramp edge
@@ -94,6 +95,7 @@ export class Announcer {
     this._idleSeek      = t.idleSeek
     this._speakSegStart = t.segStart
     this._speakSegEnd   = t.segEnd
+    this._walkEnd       = t.walkEnd ?? 0
     this._bkThresh      = t.bkThresh ?? 25
     this._bkEdge        = t.bkEdge   ?? 55
   }
@@ -223,18 +225,55 @@ export class Announcer {
   }
 
   // ── Public: enable idle-pause mode (video pauses between speeches) ────────
-  enableIdlePause(idleSeek = 4.5) {
+  enableIdlePause(idleSeek) {
     this._idlePause = true
-    this._idleSeek  = idleSeek
+    if (idleSeek !== undefined) this._idleSeek = idleSeek
     if (!this._speaking) this._parkVideo()
   }
 
-  // ── Public: disable idle-pause mode (video loops freely) ─────────────────
+  // ── Public: disable idle-pause mode ──────────────────────────────────────
+  // If the type has a walk-in segment (walkEnd > 0): play from 0, park at
+  // idleSeek once the walk ends — used for the intro walk-on sequence.
+  // Otherwise: loop the video freely (standard behaviour).
   disableIdlePause() {
     this._idlePause = false
-    if (this._video) {
+    if (!this._video) return
+    if (this._walkEnd > 0) {
+      this._clearSegWatcher()
+      this._video.loop = false
+      this._video.currentTime = 0
+      const stopAt = this._walkEnd
+      const parkAt = this._idleSeek
+      this._segWatcher = () => {
+        if (this._video && this._video.currentTime >= stopAt) {
+          this._clearSegWatcher()
+          this._video.currentTime = parkAt
+          this._video.addEventListener('seeked', () => this._video?.pause(), { once: true })
+        }
+      }
+      this._video.addEventListener('timeupdate', this._segWatcher)
+      this._video.play().catch(() => {})
+    } else {
       this._video.loop = true
       this._video.play().catch(() => {})
+    }
+  }
+
+  // ── Public: slide announcer off screen (walk-away) ────────────────────────
+  walkOff(onDone) {
+    if (!this._el) { onDone?.(); return }
+    gsap.to(this._el, {
+      x: 280, opacity: 0, duration: 0.9, ease: 'power2.in',
+      onComplete: () => { gsap.set(this._el, { x: 0, opacity: 0 }); onDone?.() },
+    })
+  }
+
+  // ── Public: exit after congrats — walk off (walk-in types) or fade ────────
+  exitAfterSpeech(onDone) {
+    if (this._walkEnd > 0) {
+      gsap.delayedCall(0.2, () => this.walkOff(onDone))
+    } else {
+      gsap.to(this._el, { opacity: 0, delay: 0.5, duration: 0.8, ease: 'power2.in', onComplete: onDone })
     }
   }
 

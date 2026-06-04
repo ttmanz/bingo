@@ -244,7 +244,7 @@ function _announcerNaturalPos() {
     b: { side: 'right', ox: 836, oy:  90, w: 170, h: 289, dx:   0, ms: 1.00 },  // compact size, same on mobile+desktop
     c: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
     d: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx: -20 },
-    e: { side: 'right', ox: 836, oy: 110, w: 200, h: 340, dx:   0, ms: 0.80 },  // raised 40px
+    e: { side: 'right', ox: 836, oy: 110, w: 160, h: 272, dx:   0, ms: 0.80 },  // raised 40px; 20% smaller
     f: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0, ms: 0.80 },
     g: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0, ms: 0.80 },
   }
@@ -849,12 +849,7 @@ async function runBingoCheck(card) {
   await new Promise(r => setTimeout(r, 400))   // let her settle before speaking
 
   await new Promise(resolve => announcer.sayText('Congratulations to all the winners!', resolve))
-  await new Promise(r => setTimeout(r, 500))
-
-  // ── Step 7: Fade announcer out → show results ────────────────────────────
-  await new Promise(r =>
-    gsap.to(announcer._el, { opacity: 0, duration: 0.8, ease: 'power2.in', onComplete: r })
-  )
+  await new Promise(r => announcer.exitAfterSpeech(r))
 
   _ceremonyActive = false  // ceremony complete
   clearTimeout(_safetyTimer)
