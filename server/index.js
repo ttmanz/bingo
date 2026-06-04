@@ -155,19 +155,13 @@ function expirePastDraws() {
       }
     }
 
-    // On startup any draw still marked 'running' is an orphan from before the restart
-    // (server lost its in-memory state and cannot resume). Mark them completed so the
-    // scheduler can move on to the next scheduled draw.  Void (with refunds) only if
-    // the draw had sold tickets — otherwise a plain 'completed' is enough.
+    // On startup any draw still marked 'running' is an orphan (server lost in-memory state).
+    // Only clean up draws that started more than 2 minutes ago — a very recent running draw
+    // means the server crashed/restarted almost instantly and we should leave it alone briefly.
     const running = dbQuery(`SELECT id, title, draw_date, draw_time FROM draws WHERE status = 'running'`)
     for (const d of running) {
-      const hasSoldTickets = dbQueryOne(
-        `SELECT 1 FROM tickets WHERE draw_id = ? AND status = 'active' LIMIT 1`, [d.id]
-      )
-      if (hasSoldTickets) {
+      if (now - drawScheduledUtc(d) > 2 * 60 * 1000) {
         voidDrawAndRefund(d)
-      } else {
-        dbRun(`UPDATE draws SET status = 'completed' WHERE id = ?`, [d.id])
       }
     }
   } catch {}
@@ -186,17 +180,20 @@ let currentDraw = null
 
 const TZ_GAME = 'Asia/Nicosia'
 function drawLocalToUtcMs(draw_date, draw_time) {
-  const t     = draw_time.length === 5 ? draw_time + ':00' : draw_time
-  const probe = new Date(`${draw_date}T${t}Z`)
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: TZ_GAME, year:'numeric', month:'2-digit', day:'2-digit',
-    hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false
-  }).formatToParts(probe).reduce((a, p) => { a[p.type] = p.value; return a }, {})
-  // Node.js/ICU bug: hour12:false can return '24' instead of '00' for midnight —
-  // the day is already correct (next day), so just map '24' → '00'
-  if (parts.hour === '24') parts.hour = '00'
-  const tzDate = new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}Z`)
-  return probe.getTime() + (probe - tzDate)
+  try {
+    if (!draw_date || !draw_time) return NaN
+    const t     = draw_time.length === 5 ? draw_time + ':00' : draw_time
+    const probe = new Date(`${draw_date}T${t}Z`)
+    if (isNaN(probe.getTime())) return NaN
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: TZ_GAME, year:'numeric', month:'2-digit', day:'2-digit',
+      hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false
+    }).formatToParts(probe).reduce((a, p) => { a[p.type] = p.value; return a }, {})
+    if (parts.hour === '24') parts.hour = '00'
+    const tzDate = new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}Z`)
+    const ms = probe.getTime() + (probe - tzDate)
+    return isFinite(ms) ? ms : NaN
+  } catch { return NaN }
 }
 
 function getNextScheduledDraw() {
@@ -321,14 +318,18 @@ function scheduleNextDraw() {
 
   const delay = startMs - Date.now()
 
-  io.emit('waiting', {
-    drawId:          next.id,
-    nextDrawTime:    new Date(startMs).toISOString(),
-    nextDrawTitle:   next.title,
-    announcer:       next.announcer ?? null,
-    line_prize:      next.line_prize ?? 0,
-    full_house_prize: next.full_house_prize ?? 0,
-  })
+  try {
+    io.emit('waiting', {
+      drawId:          next.id,
+      nextDrawTime:    new Date(startMs).toISOString(),
+      nextDrawTitle:   next.title,
+      announcer:       next.announcer ?? null,
+      line_prize:      next.line_prize ?? 0,
+      full_house_prize: next.full_house_prize ?? 0,
+    })
+  } catch (e) {
+    console.error('[scheduleNextDraw] io.emit failed:', e.message)
+  }
 
   if (delay <= 0) {
     startDraw(next)
