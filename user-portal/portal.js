@@ -204,7 +204,19 @@ async function enterGame() {
   closeSection();
   try { await loadDraws(); } catch(e) { console.error('loadDraws failed:', e); }
   loadMyTickets();
-  startDrawPoller();
+  connectDrawSocket();
+}
+
+function connectDrawSocket() {
+  try {
+    const socket = io();
+    socket.on('game-reset', () => {
+      window.location.href = '/bingo-room';
+    });
+  } catch(e) {
+    console.warn('Portal socket failed, falling back to poll', e);
+    startDrawPoller();
+  }
 }
 
 let _drawPollTimer = null;
