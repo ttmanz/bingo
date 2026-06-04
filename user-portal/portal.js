@@ -4,13 +4,19 @@
 // Connect to the game socket immediately. If a draw is live the server sends
 // 'state' with phase='drawing' within milliseconds — redirect straight away.
 // Also catches draws that start while the user is on this page ('game-reset').
+// We write the drawId into sessionStorage first so the bingo room treats this
+// user as a returning watcher (allows spectating even without a ticket).
+function _goToBingoRoom(drawId) {
+  if (drawId) sessionStorage.setItem('bingo_watching_draw', String(drawId));
+  window.location.href = '/bingo-room';
+}
 try {
   const _earlySocket = io();
-  _earlySocket.on('state', ({ phase }) => {
-    if (phase === 'drawing') window.location.href = '/bingo-room';
+  _earlySocket.on('state', ({ phase, drawId }) => {
+    if (phase === 'drawing') _goToBingoRoom(drawId);
   });
-  _earlySocket.on('game-reset', () => {
-    window.location.href = '/bingo-room';
+  _earlySocket.on('game-reset', ({ drawId }) => {
+    _goToBingoRoom(drawId);
   });
 } catch(e) {}
 // ─────────────────────────────────────────────────────────────────────────────
