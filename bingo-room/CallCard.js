@@ -48,6 +48,7 @@ export class CallCard {
     // ball display
     const group = getColumn(number)
     const color = COL_COLORS[group]
+    this.ballEl.dataset.group = group
     const numEl = this.ballEl.querySelector('.ball-number')
     if (numEl) numEl.textContent = number
     animateBallDrop(this.ballEl, color)
@@ -98,7 +99,9 @@ export class CallCard {
     // Mirror animateBallDrop's styling (no background override — let CSS gradient show).
     const numEl = this.ballEl.querySelector('.ball-number')
     if (numEl) numEl.textContent = last
-    const color = COL_COLORS[getColumn(last)]
+    const lastGroup = getColumn(last)
+    const color = COL_COLORS[lastGroup]
+    this.ballEl.dataset.group = lastGroup
     if (color) {
       this.ballEl.style.background  = ''   // clear any stale inline bg
       this.ballEl.style.color       = color
@@ -123,6 +126,7 @@ export class CallCard {
     const numEl = this.ballEl.querySelector('.ball-number')
     if (numEl) numEl.textContent = '--'
     this.ballEl.style.cssText = ''
+    delete this.ballEl.dataset.group
     this._build()
   }
 }

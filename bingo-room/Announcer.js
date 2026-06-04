@@ -34,7 +34,7 @@ const VIDEO_TIMING = {
   b: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  5, bkEdge: 13 },  // dark plaid skirt — tight key so skirt stays opaque
   c: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  4, bkEdge: 10 },  // dark hair/shoes — very tight so only true-black bg is keyed
   d: { idleSeek: 0.0, segStart: 2.0, segEnd: 4.4, bkThresh: 22, bkEdge: 50 },  // rose/pink sequin dress, blonde
-  e: { idleSeek: 4.8, segStart: 2.8, segEnd: 4.8, bkThresh:  4, bkEdge: 10 },  // white crop top, blue skirt — tight key so dark hair stays opaque
+  e: { idleSeek: 4.8, segStart: 2.0, segEnd: 4.5, bkThresh:  4, bkEdge: 10 },  // new-e: walk/stop/turn then lift mic at ~2s, lower at ~4.5s
   f: { idleSeek: 2.4, segStart: 3.2, segEnd: 4.8, bkThresh:  6, bkEdge: 16 },  // dark charcoal skirt, dark hair
   g: { idleSeek: 0.4, segStart: 2.8, segEnd: 5.0, bkThresh: 18, bkEdge: 40 },  // gold champagne dress
 }
@@ -267,8 +267,7 @@ export class Announcer {
 
       this._segWatcher = () => {
         if (this._video && this._video.currentTime >= this._speakSegEnd) {
-          this._clearSegWatcher()
-          this._video.pause()
+          this._video.currentTime = this._speakSegStart
         }
       }
       this._video.addEventListener('timeupdate', this._segWatcher)
