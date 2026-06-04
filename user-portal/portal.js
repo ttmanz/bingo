@@ -545,10 +545,10 @@ function renderCountdown() {
 
   function tick() {
     const diff = (st ? st : drawScheduledTime(nextDraw)) - Date.now();
-    if (diff <= 0) {
+    if (diff <= 10000) {
       ['cd-h','cd-m','cd-s'].forEach(id => $(id).textContent = '00');
       stopCountdown();
-      window.location.href = '/bingo-room';
+      window.location.replace('/bingo-room');
       return;
     }
     const h = Math.floor(diff / 3600000);
