@@ -8,7 +8,7 @@
 // user as a returning watcher (allows spectating even without a ticket).
 function _goToBingoRoom(drawId) {
   try { if (drawId) sessionStorage.setItem('bingo_watching_draw', String(drawId)); } catch(e) {}
-  window.location.href = '/bingo-room';
+  window.location.reload();
 }
 const _earlySocket = io();
 _earlySocket.on('state', ({ phase, drawId }) => {
@@ -241,7 +241,7 @@ function startSchedulePoller() {
       const all = [...regular, ...special];
       // If a draw just went live → redirect immediately
       if (all.some(d => d.status === 'running')) {
-        window.location.href = '/bingo-room';
+        window.location.reload();
         return;
       }
       // If no countdown is running yet, check whether a new draw was scheduled
@@ -264,11 +264,11 @@ function connectDrawSocket() {
     const socket = io();
     // 'state' fires immediately on connect — phase='drawing' means a draw is live right now
     socket.on('state', ({ phase }) => {
-      if (phase === 'drawing') window.location.href = '/bingo-room';
+      if (phase === 'drawing') window.location.reload();
     });
     // 'game-reset' fires when a new draw starts while we're waiting on the portal
     socket.on('game-reset', () => {
-      window.location.href = '/bingo-room';
+      window.location.reload();
     });
   } catch(e) {
     console.warn('Portal socket failed, falling back to poll', e);
@@ -287,7 +287,7 @@ function startDrawPoller() {
       const special = data.special || [];
       if ([...regular, ...special].some(d => d.status === 'running')) {
         clearInterval(_drawPollTimer);
-        window.location.href = '/bingo-room';
+        window.location.reload();
       }
     } catch {}
   }, 15000);
@@ -534,7 +534,7 @@ async function loadDraws() {
   // If any draw (regular or special) is live, go straight to the bingo room
   const allCombined = [...allDraws, ...specialDraws];
   if (allCombined.some(d => d.status === 'running')) {
-    window.location.href = '/bingo-room';
+    window.location.reload();
     return;
   }
 
@@ -581,10 +581,10 @@ function renderCountdown() {
   if (st) {
     const msUntilRedirect = st.getTime() - 10000 - Date.now();
     if (msUntilRedirect <= 0) {
-      window.location.href = '/bingo-room';
+      window.location.reload();
       return;
     }
-    _redirectTimer = setTimeout(() => { window.location.href = '/bingo-room'; }, msUntilRedirect);
+    _redirectTimer = setTimeout(() => { window.location.reload(); }, msUntilRedirect);
     // Show the scheduled entry time so we can confirm the timer is set
     const entryTime = new Date(st.getTime() - 10000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
     $('nextDrawSub').textContent = '🚪 Auto-entering room at ' + entryTime;
