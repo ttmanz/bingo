@@ -552,8 +552,11 @@ async function loadDraws() {
 
 // ── Countdown ─────────────────────────────────────────────────────────────
 
+let _redirectTimer = null;
+
 function stopCountdown() {
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+  if (_redirectTimer)  { clearTimeout(_redirectTimer);  _redirectTimer  = null; }
 }
 
 function renderCountdown() {
@@ -574,12 +577,22 @@ function renderCountdown() {
     ? '🏆 Full house: ' + nextDraw.full_house_prize + ' pts'
     : '';
 
+  // Schedule a one-shot redirect 10s before the draw — immune to interval drift
+  if (st) {
+    const msUntilRedirect = st.getTime() - 10000 - Date.now();
+    if (msUntilRedirect <= 0) {
+      window.location.replace('/bingo-room');
+      return;
+    }
+    _redirectTimer = setTimeout(() => { window.location.replace('/bingo-room'); }, msUntilRedirect);
+  }
+
+  // Display-only tick — just updates the numbers, never redirects
   function tick() {
     const diff = (st ? st : drawScheduledTime(nextDraw)) - Date.now();
-    if (diff <= 10000) {
+    if (diff <= 0) {
       ['cd-h','cd-m','cd-s'].forEach(id => $(id).textContent = '00');
       stopCountdown();
-      window.location.replace('/bingo-room');
       return;
     }
     const h = Math.floor(diff / 3600000);
