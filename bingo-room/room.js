@@ -522,9 +522,8 @@ function renderPlayerCard() {
         '<p style="color:var(--muted,#aaa);font-size:14px">Looking for your tickets…</p>'
     } else {
       noTicketEl.innerHTML =
-        '<div class="room-no-ticket-icon">🎟️</div>' +
-        '<p>You don\'t have a ticket for the current draw.</p>' +
-        '<a href="/user-portal" class="btn-room-buy">Buy Tickets →</a>'
+        '<div class="room-no-ticket-icon">👀</div>' +
+        '<p style="color:var(--muted,#aaa);font-size:14px">Watching as spectator</p>'
     }
     noTicketEl.classList.remove('hidden')
     cardGridEl.innerHTML = ''
@@ -1271,19 +1270,8 @@ function connectSocket() {
     loadCardsForDraw(drawId)
     if (called.length > 0 && !gameOver) {
       if (annType) { announcer.setType(annType); updateStageScale() }
-      if (playerCards) {
-        // Has ticket — enter live draw immediately
-        _enterMidDraw(called.length, annType)
-      } else if (String(_wasWatchingDrawId) === String(drawId)) {
-        // Was in the room before this draw started (no ticket) — let them continue watching
-        _enterMidDraw(called.length, annType)
-      } else {
-        // Late entry with no ticket — show next draw info;
-        // _refreshCardsFromServer (via loadCardsForDraw) calls _enterMidDraw if ticket found
-        _lateEntry = true
-        if (!_previewMode) gsap.to(announcer._el, { opacity: 0, duration: 0.3 })
-        showWaitingPanel(nextDrawTime, nextDrawTitle)
-      }
+      // All logged-in users can watch — ticket holders see their cards, others watch as spectators
+      _enterMidDraw(called.length, annType)
       return
     }
     if (calledSet.size > 0) callCard.restore(Array.from(calledSet))
