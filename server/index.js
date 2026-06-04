@@ -155,11 +155,19 @@ function expirePastDraws() {
       }
     }
 
-    // Void running draws stuck > 30 min past their scheduled time (server crash recovery)
+    // On startup any draw still marked 'running' is an orphan from before the restart
+    // (server lost its in-memory state and cannot resume). Mark them completed so the
+    // scheduler can move on to the next scheduled draw.  Void (with refunds) only if
+    // the draw had sold tickets — otherwise a plain 'completed' is enough.
     const running = dbQuery(`SELECT id, title, draw_date, draw_time FROM draws WHERE status = 'running'`)
     for (const d of running) {
-      if (now - drawScheduledUtc(d) > 30 * 60 * 1000) {
+      const hasSoldTickets = dbQueryOne(
+        `SELECT 1 FROM tickets WHERE draw_id = ? AND status = 'active' LIMIT 1`, [d.id]
+      )
+      if (hasSoldTickets) {
         voidDrawAndRefund(d)
+      } else {
+        dbRun(`UPDATE draws SET status = 'completed' WHERE id = ?`, [d.id])
       }
     }
   } catch {}
