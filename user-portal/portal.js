@@ -1,5 +1,20 @@
 'use strict';
 
+// ── Instant draw-active redirect (runs before any auth check) ─────────────
+// Connect to the game socket immediately. If a draw is live the server sends
+// 'state' with phase='drawing' within milliseconds — redirect straight away.
+// Also catches draws that start while the user is on this page ('game-reset').
+try {
+  const _earlySocket = io();
+  _earlySocket.on('state', ({ phase }) => {
+    if (phase === 'drawing') window.location.href = '/bingo-room';
+  });
+  _earlySocket.on('game-reset', () => {
+    window.location.href = '/bingo-room';
+  });
+} catch(e) {}
+// ─────────────────────────────────────────────────────────────────────────────
+
 const API = '';
 let token = localStorage.getItem('bp_token') || '';
 let currentUser = null;
