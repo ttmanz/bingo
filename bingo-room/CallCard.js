@@ -49,7 +49,10 @@ export class CallCard {
     const group = getColumn(number)
     const color = COL_COLORS[group]
     const numEl = this.ballEl.querySelector('.ball-number')
-    if (numEl) numEl.textContent = number
+    if (numEl) {
+      numEl.textContent = number
+      numEl.style.webkitTextStroke = (group === 2 || group === 4 || group === 9) ? '1.5px white' : ''
+    }
     animateBallDrop(this.ballEl, color)
 
     // counter
@@ -97,8 +100,12 @@ export class CallCard {
     // Ball display — show last number without drop animation.
     // Mirror animateBallDrop's styling (no background override — let CSS gradient show).
     const numEl = this.ballEl.querySelector('.ball-number')
-    if (numEl) numEl.textContent = last
-    const color = COL_COLORS[getColumn(last)]
+    const lastGroup = getColumn(last)
+    if (numEl) {
+      numEl.textContent = last
+      numEl.style.webkitTextStroke = (lastGroup === 2 || lastGroup === 4 || lastGroup === 9) ? '1.5px white' : ''
+    }
+    const color = COL_COLORS[lastGroup]
     if (color) {
       this.ballEl.style.background  = ''   // clear any stale inline bg
       this.ballEl.style.color       = color
