@@ -30,7 +30,6 @@ let calledSet  = new Set()
 let lineWon       = false
 let bingoWon      = false
 let _socket       = null
-let _cdTimer      = null   // next-draw countdown interval
 let _drawResults  = null   // stored until ceremony ends
 let _pendingBalls = []     // balls received while paused — drained on resume
 let _pendingLineCard = null // set when client detects a line; cleared by prize-awarded
@@ -110,54 +109,19 @@ function showDrawInProgress(nextDrawTime, nextDrawTitle) {
 }
 
 function hideWaitingBanner() {
-  const banner = document.getElementById('room-waiting-banner')
-  if (banner) banner.classList.add('hidden')
-  // NOTE: do NOT hide room-blocked here — the countdown T=0 handler lifts
-  // the curtain via gsap fade-out so the announcer appears cleanly after it.
   document.querySelector('.room-layout').style.display = ''
 }
 
 function showWaitingPanel(nextDrawTime, nextDrawTitle) {
-  if (_previewMode) return  // preview mode — never block the stage view
-  clearInterval(_cdTimer)
-  const panel      = document.getElementById('room-next-draw')
-  const titleEl    = document.getElementById('rnd-title')
-  const countEl    = document.getElementById('rnd-countdown')
-  const calledEl2  = document.getElementById('called-numbers')
-  if (!panel) return
-  if (titleEl) titleEl.textContent = nextDrawTitle || 'Upcoming Draw'
+  const calledEl2 = document.getElementById('called-numbers')
   if (calledEl2) calledEl2.style.display = 'none'
-  panel.classList.remove('hidden')
   statusTextEl.textContent = 'Waiting for draw'
   liveDot.className = 'live-dot'
-
-  if (!nextDrawTime) {
-    panel.classList.add('hidden')
-    document.getElementById('room-nodraw-overlay')?.classList.add('hidden')
-    return
-  }
   document.getElementById('room-nodraw-overlay')?.classList.add('hidden')
-
-  const target = new Date(nextDrawTime).getTime()
-  function tick() {
-    const diff = Math.max(0, target - Date.now())
-    const h  = Math.floor(diff / 3_600_000)
-    const m  = Math.floor((diff % 3_600_000) / 60_000)
-    const s  = Math.floor((diff % 60_000) / 1_000)
-    const timeStr = h > 0
-      ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-      : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-    if (countEl) countEl.textContent = timeStr
-  }
-  tick()
-  _cdTimer = setInterval(tick, 1000)
 }
 
 function hideWaitingPanel() {
-  clearInterval(_cdTimer)
-  const panel     = document.getElementById('room-next-draw')
   const calledEl2 = document.getElementById('called-numbers')
-  if (panel) panel.classList.add('hidden')
   if (calledEl2) calledEl2.style.display = ''
   document.getElementById('room-nodraw-overlay')?.classList.add('hidden')
 }
@@ -1232,17 +1196,10 @@ function connectSocket() {
     const pct = remaining / total
     if (countdownFill) countdownFill.style.width = (pct * 100) + '%'
 
-    // T-3s: queue balls and hide the waiting panel
+    // T-3s: queue balls, un-hide called numbers
     if (remaining <= 3 && !_introPlayed) {
       _introPlayed = true
       paused = true
-      const panel = document.getElementById('room-next-draw')
-      if (panel && !panel.classList.contains('hidden')) {
-        gsap.to(panel, {
-          opacity: 0, duration: 0.4,
-          onComplete: () => { panel.classList.add('hidden'); panel.style.opacity = '' }
-        })
-      }
       const calledEl3 = document.getElementById('called-numbers')
       if (calledEl3) calledEl3.style.display = ''
     }
