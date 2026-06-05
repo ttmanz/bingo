@@ -56,9 +56,17 @@ async function loadPanel(name) {
 }
 
 // ── Login / Logout ────────────────────────────────────────────────────────
+document.getElementById('toggle-pass').addEventListener('click', () => {
+  const input = document.getElementById('login-pass')
+  const btn   = document.getElementById('toggle-pass')
+  const showing = input.type === 'text'
+  input.type = showing ? 'password' : 'text'
+  btn.classList.toggle('visible', !showing)
+})
+
 document.getElementById('login-btn').addEventListener('click', async () => {
   const username = document.getElementById('login-user').value.trim()
-  const password = document.getElementById('login-pass').value
+  const password = document.getElementById('login-pass').value.trim()
   const data = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

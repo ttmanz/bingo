@@ -40,6 +40,18 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); co
   transition: border-color .2s;
 }
 .login-box input:focus { border-color: var(--primary); }
+.pass-wrap { position: relative; margin-bottom: 20px; }
+.pass-wrap input { margin-bottom: 0; padding-right: 42px; }
+.pass-eye {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; color: var(--muted);
+  padding: 4px; display: flex; align-items: center; justify-content: center;
+  transition: color .15s;
+}
+.pass-eye:hover { color: var(--text); }
+.pass-eye svg { width: 18px; height: 18px; pointer-events: none; }
+.pass-eye .eye-slash { display: none; }
+.pass-eye.visible .eye-slash { display: block; }
 .btn-login {
   width: 100%; padding: 12px; background: var(--primary); color: #fff;
   border: none; border-radius: 8px; font-size: 1rem; font-weight: 600;

@@ -508,6 +508,7 @@ body {
 }
 
 .cell90 {
+  position: relative;
   width: var(--cell-size-90);
   height: var(--cell-size-90);
   display: flex;
@@ -534,7 +535,17 @@ body {
   box-shadow: 0 0 10px var(--accent, rgba(120,80,255,0.4)),
               inset 0 0 5px rgba(255,255,255,0.08);
   cursor: default;
-  color: #fff;
+  color: rgba(255,255,255,0.45);
+}
+.cell90.marked::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: 4px;
+  background:
+    linear-gradient(to bottom right, transparent calc(50% - 2.5px), #cc0000 calc(50% - 2.5px), #cc0000 calc(50% + 2.5px), transparent calc(50% + 2.5px)),
+    linear-gradient(to bottom left,  transparent calc(50% - 2.5px), #cc0000 calc(50% - 2.5px), #cc0000 calc(50% + 2.5px), transparent calc(50% + 2.5px));
+  pointer-events: none;
 }
 .cell90:hover:not(.marked):not(.cell90--blank) {
   background: rgba(255,255,255,0.10);

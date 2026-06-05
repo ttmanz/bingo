@@ -505,9 +505,18 @@ body {
   cursor: default;
 }
 .card-grid td.called {
+  position: relative;
   background: #1e1e3a;
   color: var(--muted);
-  text-decoration: line-through;
+}
+.card-grid td.called:not(.line-win):not(.bingo-win)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom right, transparent calc(50% - 2px), #cc0000 calc(50% - 2px), #cc0000 calc(50% + 2px), transparent calc(50% + 2px)),
+    linear-gradient(to bottom left,  transparent calc(50% - 2px), #cc0000 calc(50% - 2px), #cc0000 calc(50% + 2px), transparent calc(50% + 2px));
+  pointer-events: none;
 }
 .card-grid td.line-win {
   background: rgba(16,185,129,.25);
@@ -666,7 +675,16 @@ body {
 }
 .win-card-grid td.blank  { background: #0a0a18; }
 .win-card-grid td.num    { background: var(--surface2); color: var(--text); }
-.win-card-grid td.called { background: #1e1e3a; color: var(--muted); text-decoration: line-through; }
+.win-card-grid td.called { position: relative; background: #1e1e3a; color: var(--muted); }
+.win-card-grid td.called:not(.line-win):not(.bingo-win)::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom right, transparent calc(50% - 2px), #cc0000 calc(50% - 2px), #cc0000 calc(50% + 2px), transparent calc(50% + 2px)),
+    linear-gradient(to bottom left,  transparent calc(50% - 2px), #cc0000 calc(50% - 2px), #cc0000 calc(50% + 2px), transparent calc(50% + 2px));
+  pointer-events: none;
+}
 .win-card-grid td.line-win  { background: rgba(16,185,129,.3); color: #6ee7b7; font-weight: 900; }
 .win-card-grid td.bingo-win { background: rgba(124,58,237,.35); color: #c4b5fd; font-weight: 900; }
 

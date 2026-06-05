@@ -247,45 +247,52 @@ function checkWins(drawId, draw) {
     console.log(`[checkWins] tickets found: ${tickets.length}`)
 
     for (const ticket of tickets) {
-      const cards = JSON.parse(ticket.numbers)
+      // Per-ticket try/catch: a malformed numbers field on one ticket must not
+      // prevent the remaining tickets from being checked.
+      try {
+        const cards = JSON.parse(ticket.numbers)
+        if (!Array.isArray(cards)) { console.warn(`[checkWins] ticket ${ticket.id} numbers is not an array — skipping`); continue }
 
-      for (const card of cards) {
-        const rows = [card.row1, card.row2, card.row3]
-        const cardNums = rows.flat().filter(n => n !== null)
-        const missingFromCalled = cardNums.filter(n => !called.has(n))
+        for (const card of cards) {
+          const rows = [card.row1, card.row2, card.row3]
+          const cardNums = rows.flat().filter(n => n !== null)
+          const missingFromCalled = cardNums.filter(n => !called.has(n))
 
-        // LINE: any row fully called — house tickets are never eligible for the line prize
-        if (!linePrizeAwarded && ticket.user_id !== getHouseUserId()) {
-          for (const row of rows) {
-            const nums = row.filter(n => n !== null)
-            if (nums.length && nums.every(n => called.has(n))) {
-              linePrizeAwarded = true
-              const prize = draw.line_prize ?? 0
-              if (prize > 0) awardPrize(ticket.user_id, drawId, ticket.id, prize, 'LINE win')
-              const lu = dbQueryOne('SELECT email FROM users WHERE id = ?', [ticket.user_id])
-              lineWinnerEmail = lu?.email ?? null
-              io.emit('prize-awarded', { type: 'line', user_id: ticket.user_id, amount: prize })
-              console.log(`LINE win — user ${ticket.user_id}, prize ${prize}`)
-              break
+          // LINE: any row fully called — house tickets are never eligible for the line prize
+          if (!linePrizeAwarded && ticket.user_id !== getHouseUserId()) {
+            for (const row of rows) {
+              const nums = row.filter(n => n !== null)
+              if (nums.length && nums.every(n => called.has(n))) {
+                linePrizeAwarded = true
+                const prize = draw.line_prize ?? 0
+                if (prize > 0) awardPrize(ticket.user_id, drawId, ticket.id, prize, 'LINE win')
+                const lu = dbQueryOne('SELECT email FROM users WHERE id = ?', [ticket.user_id])
+                lineWinnerEmail = lu?.email ?? null
+                io.emit('prize-awarded', { type: 'line', user_id: ticket.user_id, amount: prize })
+                console.log(`LINE win — user ${ticket.user_id}, prize ${prize}`)
+                break
+              }
+            }
+          }
+
+          // BINGO: all 15 numbers on this card called
+          if (!bingoPrizeAwarded) {
+            if (missingFromCalled.length === 0) {
+              bingoPrizeAwarded = true
+              const prize = draw.full_house_prize ?? 0
+              if (prize > 0) awardPrize(ticket.user_id, drawId, ticket.id, prize, 'BINGO win')
+              const bu = dbQueryOne('SELECT email FROM users WHERE id = ?', [ticket.user_id])
+              bingoWinnerEmail = (ticket.user_id === getHouseUserId()) ? null : (bu?.email ?? null)
+              io.emit('prize-awarded', { type: 'bingo', user_id: ticket.user_id, amount: prize })
+              console.log(`BINGO win — user ${ticket.user_id}, prize ${prize}`)
+              bingoTriggered = true
+            } else if (missingFromCalled.length <= 3) {
+              console.log(`[checkWins] near-bingo card ${card.code}: missing ${missingFromCalled}`)
             }
           }
         }
-
-        // BINGO: all 15 numbers on this card called
-        if (!bingoPrizeAwarded) {
-          if (missingFromCalled.length === 0) {
-            bingoPrizeAwarded = true
-            const prize = draw.full_house_prize ?? 0
-            if (prize > 0) awardPrize(ticket.user_id, drawId, ticket.id, prize, 'BINGO win')
-            const bu = dbQueryOne('SELECT email FROM users WHERE id = ?', [ticket.user_id])
-            bingoWinnerEmail = (ticket.user_id === getHouseUserId()) ? null : (bu?.email ?? null)
-            io.emit('prize-awarded', { type: 'bingo', user_id: ticket.user_id, amount: prize })
-            console.log(`BINGO win — user ${ticket.user_id}, prize ${prize}`)
-            bingoTriggered = true
-          } else if (missingFromCalled.length <= 3) {
-            console.log(`[checkWins] near-bingo card ${card.code}: missing ${missingFromCalled}`)
-          }
-        }
+      } catch (e) {
+        console.error(`[checkWins] ticket ${ticket.id} error — skipping:`, e.message)
       }
       if (bingoTriggered) break
     }
@@ -461,7 +468,16 @@ io.on('connection', (socket) => {
   })
 
   socket.on('bingo', () => {
-    if (game.gameOver) return
+    if (game.gameOver) {
+      // Draw already ended (all 90 balls drawn before this event arrived).
+      // The end-of-draw checkWins should have run, but if it missed the winner
+      // (e.g. due to a ticket parse error), run it again as a safety net.
+      if (!bingoPrizeAwarded && currentDraw) {
+        console.log('[bingo] late bingo event — re-running checkWins as safety net')
+        checkWins(currentDraw.id, currentDraw)
+      }
+      return
+    }
     game.gameOver = true
     clearTimeout(drawTimer)
     clearInterval(tickTimer)

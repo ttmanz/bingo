@@ -1190,6 +1190,8 @@ document.addEventListener('visibilitychange', () => {
     callCard.restore(Array.from(calledSet))
     refreshCardMarks()
   }
+  // Re-wake speech synthesis — Chrome pauses it when the tab is backgrounded
+  if (!document.hidden && 'speechSynthesis' in window) speechSynthesis.resume()
 })
 
 // When the browser restores the page from bfcache (back/forward navigation)

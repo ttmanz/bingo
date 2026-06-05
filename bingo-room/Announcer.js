@@ -73,6 +73,12 @@ export class Announcer {
     speechSynthesis.onvoiceschanged = () => { this._voice = pickVoice() }
     this._voice = pickVoice()
 
+    // Chrome bug: speechSynthesis silently pauses after ~15 s of idle.
+    // Periodic resume() keeps it alive so audio never goes missing mid-draw.
+    this._synthHeartbeat = setInterval(() => {
+      if ('speechSynthesis' in window && !this._speaking) speechSynthesis.resume()
+    }, 10000)
+
     this._build()
     this._unlock()
   }
@@ -258,6 +264,8 @@ export class Announcer {
 
   _speak(text, onEnd) {
     if (!('speechSynthesis' in window)) { onEnd(); return }
+    // Wake Chrome's speech engine — it pauses silently after ~15 s of idle
+    speechSynthesis.resume()
 
     // If in idle-pause mode, play only the hand-raise→lower segment
     if (this._idlePause && this._video) {

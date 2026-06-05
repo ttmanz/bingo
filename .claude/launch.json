@@ -6,6 +6,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["vite", "--port", "5173"],
       "port": 5173
+    },
+    {
+      "name": "bingo-room-static",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "bingo-room", "-p", "5174", "-n"],
+      "port": 5174
     }
   ]
 }

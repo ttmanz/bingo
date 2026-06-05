@@ -16,9 +16,18 @@
       <p>Admin Panel</p>
     </div>
     <label>Username</label>
-    <input type="text" id="login-user" placeholder="admin" autocomplete="username">
+    <input type="text" id="login-user" placeholder="admin" autocomplete="username"
+      autocorrect="off" autocapitalize="off" spellcheck="false">
     <label>Password</label>
-    <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password">
+    <div class="pass-wrap">
+      <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password">
+      <button type="button" class="pass-eye" id="toggle-pass" tabindex="-1" aria-label="Show password">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+          <line class="eye-slash" x1="3" y1="3" x2="21" y2="21"/>
+        </svg>
+      </button>
+    </div>
     <button class="btn-login" id="login-btn">Sign In</button>
     <div id="login-error"></div>
   </div>
