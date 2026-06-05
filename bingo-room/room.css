@@ -578,12 +578,9 @@ body {
 
 /* ── Mobile responsive layout ─────────────────────────────────────────────── */
 @media (max-width: 860px) {
-  /* On mobile the machine scrolls naturally with all page content so
-     nothing appears to "sink" as the user scrolls. Override the global
-     sticky so room-top is in normal document flow. The announcer
-     (position:fixed) is re-pinned every scroll frame by a listener in room.js. */
+  /* Keep room-top sticky on mobile — machine + announcer pin to screen,
+     tickets scroll below, matching desktop behaviour. */
   .room-top {
-    position: relative;
     flex-direction: column;
   }
 
