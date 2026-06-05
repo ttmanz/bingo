@@ -1186,6 +1186,7 @@ setTimeout(() => {
 // kept the data current even while the tab was hidden.
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && calledSet.size > 0) {
+    drawing = false  // animations may have been throttled while hidden — unblock the pipeline
     callCard.restore(Array.from(calledSet))
     refreshCardMarks()
   }
@@ -1271,19 +1272,8 @@ function connectSocket() {
     loadCardsForDraw(drawId)
     if (called.length > 0 && !gameOver) {
       if (annType) { announcer.setType(annType); updateStageScale() }
-      if (playerCards) {
-        // Has ticket — enter live draw immediately
-        _enterMidDraw(called.length, annType)
-      } else if (String(_wasWatchingDrawId) === String(drawId)) {
-        // Was in the room before this draw started (no ticket) — let them continue watching
-        _enterMidDraw(called.length, annType)
-      } else {
-        // Late entry with no ticket — show next draw info;
-        // _refreshCardsFromServer (via loadCardsForDraw) calls _enterMidDraw if ticket found
-        _lateEntry = true
-        if (!_previewMode) gsap.to(announcer._el, { opacity: 0, duration: 0.3 })
-        showWaitingPanel(nextDrawTime, nextDrawTitle)
-      }
+      // Always enter a running draw — no reason to block someone returning to the room
+      _enterMidDraw(called.length, annType)
       return
     }
     if (calledSet.size > 0) callCard.restore(Array.from(calledSet))
@@ -1405,9 +1395,9 @@ function connectSocket() {
       }
     }
     if (paused) { _pendingBalls.push({ number, called }); return }
-    if (drawing) return
-    drawing   = true
     calledSet = new Set(called)
+    if (drawing) return
+    drawing = true
     if (lastNumEl) lastNumEl.textContent = number
     if (countdownFill) countdownFill.style.width = '100%'
 
