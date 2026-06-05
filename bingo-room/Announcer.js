@@ -34,7 +34,7 @@ const VIDEO_TIMING = {
   b: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  5, bkEdge: 13 },  // dark plaid skirt — tight key so skirt stays opaque
   c: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  4, bkEdge: 10 },  // dark hair/shoes — very tight so only true-black bg is keyed
   d: { idleSeek: 0.0, segStart: 2.0, segEnd: 4.4, bkThresh: 22, bkEdge: 50 },  // rose/pink sequin dress, blonde
-  e: { idleSeek: 0, segStart: 2.8, segEnd: 5.0, walkEnd: 2.8, idleLoopStart: 2.5, bkThresh: 28, bkEdge: 58, bkFadeBottom: 80 },  // new-e: idle loop 2.5→5.0s; mic raise 2.8→5.0s; full play for intro/congrats
+  e: { idleSeek: 4.7, segStart: 2.1, segEnd: 4.1, walkEnd: 1.7, idleLoopStart: 2.1, bkThresh: 28, bkEdge: 58, bkFadeBottom: 80 },  // walk-in 0→1.7s; mic up 2.0→4.2s; idle standing 4.4→5.0s
   f: { idleSeek: 2.4, segStart: 3.2, segEnd: 4.8, bkThresh:  6, bkEdge: 16 },  // dark charcoal skirt, dark hair
   g: { idleSeek: 0.4, segStart: 2.8, segEnd: 5.0, bkThresh: 18, bkEdge: 40 },  // gold champagne dress
 }
