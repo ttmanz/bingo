@@ -165,21 +165,16 @@ function expirePastDraws() {
       }
     }
 
-    // Void orphaned 'running' draws (server lost in-memory state) then reschedule
-    let voidedAny = false
+    // On startup any draw still marked 'running' is an orphan (server lost in-memory state).
+    // Only clean up draws that started more than 2 minutes ago — a very recent running draw
+    // means the server crashed/restarted almost instantly and we should leave it alone briefly.
     const running = dbQuery(`SELECT id, title, draw_date, draw_time FROM draws WHERE status = 'running'`)
     for (const d of running) {
       if (now - drawScheduledUtc(d) > 2 * 60 * 1000) {
-        console.log(`[expirePastDraws] voiding stuck running draw ${d.id} "${d.title}"`)
         voidDrawAndRefund(d)
-        voidedAny = true
       }
     }
-    // Re-queue the next scheduled draw after clearing any stuck ones
-    if (voidedAny) scheduleNextDraw()
-  } catch (e) {
-    console.error('[expirePastDraws] error:', e.message)
-  }
+  } catch {}
 }
 setInterval(expirePastDraws, 60_000)
 
@@ -363,7 +358,7 @@ function startDraw(draw) {
   lineWinnerEmail   = null
   bingoWinnerEmail  = null
   resetGame(game)
-  try { dbRun(`UPDATE draws SET status = 'running' WHERE id = ?`, [draw.id]) } catch (e) { console.error('[startDraw] status→running failed:', e.message) }
+  try { dbRun(`UPDATE draws SET status = 'running' WHERE id = ?`, [draw.id]) } catch {}
   io.emit('game-reset', { drawId: draw.id })
   drawNextBall(intervalMs, draw.id)
 }
@@ -388,7 +383,7 @@ function drawNextBall(intervalMs, drawId) {
     } else {
       // All balls drawn — check wins first so winner emails are set, then broadcast
       game.gameOver = true
-      try { dbRun(`UPDATE draws SET status = 'completed' WHERE id = ?`, [drawId]) } catch (e) { console.error('[drawNextBall] status→completed failed:', e.message) }
+      try { dbRun(`UPDATE draws SET status = 'completed' WHERE id = ?`, [drawId]) } catch {}
       checkWins(drawId, currentDraw)
       io.emit('game-over')
       io.emit('draw-results', {

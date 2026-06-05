@@ -8,7 +8,7 @@
 // user as a returning watcher (allows spectating even without a ticket).
 function _goToBingoRoom(drawId) {
   try { if (drawId) sessionStorage.setItem('bingo_watching_draw', String(drawId)); } catch(e) {}
-  window.location.href = '/bingo-room';
+  window.location.reload();
 }
 const _earlySocket = io();
 _earlySocket.on('state', ({ phase, drawId }) => {
@@ -240,8 +240,10 @@ function startSchedulePoller() {
       const special  = data.special || [];
       const all = [...regular, ...special];
       // If a draw just went live → redirect immediately
-      const runningDraw = all.find(d => d.status === 'running');
-      if (runningDraw) { _goToBingoRoom(runningDraw.id); return; }
+      if (all.some(d => d.status === 'running')) {
+        window.location.reload();
+        return;
+      }
       // If no countdown is running yet, check whether a new draw was scheduled
       if (!countdownTimer) {
         const now = Date.now();
@@ -260,11 +262,13 @@ function startSchedulePoller() {
 function connectDrawSocket() {
   try {
     const socket = io();
-    socket.on('state', ({ phase, drawId }) => {
-      if (phase === 'drawing') _goToBingoRoom(drawId);
+    // 'state' fires immediately on connect — phase='drawing' means a draw is live right now
+    socket.on('state', ({ phase }) => {
+      if (phase === 'drawing') window.location.reload();
     });
-    socket.on('game-reset', ({ drawId }) => {
-      _goToBingoRoom(drawId);
+    // 'game-reset' fires when a new draw starts while we're waiting on the portal
+    socket.on('game-reset', () => {
+      window.location.reload();
     });
   } catch(e) {
     console.warn('Portal socket failed, falling back to poll', e);
@@ -529,8 +533,10 @@ async function loadDraws() {
 
   // If any draw (regular or special) is live, go straight to the bingo room
   const allCombined = [...allDraws, ...specialDraws];
-  const runningDraw = allCombined.find(d => d.status === 'running');
-  if (runningDraw) { _goToBingoRoom(runningDraw.id); return; }
+  if (allCombined.some(d => d.status === 'running')) {
+    window.location.reload();
+    return;
+  }
 
   // find next scheduled regular draw that hasn't started yet
   const now = Date.now();
@@ -571,16 +577,17 @@ function renderCountdown() {
     ? '🏆 Full house: ' + nextDraw.full_house_prize + ' pts'
     : '';
 
-  // Navigate to bingo room at draw time — immune to interval drift
+  // Schedule a one-shot redirect 10s before the draw — immune to interval drift
   if (st) {
-    const msUntilRedirect = st.getTime() - Date.now();
+    const msUntilRedirect = st.getTime() - 10000 - Date.now();
     if (msUntilRedirect <= 0) {
-      _goToBingoRoom(nextDraw?.id);
+      window.location.reload();
       return;
     }
-    _redirectTimer = setTimeout(() => { _goToBingoRoom(nextDraw?.id); }, msUntilRedirect);
-    const entryTime = st.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-    $('nextDrawSub').textContent = '🎯 Auto-entering room at ' + entryTime;
+    _redirectTimer = setTimeout(() => { window.location.reload(); }, msUntilRedirect);
+    // Show the scheduled entry time so we can confirm the timer is set
+    const entryTime = new Date(st.getTime() - 10000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    $('nextDrawSub').textContent = '🚪 Auto-entering room at ' + entryTime;
   }
 
   // Display-only tick — just updates the numbers, never redirects
@@ -589,7 +596,6 @@ function renderCountdown() {
     if (diff <= 0) {
       ['cd-h','cd-m','cd-s'].forEach(id => $(id).textContent = '00');
       stopCountdown();
-      _goToBingoRoom(nextDraw?.id);
       return;
     }
     const h = Math.floor(diff / 3600000);
@@ -799,10 +805,10 @@ $('btnBuyConfirm').addEventListener('click', async () => {
 
     // success toast
     const plural = purchased > 1 ? 's' : '';
-    const toastEl  = document.getElementById('reg-success');
+    const toastEl = document.getElementById('reg-success');
     const toastMsg = document.getElementById('reg-success-msg');
     if (toastEl && toastMsg) {
-      toastMsg.textContent = purchased + ' ticket' + plural + ' bought! Bingo Room opens at draw time.';
+      toastMsg.textContent = purchased + ' ticket' + plural + ' bought! Tap Bingo Room to play.';
       toastEl.classList.remove('hidden');
       toastEl.style.display = 'flex';
       toastEl.style.opacity = '1';
