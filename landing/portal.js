@@ -496,12 +496,12 @@ $('btnBuyConfirm').addEventListener('click', async () => {
     document.querySelectorAll('.section-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('game-main').style.display = '';
 
-    // success toast
+    // success toast — then swap countdown button to green "Enter Bingo Room"
     const plural = purchased > 1 ? 's' : '';
     const toastEl = document.getElementById('reg-success');
     const toastMsg = document.getElementById('reg-success-msg');
     if (toastEl && toastMsg) {
-      toastMsg.textContent = purchased + ' ticket' + plural + ' bought! Tap Bingo Room to play.';
+      toastMsg.textContent = purchased + ' ticket' + plural + ' bought!';
       toastEl.classList.remove('hidden');
       toastEl.style.display = 'flex';
       toastEl.style.opacity = '1';
@@ -511,7 +511,18 @@ $('btnBuyConfirm').addEventListener('click', async () => {
         toastEl.style.display = '';
         toastEl.style.opacity = '';
         toastEl.style.zIndex  = '';
-      }, 6000);
+        // Transform the countdown button to a green Enter Bingo Room button.
+        // Replace the element entirely so the old openSection('buy') listener is removed.
+        const oldBtn = document.getElementById('btnBuyFromCountdown');
+        if (oldBtn) {
+          const newBtn = document.createElement('button');
+          newBtn.id = 'btnBuyFromCountdown';
+          newBtn.className = 'btn btn-success';
+          newBtn.textContent = '🎯 Enter Bingo Room';
+          newBtn.addEventListener('click', () => { window.location.href = '/bingo-room'; });
+          oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+        }
+      }, 4000);
     }
   } catch (err) {
     console.error('Buy success block threw:', err);

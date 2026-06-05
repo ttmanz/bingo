@@ -693,7 +693,7 @@ $('btnBuyConfirm').addEventListener('click', async () => {
     document.getElementById('game-main').style.display = '';
     loadMyTickets();   // refresh so newly-bought draw appears immediately
 
-    // success toast
+    // success toast — then swap countdown button to green "Enter Bingo Room"
     const plural = purchased > 1 ? 's' : '';
     const toastEl = document.getElementById('reg-success');
     const toastMsg = document.getElementById('reg-success-msg');
@@ -708,12 +708,19 @@ $('btnBuyConfirm').addEventListener('click', async () => {
         toastEl.style.display = '';
         toastEl.style.opacity = '';
         toastEl.style.zIndex  = '';
+        // Transform the countdown button to a green Enter Bingo Room button.
+        // Replace the element entirely so the old openSection('buy') listener is removed.
+        const oldBtn = document.getElementById('btnBuyFromCountdown');
+        if (oldBtn) {
+          const newBtn = document.createElement('button');
+          newBtn.id = 'btnBuyFromCountdown';
+          newBtn.className = 'btn btn-success';
+          newBtn.textContent = '🎯 Enter Bingo Room';
+          newBtn.addEventListener('click', () => { window.location.href = '/bingo-room'; });
+          oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+        }
       }, 4000);
     }
-
-    // Show the green Enter Bingo Room button below the nav row
-    const enterWrap = document.getElementById('enterRoomBtnWrap');
-    if (enterWrap) enterWrap.style.display = '';
   } catch (err) {
     console.error('Buy success block threw:', err);
     // hard fallback — still close modal and go home
