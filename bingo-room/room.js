@@ -876,6 +876,7 @@ function drainPendingBalls() {
   if (!_pendingBalls.length) return
   const last = _pendingBalls[_pendingBalls.length - 1]
   calledSet = new Set(last.called)
+  callCard.setCount(last.called.length)   // sync count immediately
   refreshCardMarks()
   _pendingBalls = []
   // Play the last missed ball with full tube animation + audio
@@ -1424,6 +1425,7 @@ function connectSocket() {
     }
     if (paused) { _pendingBalls.push({ number, called }); return }
     calledSet = new Set(called)
+    callCard.setCount(called.length)   // sync count immediately — same moment on every device
     if (drawing) return
     drawing = true
     if (lastNumEl) lastNumEl.textContent = number

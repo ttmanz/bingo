@@ -41,6 +41,12 @@ export class CallCard {
     this._recentEl = this.containerEl.querySelector('.cc-recent-row')
   }
 
+  // Update the counter immediately — call this as soon as number-drawn fires,
+  // before the ball animation starts, so all devices stay in sync.
+  setCount(n) {
+    this._countEl.textContent = n
+  }
+
   display(number) {
     this.called.add(number)
     this.lastCalled = number
@@ -55,8 +61,7 @@ export class CallCard {
     }
     animateBallDrop(this.ballEl, color)
 
-    // counter
-    this._countEl.textContent = this.called.size
+    // counter is now driven by setCount() called from number-drawn handler
 
     // grid — clear previous last-called, mark new
     this.containerEl.querySelectorAll('.cc-cell.cc-last').forEach(el => el.classList.remove('cc-last'))
