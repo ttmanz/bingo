@@ -1,7 +1,7 @@
 import { gsap }          from 'gsap'
 import { DrumPhysics3D } from '/bingo-room/DrumPhysics3D.js'
 import { CallCard }      from '/bingo-room/CallCard.js'
-import { Announcer }     from '/bingo-room/Announcer.js?v=6'
+import { Announcer }     from '/bingo-room/Announcer.js?v=3'
 import { COL_COLORS }    from '/bingo-room/bingoLogic.js'
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
@@ -244,7 +244,7 @@ function _announcerNaturalPos() {
     b: { side: 'right', ox: 836, oy:  90, w: 170, h: 289, dx:   0, ms: 1.00 },  // compact size, same on mobile+desktop
     c: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
     d: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx: -20 },
-    e: { side: 'right', ox: 836, oy: 110, w: 160, h: 272, dx:   0, ms: 0.80 },  // raised 40px; 20% smaller
+    e: { side: 'right', ox: 836, oy: 110, w: 200, h: 340, dx:   0, ms: 0.80 },  // raised 40px
     f: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0, ms: 0.80 },
     g: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0, ms: 0.80 },
   }
@@ -522,8 +522,9 @@ function renderPlayerCard() {
         '<p style="color:var(--muted,#aaa);font-size:14px">Looking for your tickets…</p>'
     } else {
       noTicketEl.innerHTML =
-        '<div class="room-no-ticket-icon">👀</div>' +
-        '<p style="color:var(--muted,#aaa);font-size:14px">Watching as spectator</p>'
+        '<div class="room-no-ticket-icon">🎟️</div>' +
+        '<p>You don\'t have a ticket for the current draw.</p>' +
+        '<a href="/user-portal" class="btn-room-buy">Buy Tickets →</a>'
     }
     noTicketEl.classList.remove('hidden')
     cardGridEl.innerHTML = ''
@@ -849,7 +850,12 @@ async function runBingoCheck(card) {
   await new Promise(r => setTimeout(r, 400))   // let her settle before speaking
 
   await new Promise(resolve => announcer.sayText('Congratulations to all the winners!', resolve))
-  await new Promise(r => announcer.exitAfterSpeech(r))
+  await new Promise(r => setTimeout(r, 500))
+
+  // ── Step 7: Fade announcer out → show results ────────────────────────────
+  await new Promise(r =>
+    gsap.to(announcer._el, { opacity: 0, duration: 0.8, ease: 'power2.in', onComplete: r })
+  )
 
   _ceremonyActive = false  // ceremony complete
   clearTimeout(_safetyTimer)
@@ -1265,8 +1271,19 @@ function connectSocket() {
     loadCardsForDraw(drawId)
     if (called.length > 0 && !gameOver) {
       if (annType) { announcer.setType(annType); updateStageScale() }
-      // All logged-in users can watch — ticket holders see their cards, others watch as spectators
-      _enterMidDraw(called.length, annType)
+      if (playerCards) {
+        // Has ticket — enter live draw immediately
+        _enterMidDraw(called.length, annType)
+      } else if (String(_wasWatchingDrawId) === String(drawId)) {
+        // Was in the room before this draw started (no ticket) — let them continue watching
+        _enterMidDraw(called.length, annType)
+      } else {
+        // Late entry with no ticket — show next draw info;
+        // _refreshCardsFromServer (via loadCardsForDraw) calls _enterMidDraw if ticket found
+        _lateEntry = true
+        if (!_previewMode) gsap.to(announcer._el, { opacity: 0, duration: 0.3 })
+        showWaitingPanel(nextDrawTime, nextDrawTitle)
+      }
       return
     }
     if (calledSet.size > 0) callCard.restore(Array.from(calledSet))

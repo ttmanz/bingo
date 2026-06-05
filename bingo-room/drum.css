@@ -134,14 +134,6 @@ body {
   color: inherit;
 }
 
-/* White outline for dark-coloured groups: green (10-19), blue (30-39), brown (80-90) */
-.current-ball[data-group="2"] .ball-number,
-.current-ball[data-group="4"] .ball-number,
-.current-ball[data-group="9"] .ball-number {
-  -webkit-text-stroke: 1.5px white;
-  text-stroke: 1.5px white;
-}
-
 .call-sublabel,
 .drum-timer-bar,
 .drum-status { display: none; }

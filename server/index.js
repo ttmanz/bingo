@@ -67,19 +67,9 @@ const serveIndex = (dir) => (_req, res) => {
   res.setHeader('Expires', '0')
   res.sendFile(join(__dirname, dir, 'index.html'))
 }
-// If a draw is live when someone loads the portal, send them straight to the room
-const servePortal = (_req, res) => {
-  if (gamePhase === 'drawing' && currentDraw) {
-    return res.redirect('/bingo-room')
-  }
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
-  res.setHeader('Pragma', 'no-cache')
-  res.setHeader('Expires', '0')
-  res.sendFile(join(__dirname, '../user-portal', 'index.html'))
-}
-app.get('/user-portal',            servePortal)
-app.get('/user-portal/',           servePortal)
-app.get('/user-portal/index.html', servePortal)
+app.get('/user-portal',            serveIndex('../user-portal'))
+app.get('/user-portal/',           serveIndex('../user-portal'))
+app.get('/user-portal/index.html', serveIndex('../user-portal'))
 app.get('/bingo-room',             serveIndex('../bingo-room'))
 app.get('/bingo-room/',            serveIndex('../bingo-room'))
 app.get('/bingo-room/index.html',  serveIndex('../bingo-room'))
@@ -165,12 +155,10 @@ function expirePastDraws() {
       }
     }
 
-    // On startup any draw still marked 'running' is an orphan (server lost in-memory state).
-    // Only clean up draws that started more than 2 minutes ago — a very recent running draw
-    // means the server crashed/restarted almost instantly and we should leave it alone briefly.
+    // Void running draws stuck > 30 min past their scheduled time (server crash recovery)
     const running = dbQuery(`SELECT id, title, draw_date, draw_time FROM draws WHERE status = 'running'`)
     for (const d of running) {
-      if (now - drawScheduledUtc(d) > 2 * 60 * 1000) {
+      if (now - drawScheduledUtc(d) > 30 * 60 * 1000) {
         voidDrawAndRefund(d)
       }
     }
@@ -190,20 +178,17 @@ let currentDraw = null
 
 const TZ_GAME = 'Asia/Nicosia'
 function drawLocalToUtcMs(draw_date, draw_time) {
-  try {
-    if (!draw_date || !draw_time) return NaN
-    const t     = draw_time.length === 5 ? draw_time + ':00' : draw_time
-    const probe = new Date(`${draw_date}T${t}Z`)
-    if (isNaN(probe.getTime())) return NaN
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: TZ_GAME, year:'numeric', month:'2-digit', day:'2-digit',
-      hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false
-    }).formatToParts(probe).reduce((a, p) => { a[p.type] = p.value; return a }, {})
-    if (parts.hour === '24') parts.hour = '00'
-    const tzDate = new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}Z`)
-    const ms = probe.getTime() + (probe - tzDate)
-    return isFinite(ms) ? ms : NaN
-  } catch { return NaN }
+  const t     = draw_time.length === 5 ? draw_time + ':00' : draw_time
+  const probe = new Date(`${draw_date}T${t}Z`)
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ_GAME, year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false
+  }).formatToParts(probe).reduce((a, p) => { a[p.type] = p.value; return a }, {})
+  // Node.js/ICU bug: hour12:false can return '24' instead of '00' for midnight —
+  // the day is already correct (next day), so just map '24' → '00'
+  if (parts.hour === '24') parts.hour = '00'
+  const tzDate = new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}Z`)
+  return probe.getTime() + (probe - tzDate)
 }
 
 function getNextScheduledDraw() {
@@ -328,18 +313,14 @@ function scheduleNextDraw() {
 
   const delay = startMs - Date.now()
 
-  try {
-    io.emit('waiting', {
-      drawId:          next.id,
-      nextDrawTime:    new Date(startMs).toISOString(),
-      nextDrawTitle:   next.title,
-      announcer:       next.announcer ?? null,
-      line_prize:      next.line_prize ?? 0,
-      full_house_prize: next.full_house_prize ?? 0,
-    })
-  } catch (e) {
-    console.error('[scheduleNextDraw] io.emit failed:', e.message)
-  }
+  io.emit('waiting', {
+    drawId:          next.id,
+    nextDrawTime:    new Date(startMs).toISOString(),
+    nextDrawTitle:   next.title,
+    announcer:       next.announcer ?? null,
+    line_prize:      next.line_prize ?? 0,
+    full_house_prize: next.full_house_prize ?? 0,
+  })
 
   if (delay <= 0) {
     startDraw(next)

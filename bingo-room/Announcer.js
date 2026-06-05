@@ -34,7 +34,7 @@ const VIDEO_TIMING = {
   b: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  5, bkEdge: 13 },  // dark plaid skirt — tight key so skirt stays opaque
   c: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  4, bkEdge: 10 },  // dark hair/shoes — very tight so only true-black bg is keyed
   d: { idleSeek: 0.0, segStart: 2.0, segEnd: 4.4, bkThresh: 22, bkEdge: 50 },  // rose/pink sequin dress, blonde
-  e: { idleSeek: 4.7, segStart: 2.1, segEnd: 4.1, walkEnd: 1.7, idleLoopStart: 2.1, bkThresh: 28, bkEdge: 58, bkFadeBottom: 80 },  // walk-in 0→1.7s; mic up 2.0→4.2s; idle standing 4.4→5.0s
+  e: { idleSeek: 4.8, segStart: 2.8, segEnd: 4.8, bkThresh:  4, bkEdge: 10 },  // white crop top, blue skirt — tight key so dark hair stays opaque
   f: { idleSeek: 2.4, segStart: 3.2, segEnd: 4.8, bkThresh:  6, bkEdge: 16 },  // dark charcoal skirt, dark hair
   g: { idleSeek: 0.4, segStart: 2.8, segEnd: 5.0, bkThresh: 18, bkEdge: 40 },  // gold champagne dress
 }
@@ -66,12 +66,9 @@ export class Announcer {
     this._idleSeek       = 4.5    // seconds to seek to when going idle (mic-down pose)
     this._speakSegStart  = 2.4    // seconds — she turns & starts raising mic
     this._speakSegEnd    = 4.4    // seconds — mic fully lowered again
-    this._walkEnd        = 0      // >0: enables walk-in + idle-loop behaviour
-    this._idleLoopStart  = 0      // idle loop start time (loops idleLoopStart→segEnd)
     this._segWatcher     = null   // timeupdate handler ref for cleanup
     this._bkThresh       = 25     // black-key threshold (per type)
     this._bkEdge         = 55     // black-key soft ramp edge
-    this._bkFadeBottom   = 0      // rows from bottom to fade to transparent (removes floor shadows)
 
     speechSynthesis.onvoiceschanged = () => { this._voice = pickVoice() }
     this._voice = pickVoice()
@@ -97,11 +94,8 @@ export class Announcer {
     this._idleSeek      = t.idleSeek
     this._speakSegStart = t.segStart
     this._speakSegEnd   = t.segEnd
-    this._walkEnd       = t.walkEnd      ?? 0
-    this._idleLoopStart = t.idleLoopStart ?? 0
-    this._bkThresh      = t.bkThresh    ?? 25
-    this._bkEdge        = t.bkEdge      ?? 55
-    this._bkFadeBottom  = t.bkFadeBottom ?? 0
+    this._bkThresh      = t.bkThresh ?? 25
+    this._bkEdge        = t.bkEdge   ?? 55
   }
 
   // ── Private: speech unlock ────────────────────────────────────────────────
@@ -181,19 +175,12 @@ export class Announcer {
         const imgData = ctx.getImageData(0, 0, 400, 680)
         const d = imgData.data
         const thresh = this._bkThresh, edge = this._bkEdge
-        const fadeBottom = this._bkFadeBottom, fadeStart = 680 - fadeBottom
         for (let i = 0; i < d.length; i += 4) {
           const bright = Math.max(d[i], d[i+1], d[i+2])
           if (bright < thresh) {
             d[i+3] = 0
           } else if (bright < edge) {
             d[i+3] = Math.round(255 * (bright - thresh) / (edge - thresh))
-          }
-          if (fadeBottom > 0) {
-            const row = Math.floor((i >> 2) / 400)
-            if (row >= fadeStart) {
-              d[i+3] = Math.round(d[i+3] * (1 - (row - fadeStart) / fadeBottom))
-            }
           }
         }
         ctx.putImageData(imgData, 0, 0)
@@ -216,74 +203,38 @@ export class Announcer {
     }
   }
 
-  // ── Public: say arbitrary text (intro / congrats) — plays full video ──────
+  // ── Public: say arbitrary text ────────────────────────────────────────────
   sayText(text, onDone) {
     if (this._speaking) speechSynthesis.cancel()
     this._speaking = true
-    this._speak(text, () => { this._speaking = false; if (onDone) onDone() }, true)
-  }
-
-  // ── Public: announce a drawn ball number — plays call segment only ────────
-  announce(number) {
-    if (this._speaking) speechSynthesis.cancel()
-    this._speaking = true
-    this._speak(say(number), () => { this._speaking = false }, false)
-  }
-
-  // ── Public: enable idle-pause mode (between-call waiting) ────────────────
-  enableIdlePause(idleSeek) {
-    this._idlePause = true
-    if (idleSeek !== undefined) this._idleSeek = idleSeek
-    if (!this._speaking) {
-      if (this._walkEnd > 0) this._startIdleLoop()
-      else this._parkVideo()
-    }
-  }
-
-  // ── Public: disable idle-pause mode (draw reset / congrats) ──────────────
-  disableIdlePause() {
-    this._idlePause = false
-    if (!this._video) return
-    if (this._walkEnd > 0) {
-      this._startIdleLoop()
-    } else {
-      this._video.loop = true
-      this._video.play().catch(() => {})
-    }
-  }
-
-  // ── Private: loop 0 → walkEnd continuously (idle stance between calls) ───
-  _startIdleLoop() {
-    if (!this._video) return
-    this._clearSegWatcher()
-    this._video.loop = false
-    const loopStart = this._idleLoopStart
-    const loopEnd   = this._speakSegEnd
-    this._video.currentTime = loopStart
-    this._segWatcher = () => {
-      if (this._video && this._video.currentTime >= loopEnd) {
-        this._video.currentTime = loopStart
-      }
-    }
-    this._video.addEventListener('timeupdate', this._segWatcher)
-    this._video.play().catch(() => {})
-  }
-
-  // ── Public: slide announcer off screen (walk-away) ────────────────────────
-  walkOff(onDone) {
-    if (!this._el) { onDone?.(); return }
-    gsap.to(this._el, {
-      x: 280, opacity: 0, duration: 0.9, ease: 'power2.in',
-      onComplete: () => { gsap.set(this._el, { x: 0, opacity: 0 }); onDone?.() },
+    this._speak(text, () => {
+      this._speaking = false
+      if (onDone) onDone()
     })
   }
 
-  // ── Public: exit after congrats — walk off (walk-in types) or fade ────────
-  exitAfterSpeech(onDone) {
-    if (this._walkEnd > 0) {
-      gsap.delayedCall(0.2, () => this.walkOff(onDone))
-    } else {
-      gsap.to(this._el, { opacity: 0, delay: 0.5, duration: 0.8, ease: 'power2.in', onComplete: onDone })
+  // ── Public: announce a drawn ball number ──────────────────────────────────
+  announce(number) {
+    if (this._speaking) speechSynthesis.cancel()
+    this._speaking = true
+    this._speak(say(number), () => {
+      this._speaking = false
+    })
+  }
+
+  // ── Public: enable idle-pause mode (video pauses between speeches) ────────
+  enableIdlePause(idleSeek = 4.5) {
+    this._idlePause = true
+    this._idleSeek  = idleSeek
+    if (!this._speaking) this._parkVideo()
+  }
+
+  // ── Public: disable idle-pause mode (video loops freely) ─────────────────
+  disableIdlePause() {
+    this._idlePause = false
+    if (this._video) {
+      this._video.loop = true
+      this._video.play().catch(() => {})
     }
   }
 
@@ -305,29 +256,23 @@ export class Announcer {
     this._segWatcher = null
   }
 
-  _speak(text, onEnd, fullPlay = false) {
+  _speak(text, onEnd) {
     if (!('speechSynthesis' in window)) { onEnd(); return }
 
-    if (this._video) {
-      if (fullPlay && this._walkEnd > 0) {
-        // intro / congrats: play full video from 0
-        this._clearSegWatcher()
-        this._video.loop = false
-        this._video.currentTime = 0
-        this._video.play().catch(() => {})
-      } else if (this._idlePause || this._walkEnd > 0) {
-        // number announcement (any phase): loop the call segment 2.8→5.0s
-        this._clearSegWatcher()
-        this._video.loop = false
-        this._video.currentTime = this._speakSegStart
-        this._segWatcher = () => {
-          if (this._video && this._video.currentTime >= this._speakSegEnd) {
-            this._video.currentTime = this._speakSegStart
-          }
+    // If in idle-pause mode, play only the hand-raise→lower segment
+    if (this._idlePause && this._video) {
+      this._clearSegWatcher()
+      this._video.loop = false
+      this._video.currentTime = this._speakSegStart
+
+      this._segWatcher = () => {
+        if (this._video && this._video.currentTime >= this._speakSegEnd) {
+          this._clearSegWatcher()
+          this._video.pause()
         }
-        this._video.addEventListener('timeupdate', this._segWatcher)
-        this._video.play().catch(() => {})
       }
+      this._video.addEventListener('timeupdate', this._segWatcher)
+      this._video.play().catch(() => {})
     }
 
     const gen = ++this._speakGen
@@ -337,8 +282,7 @@ export class Announcer {
     utt.pitch = 1.15; utt.rate = 0.88; utt.volume = 1
     const done = () => {
       if (this._speakGen !== gen) return
-      if (this._walkEnd > 0) this._startIdleLoop()
-      else if (this._idlePause) this._parkVideo()
+      if (this._idlePause) this._parkVideo()
       onEnd()
     }
     const minMs = Math.max(1200, text.split(/\s+/).length * 380)

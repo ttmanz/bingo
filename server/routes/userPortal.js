@@ -59,21 +59,23 @@ router.get('/available-draws', requireUserAuth, (req, res) => {
   const soldMap = Object.fromEntries(soldRows.map(r => [r.draw_id, r.sold]))
   const TZ = 'Asia/Nicosia'
   function localToUtc(draw_date, draw_time) {
-    try {
-      if (!draw_date || !draw_time) return null
-      const t = draw_time.length === 5 ? draw_time + ':00' : draw_time
-      const probe = new Date(`${draw_date}T${t}Z`)
-      if (!isFinite(probe.getTime())) return null
-      const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
-      }).formatToParts(probe).reduce((a, p) => { a[p.type] = p.value; return a }, {})
-      if (parts.hour === '24') parts.hour = '00'
-      const tzDate = new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}Z`)
-      const ms = probe.getTime() + (probe - tzDate)
-      if (!isFinite(ms) || Math.abs(ms) > 8640000000000000) return null
-      return new Date(ms).toISOString()
-    } catch { return null }
+    if (!draw_date || !draw_time) return null
+    const t = draw_time.length === 5 ? draw_time + ':00' : draw_time
+    // Parse the stored local time as UTC, then find the real offset for Asia/Nicosia at that date
+    const probe = new Date(`${draw_date}T${t}Z`)
+    if (isNaN(probe.getTime())) return null
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    }).formatToParts(probe).reduce((a, p) => { a[p.type] = p.value; return a }, {})
+    // Node.js/ICU bug: hour12:false can return '24' instead of '00' for midnight —
+    // the day is already correct (next day), so just map '24' → '00'
+    if (parts.hour === '24') parts.hour = '00'
+    const tzDate = new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}Z`)
+    const offsetMs = probe - tzDate
+    const result = new Date(probe.getTime() + offsetMs)
+    if (isNaN(result.getTime())) return null
+    return result.toISOString()
   }
 
   const nowMs = Date.now()

@@ -292,22 +292,9 @@ body {
 .room-card-grid-table td.blank   { background: #eee8dc; }
 .room-card-grid-table td.num     { background: #f5f0e8; color: #1a3a8a; }
 .room-card-grid-table td.called  {
-  background-color: #dbd4c8;
-  background-image:
-    linear-gradient(to bottom right,
-      transparent calc(50% - 2.5px),
-      #cc0f0f calc(50% - 2.5px),
-      #cc0f0f calc(50% + 2.5px),
-      transparent calc(50% + 2.5px)
-    ),
-    linear-gradient(to bottom left,
-      transparent calc(50% - 2.5px),
-      #cc0f0f calc(50% - 2.5px),
-      #cc0f0f calc(50% + 2.5px),
-      transparent calc(50% + 2.5px)
-    );
-  color: #aaa098;
-  text-decoration: none;
+  background: #dbd4c8;
+  color: #9a8f80;
+  text-decoration: line-through;
   font-size: 13px;
 }
 .room-card-grid-table td.card-code-cell {
@@ -451,24 +438,7 @@ body {
 }
 .overlay-card-table td.blank   { background: #eee8dc; }
 .overlay-card-table td.num     { background: #f5f0e8; color: #1a3a8a; }
-.overlay-card-table td.called  {
-  background-color: #dbd4c8;
-  background-image:
-    linear-gradient(to bottom right,
-      transparent calc(50% - 2.5px),
-      #cc0f0f calc(50% - 2.5px),
-      #cc0f0f calc(50% + 2.5px),
-      transparent calc(50% + 2.5px)
-    ),
-    linear-gradient(to bottom left,
-      transparent calc(50% - 2.5px),
-      #cc0f0f calc(50% - 2.5px),
-      #cc0f0f calc(50% + 2.5px),
-      transparent calc(50% + 2.5px)
-    );
-  color: #aaa098;
-  text-decoration: none;
-}
+.overlay-card-table td.called  { background: #dbd4c8; color: #9a8f80; text-decoration: line-through; }
 .overlay-card-table td.line-win  { background: rgba(16,185,129,.35); color: #065f46; font-weight: 900; text-decoration: none; }
 .overlay-card-table td.bingo-win { background: rgba(124,58,237,.45); color: #3b0764; font-weight: 900; text-decoration: none; }
 .overlay-card-table td.checking  { animation: cellCheck 0.6s ease forwards; font-weight: 900; }

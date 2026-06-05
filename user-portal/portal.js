@@ -1,24 +1,5 @@
 'use strict';
 
-// ── Instant draw-active redirect (runs before any auth check) ─────────────
-// Connect to the game socket immediately. If a draw is live the server sends
-// 'state' with phase='drawing' within milliseconds — redirect straight away.
-// Also catches draws that start while the user is on this page ('game-reset').
-// We write the drawId into sessionStorage first so the bingo room treats this
-// user as a returning watcher (allows spectating even without a ticket).
-function _goToBingoRoom(drawId) {
-  try { if (drawId) sessionStorage.setItem('bingo_watching_draw', String(drawId)); } catch(e) {}
-  window.location.reload();
-}
-const _earlySocket = io();
-_earlySocket.on('state', ({ phase, drawId }) => {
-  if (phase === 'drawing') _goToBingoRoom(drawId);
-});
-_earlySocket.on('game-reset', ({ drawId }) => {
-  _goToBingoRoom(drawId);
-});
-// ─────────────────────────────────────────────────────────────────────────────
-
 const API = '';
 let token = localStorage.getItem('bp_token') || '';
 let currentUser = null;
@@ -223,74 +204,6 @@ async function enterGame() {
   closeSection();
   try { await loadDraws(); } catch(e) { console.error('loadDraws failed:', e); }
   loadMyTickets();
-  connectDrawSocket();
-  startSchedulePoller();
-}
-
-// Poll every 10s to pick up newly scheduled draws WITHOUT touching the countdown
-// (separate from the running-draw check so they don't interfere with each other)
-let _schedulePollTimer = null;
-function startSchedulePoller() {
-  if (_schedulePollTimer) return;
-  _schedulePollTimer = setInterval(async () => {
-    try {
-      const { ok, data } = await apiFetch('/api/user-portal/available-draws');
-      if (!ok) return;
-      const regular = Array.isArray(data) ? data : (data.regular || []);
-      const special  = data.special || [];
-      const all = [...regular, ...special];
-      // If a draw just went live → redirect immediately
-      if (all.some(d => d.status === 'running')) {
-        window.location.reload();
-        return;
-      }
-      // If no countdown is running yet, check whether a new draw was scheduled
-      if (!countdownTimer) {
-        const now = Date.now();
-        const upcoming = regular
-          .filter(d => d.status === 'scheduled' && drawScheduledTime(d) > now)
-          .sort((a, b) => drawScheduledTime(a) - drawScheduledTime(b));
-        if (upcoming.length) {
-          nextDraw = upcoming[0];
-          renderCountdown();
-        }
-      }
-    } catch {}
-  }, 10000);
-}
-
-function connectDrawSocket() {
-  try {
-    const socket = io();
-    // 'state' fires immediately on connect — phase='drawing' means a draw is live right now
-    socket.on('state', ({ phase }) => {
-      if (phase === 'drawing') window.location.reload();
-    });
-    // 'game-reset' fires when a new draw starts while we're waiting on the portal
-    socket.on('game-reset', () => {
-      window.location.reload();
-    });
-  } catch(e) {
-    console.warn('Portal socket failed, falling back to poll', e);
-    startDrawPoller();
-  }
-}
-
-let _drawPollTimer = null;
-function startDrawPoller() {
-  if (_drawPollTimer) return;
-  _drawPollTimer = setInterval(async () => {
-    try {
-      const { ok, data } = await apiFetch('/api/user-portal/available-draws');
-      if (!ok) return;
-      const regular = Array.isArray(data) ? data : (data.regular || []);
-      const special = data.special || [];
-      if ([...regular, ...special].some(d => d.status === 'running')) {
-        clearInterval(_drawPollTimer);
-        window.location.reload();
-      }
-    } catch {}
-  }, 15000);
 }
 
 function renderTopBar() {
@@ -531,13 +444,6 @@ async function loadDraws() {
     specialDraws = data.special || [];
   }
 
-  // If any draw (regular or special) is live, go straight to the bingo room
-  const allCombined = [...allDraws, ...specialDraws];
-  if (allCombined.some(d => d.status === 'running')) {
-    window.location.reload();
-    return;
-  }
-
   // find next scheduled regular draw that hasn't started yet
   const now = Date.now();
   const scheduled = allDraws
@@ -552,11 +458,8 @@ async function loadDraws() {
 
 // ── Countdown ─────────────────────────────────────────────────────────────
 
-let _redirectTimer = null;
-
 function stopCountdown() {
   if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
-  if (_redirectTimer)  { clearTimeout(_redirectTimer);  _redirectTimer  = null; }
 }
 
 function renderCountdown() {
@@ -577,25 +480,12 @@ function renderCountdown() {
     ? '🏆 Full house: ' + nextDraw.full_house_prize + ' pts'
     : '';
 
-  // Schedule a one-shot redirect 10s before the draw — immune to interval drift
-  if (st) {
-    const msUntilRedirect = st.getTime() - 10000 - Date.now();
-    if (msUntilRedirect <= 0) {
-      window.location.reload();
-      return;
-    }
-    _redirectTimer = setTimeout(() => { window.location.reload(); }, msUntilRedirect);
-    // Show the scheduled entry time so we can confirm the timer is set
-    const entryTime = new Date(st.getTime() - 10000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-    $('nextDrawSub').textContent = '🚪 Auto-entering room at ' + entryTime;
-  }
-
-  // Display-only tick — just updates the numbers, never redirects
   function tick() {
     const diff = (st ? st : drawScheduledTime(nextDraw)) - Date.now();
     if (diff <= 0) {
       ['cd-h','cd-m','cd-s'].forEach(id => $(id).textContent = '00');
       stopCountdown();
+      loadDraws();
       return;
     }
     const h = Math.floor(diff / 3600000);
