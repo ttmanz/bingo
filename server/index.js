@@ -147,22 +147,33 @@ function expirePastDraws() {
   try {
     const now = new Date()
 
-    // Expire scheduled draws whose time has passed
+    // Expire scheduled draws whose time has passed — iterate each in its own try/catch
+    // so one draw with a bad date can't crash the entire cleanup pass
     const scheduled = dbQuery(`SELECT id, draw_date, draw_time FROM draws WHERE status = 'scheduled'`)
     for (const d of scheduled) {
-      if (drawScheduledUtc(d) <= now) {
-        dbRun(`UPDATE draws SET status = 'completed' WHERE id = ?`, [d.id])
-      }
+      try {
+        if (!d.draw_date || !d.draw_time) continue
+        if (drawScheduledUtc(d) <= now) {
+          dbRun(`UPDATE draws SET status = 'completed' WHERE id = ?`, [d.id])
+        }
+      } catch (e) { console.error(`[expirePastDraws] draw ${d.id}:`, e.message) }
     }
 
     // Void running draws stuck > 30 min past their scheduled time (server crash recovery)
+    let voidedAny = false
     const running = dbQuery(`SELECT id, title, draw_date, draw_time FROM draws WHERE status = 'running'`)
     for (const d of running) {
-      if (now - drawScheduledUtc(d) > 30 * 60 * 1000) {
-        voidDrawAndRefund(d)
-      }
+      try {
+        if (!d.draw_date || !d.draw_time) continue
+        if (now - drawScheduledUtc(d) > 30 * 60 * 1000) {
+          console.log(`[expirePastDraws] voiding stuck running draw ${d.id} "${d.title}"`)
+          voidDrawAndRefund(d)
+          voidedAny = true
+        }
+      } catch (e) { console.error(`[expirePastDraws] running draw ${d.id}:`, e.message) }
     }
-  } catch {}
+    if (voidedAny) scheduleNextDraw()
+  } catch (e) { console.error('[expirePastDraws] outer error:', e.message) }
 }
 setInterval(expirePastDraws, 60_000)
 
@@ -339,7 +350,7 @@ function startDraw(draw) {
   lineWinnerEmail   = null
   bingoWinnerEmail  = null
   resetGame(game)
-  try { dbRun(`UPDATE draws SET status = 'running' WHERE id = ?`, [draw.id]) } catch {}
+  try { dbRun(`UPDATE draws SET status = 'running' WHERE id = ?`, [draw.id]) } catch (e) { console.error('[startDraw] status→running failed:', e.message) }
   io.emit('game-reset', { drawId: draw.id })
   drawNextBall(intervalMs, draw.id)
 }
@@ -364,7 +375,7 @@ function drawNextBall(intervalMs, drawId) {
     } else {
       // All balls drawn — check wins first so winner emails are set, then broadcast
       game.gameOver = true
-      try { dbRun(`UPDATE draws SET status = 'completed' WHERE id = ?`, [drawId]) } catch {}
+      try { dbRun(`UPDATE draws SET status = 'completed' WHERE id = ?`, [drawId]) } catch (e) { console.error('[drawNextBall] status→completed failed:', e.message) }
       checkWins(drawId, currentDraw)
       io.emit('game-over')
       io.emit('draw-results', {
