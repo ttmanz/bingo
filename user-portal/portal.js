@@ -8,7 +8,7 @@
 // user as a returning watcher (allows spectating even without a ticket).
 function _goToBingoRoom(drawId) {
   try { if (drawId) sessionStorage.setItem('bingo_watching_draw', String(drawId)); } catch(e) {}
-  window.location.reload();
+  window.location.href = '/bingo-room';
 }
 const _earlySocket = io();
 _earlySocket.on('state', ({ phase, drawId }) => {
@@ -577,17 +577,16 @@ function renderCountdown() {
     ? '🏆 Full house: ' + nextDraw.full_house_prize + ' pts'
     : '';
 
-  // Schedule a one-shot redirect 10s before the draw — immune to interval drift
+  // Navigate to bingo room at draw time — immune to interval drift
   if (st) {
-    const msUntilRedirect = st.getTime() - 10000 - Date.now();
+    const msUntilRedirect = st.getTime() - Date.now();
     if (msUntilRedirect <= 0) {
-      window.location.reload();
+      _goToBingoRoom(nextDraw?.id);
       return;
     }
-    _redirectTimer = setTimeout(() => { window.location.reload(); }, msUntilRedirect);
-    // Show the scheduled entry time so we can confirm the timer is set
-    const entryTime = new Date(st.getTime() - 10000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-    $('nextDrawSub').textContent = '🚪 Auto-entering room at ' + entryTime;
+    _redirectTimer = setTimeout(() => { _goToBingoRoom(nextDraw?.id); }, msUntilRedirect);
+    const entryTime = st.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    $('nextDrawSub').textContent = '🎯 Auto-entering room at ' + entryTime;
   }
 
   // Display-only tick — just updates the numbers, never redirects

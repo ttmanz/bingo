@@ -105,28 +105,6 @@ function _applyWaiting({ drawId, nextDrawTime, nextDrawTitle, annType }) {
 }
 
 function showDrawInProgress(nextDrawTime, nextDrawTitle) {
-  // Cover the room with the curtain — user arrived mid-draw, show next draw info
-  const blocked = document.getElementById('room-blocked')
-  if (blocked) {
-    const inner = blocked.querySelector('.room-blocked-inner')
-    if (inner) {
-      const nextTime = nextDrawTime
-        ? new Date(nextDrawTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : null
-      inner.innerHTML = `
-        <img src="/bingo-room/bm.png" alt="" style="width:120px;height:auto;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;">
-        <h2 class="room-blocked-title">Draw in Progress</h2>
-        <p class="room-blocked-msg">This draw is underway.<br>Please wait for the next one.</p>
-        ${nextDrawTitle || nextTime ? `<div class="room-blocked-next"><span class="rbn-label">${nextDrawTitle || 'Next draw'}</span><span class="rbn-time">${nextTime || '—'}</span></div>` : ''}
-        <a href="/user-portal" class="room-blocked-btn" style="margin-top:16px">← Back to Portal</a>
-      `
-    }
-    blocked.style.opacity = '1'
-    blocked.classList.remove('hidden')
-  }
-  // CRITICAL: mark curtain as "intentionally shown for mid-draw block".
-  // Without this, the ball-interval countdown handler (remaining <= 0) would
-  // immediately lift the curtain because _curtainFaded is false on fresh page load.
   _curtainFaded = true
   renderPlayerCard()
 }
@@ -156,41 +134,9 @@ function showWaitingPanel(nextDrawTime, nextDrawTitle) {
   if (!nextDrawTime) {
     panel.classList.add('hidden')
     document.getElementById('room-nodraw-overlay')?.classList.add('hidden')
-    // No next draw — show the full blocking curtain with a clear message.
-    // This keeps the room hidden (nothing to see) and gives the user a back button.
-    const blocked2 = document.getElementById('room-blocked')
-    if (blocked2) {
-      const inner2 = blocked2.querySelector('.room-blocked-inner')
-      if (inner2) {
-        inner2.innerHTML = `
-          <img src="/bingo-room/bm.png" alt="" style="width:120px;height:auto;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;">
-          <h2 class="room-blocked-title">No Draws Scheduled</h2>
-          <p class="room-blocked-msg">There are no upcoming draws at the moment.<br>Check back soon!</p>
-          <a href="/user-portal" class="room-blocked-btn" style="margin-top:16px">← Back to Portal</a>
-        `
-      }
-      blocked2.style.opacity = '1'
-      blocked2.classList.remove('hidden')
-    }
     return
   }
   document.getElementById('room-nodraw-overlay')?.classList.add('hidden')
-
-  // ── Draw the curtain while waiting for the next draw to start ────────────
-  const blocked = document.getElementById('room-blocked')
-  if (blocked) {
-    const inner = blocked.querySelector('.room-blocked-inner')
-    if (inner) {
-      inner.innerHTML = `
-        <img src="/bingo-room/bm.png" alt="" style="width:140px;height:auto;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;">
-        <h2 class="room-blocked-title">${nextDrawTitle || 'Upcoming Draw'}</h2>
-        <p class="room-blocked-msg" style="margin-bottom:4px">Starting in</p>
-        <div id="curtain-countdown-display" style="font-size:64px;font-weight:900;color:#a78bfa;letter-spacing:-.02em;line-height:1;margin:10px 0 6px;font-variant-numeric:tabular-nums;">--:--</div>
-      `
-    }
-    blocked.style.opacity = '1'
-    blocked.classList.remove('hidden')
-  }
 
   const target = new Date(nextDrawTime).getTime()
   function tick() {
@@ -202,15 +148,6 @@ function showWaitingPanel(nextDrawTime, nextDrawTitle) {
       ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
       : `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
     if (countEl) countEl.textContent = timeStr
-    // Also drive the on-curtain countdown, but hand off to the server's
-    // per-ball countdown events in the final 10 s.  Beyond 10 s the client
-    // clock is accurate enough; within 10 s the server's 'countdown' events
-    // take over and "DRAW STARTING!" fires at remaining≤3 — avoiding any
-    // clock-skew jump-back artefact.
-    if (!_introPlayed && diff > 10_000) {
-      const ccEl2 = document.getElementById('curtain-countdown-display')
-      if (ccEl2) ccEl2.textContent = timeStr
-    }
   }
   tick()
   _cdTimer = setInterval(tick, 1000)
@@ -1290,35 +1227,15 @@ function connectSocket() {
     _applyWaiting({ drawId, nextDrawTime, nextDrawTitle, annType })
   })
 
-  // Countdown tick — update fill bar; at T-3 fade in announcer; at T=0 lift curtain
+  // Countdown tick — update fill bar; at T-3 queue balls; at T=0 fade in announcer
   socket.on('countdown', ({ remaining, total }) => {
     const pct = remaining / total
     if (countdownFill) countdownFill.style.width = (pct * 100) + '%'
 
-    // Keep curtain countdown display in sync with server seconds —
-    // but stop once _introPlayed is set (T≤3) so "DRAW STARTING!" isn't overwritten.
-    const ccEl = document.getElementById('curtain-countdown-display')
-    if (ccEl && remaining > 0 && !_introPlayed) {
-      const cm = Math.floor(remaining / 60)
-      const cs = remaining % 60
-      ccEl.textContent = cm > 0
-        ? `${String(cm).padStart(2,'0')}:${String(cs).padStart(2,'0')}`
-        : `00:${String(cs).padStart(2,'0')}`
-    }
-
-    // T-3s: queue balls and hide the waiting panel — but keep announcer hidden until curtain lifts
+    // T-3s: queue balls and hide the waiting panel
     if (remaining <= 3 && !_introPlayed) {
       _introPlayed = true
-      paused = true   // queue any balls the server sends during the curtain transition
-
-      // Replace numeric countdown with a non-numeric indicator so clock-skew
-      // (client ~4s ahead of server) never shows phantom extra seconds to the user.
-      if (ccEl) {
-        ccEl.textContent = 'DRAW STARTING!'
-        ccEl.style.fontSize = ''   // let CSS control size (may have been shrunk for long times)
-      }
-
-      // Fade out the room-next-draw panel (behind the curtain, but hide it cleanly)
+      paused = true
       const panel = document.getElementById('room-next-draw')
       if (panel && !panel.classList.contains('hidden')) {
         gsap.to(panel, {
@@ -1326,31 +1243,15 @@ function connectSocket() {
           onComplete: () => { panel.classList.add('hidden'); panel.style.opacity = '' }
         })
       }
-      // Un-hide the call card (showWaitingPanel hid it while waiting for the draw)
       const calledEl3 = document.getElementById('called-numbers')
       if (calledEl3) calledEl3.style.display = ''
-      // Announcer fades in AFTER the curtain lifts (see T=0 block below)
     }
 
-    // At 00:00: lift the curtain, then fade in announcer so she never shows over the curtain
+    // At 00:00: fade in announcer and say intro
     if (remaining <= 0 && !_curtainFaded) {
       _curtainFaded = true
-      const blocked = document.getElementById('room-blocked')
-      if (blocked && !blocked.classList.contains('hidden')) {
-        gsap.to(blocked, {
-          opacity: 0, duration: 1.5, ease: 'power2.in',
-          onComplete: () => {
-            blocked.classList.add('hidden')
-            blocked.style.opacity = ''
-            gsap.to(announcer._el, { opacity: 1, duration: 0.5, ease: 'power2.out' })
-            _sayIntro()
-          }
-        })
-      } else {
-        // No curtain — still fade announcer in cleanly before intro
-        gsap.to(announcer._el, { opacity: 1, duration: 0.5, ease: 'power2.out' })
-        _sayIntro()
-      }
+      gsap.to(announcer._el, { opacity: 1, duration: 0.5, ease: 'power2.out' })
+      _sayIntro()
     }
   })
 
@@ -1360,32 +1261,15 @@ function connectSocket() {
     // watching this draw. Silently update calledSet and do nothing else.
     if (_lateEntry) { calledSet = new Set(called); return }
 
-    // Safety: first ball arrives before countdown reaches remaining=0 (server timer
-    // race) — the curtain is still up. Lift it and play the intro speech so the
-    // announcer always introduces herself at draw start.
+    // Safety: first ball arrives before countdown reaches remaining=0 (server timer race).
     if (!_curtainFaded) {
       _curtainFaded = true
-      _introPlayed  = true   // prevent T-3 block from pausing again after this
-      paused        = true   // queue this ball until intro finishes
-      // Un-hide the call card in case showWaitingPanel hid it during pre-draw waiting
+      _introPlayed  = true
+      paused        = true
       const calledEl4 = document.getElementById('called-numbers')
       if (calledEl4) calledEl4.style.display = ''
-      const blocked = document.getElementById('room-blocked')
-      if (blocked && !blocked.classList.contains('hidden')) {
-        gsap.to(blocked, {
-          opacity: 0, duration: 0.8,
-          onComplete: () => {
-            blocked.classList.add('hidden')
-            blocked.style.opacity = ''
-            gsap.to(announcer._el, { opacity: 1, duration: 0.5, ease: 'power2.out' })
-            _sayIntro()   // callback: paused=false; drainPendingBalls()
-          }
-        })
-      } else {
-        // No curtain — fade announcer in and play intro
-        gsap.to(announcer._el, { opacity: 1, duration: 0.5, ease: 'power2.out' })
-        _sayIntro()
-      }
+      gsap.to(announcer._el, { opacity: 1, duration: 0.5, ease: 'power2.out' })
+      _sayIntro()
     }
     if (paused) { _pendingBalls.push({ number, called }); return }
     if (drawing) return

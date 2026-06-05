@@ -206,19 +206,6 @@
   </div><!-- end .room-layout -->
 
 
-  <!-- Draw-in-progress blocking screen -->
-  <div id="room-blocked" class="room-blocked hidden">
-    <div class="room-blocked-inner">
-      <div class="room-blocked-icon">🎯</div>
-      <h2 class="room-blocked-title">Draw in Progress</h2>
-      <p class="room-blocked-msg">This draw is currently underway.<br>Please wait for the next one.</p>
-      <div class="room-blocked-next">
-        <span class="rbn-label">Next draw is at</span>
-        <span class="rbn-time" id="room-next-time">Loading…</span>
-      </div>
-      <a href="/user-portal" class="room-blocked-btn">← Back to Portal</a>
-    </div>
-  </div>
 
   <!-- Portrait-mode rotate overlay (shown by CSS on mobile portrait) -->
   <div id="rotate-overlay">
@@ -248,6 +235,6 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script type="module" src="/bingo-room/room.js?v=34"></script>
+  <script type="module" src="/bingo-room/room.js?v=35"></script>
 </body>
 </html>
