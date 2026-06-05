@@ -797,12 +797,15 @@ $('btnBuyConfirm').addEventListener('click', async () => {
     document.getElementById('game-main').style.display = '';
     loadMyTickets();   // refresh so newly-bought draw appears immediately
 
-    // success toast
+    // success toast — tap to go straight to the bingo room
     const plural = purchased > 1 ? 's' : '';
-    const toastEl = document.getElementById('reg-success');
+    const toastEl  = document.getElementById('reg-success');
     const toastMsg = document.getElementById('reg-success-msg');
+    const buyDrawId = activeBuyDrawId;
     if (toastEl && toastMsg) {
-      toastMsg.textContent = purchased + ' ticket' + plural + ' bought! Tap Bingo Room to play.';
+      toastMsg.textContent = purchased + ' ticket' + plural + ' bought! Tap here to enter Bingo Room.';
+      toastEl.style.cursor = 'pointer';
+      toastEl.onclick = () => _goToBingoRoom(buyDrawId);
       toastEl.classList.remove('hidden');
       toastEl.style.display = 'flex';
       toastEl.style.opacity = '1';
@@ -812,6 +815,8 @@ $('btnBuyConfirm').addEventListener('click', async () => {
         toastEl.style.display = '';
         toastEl.style.opacity = '';
         toastEl.style.zIndex  = '';
+        toastEl.style.cursor  = '';
+        toastEl.onclick = null;
       }, 6000);
     }
   } catch (err) {
