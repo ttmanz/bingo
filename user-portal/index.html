@@ -116,8 +116,11 @@
     </section>
     <div class="section-btns">
       <button class="sbtn" onclick="openSection('special')">⭐ Special Draws</button>
-      <button class="sbtn" id="btnBuyNav" onclick="openSection('buy')">🎟 Buy Tickets</button>
+      <button class="sbtn" onclick="openSection('buy')">🎟 Buy Tickets</button>
       <button class="sbtn" onclick="window.location.href='/bingo-room'">🎯 Bingo Room</button>
+    </div>
+    <div id="enterRoomBtnWrap" style="display:none;padding:0 20px 8px">
+      <button class="sbtn sbtn-success" id="btnEnterRoomAfterBuy" onclick="window.location.href='/bingo-room'">🎯 Enter Bingo Room</button>
     </div>
 
     <!-- ── My Tickets (inline) ── -->

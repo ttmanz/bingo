@@ -711,13 +711,9 @@ $('btnBuyConfirm').addEventListener('click', async () => {
       }, 4000);
     }
 
-    // Transform the Buy Tickets nav button into a green Enter Bingo Room button
-    const buyNavBtn = document.getElementById('btnBuyNav');
-    if (buyNavBtn) {
-      buyNavBtn.classList.add('sbtn-success');
-      buyNavBtn.textContent = '🎯 Enter Bingo Room';
-      buyNavBtn.onclick = () => { window.location.href = '/bingo-room'; };
-    }
+    // Show the green Enter Bingo Room button below the nav row
+    const enterWrap = document.getElementById('enterRoomBtnWrap');
+    if (enterWrap) enterWrap.style.display = '';
   } catch (err) {
     console.error('Buy success block threw:', err);
     // hard fallback — still close modal and go home
