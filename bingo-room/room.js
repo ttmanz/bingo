@@ -467,6 +467,18 @@ async function _refreshCardsFromServer(drawId) {
     if (String(_currentDrawId) !== String(drawId)) return
     _serverTicketCheckPending = false
     renderPlayerCard()
+    // Ticket holders escape the "No Draws Scheduled" curtain because their path calls
+    // _enterMidDraw(). Ticketless users got stuck because _done() never hid the curtain.
+    // If the draw was running when we connected (calledSet has balls) but the server has
+    // since moved to waiting-with-no-next-draw, lift the curtain so ticketless users
+    // can see the room in its final state — consistent with ticket holders.
+    const blocked = document.getElementById('room-blocked')
+    if (blocked && !blocked.classList.contains('hidden') && calledSet.size > 0) {
+      blocked.classList.add('hidden')
+      blocked.style.opacity = ''
+      const layout = document.querySelector('.room-layout')
+      if (layout) layout.style.display = ''
+    }
   }
   try {
     const headers = _token ? { Authorization: 'Bearer ' + _token } : {}
