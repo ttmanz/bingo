@@ -1246,9 +1246,23 @@ function connectSocket() {
   const socket = io({ transports: ['websocket', 'polling'] })
   _socket = socket
 
+  let _connectCount = 0
   socket.on('connect', () => {
+    _connectCount++
     liveDot.className = 'live-dot on'
     statusTextEl.textContent = 'Live'
+    // On reconnect: if we were mid-ceremony (paused, _pendingLineCard set) but missed
+    // prize-awarded, the safety timeout handles it — but if it already fired and the draw
+    // is stuck paused, unstick after a short grace period.
+    if (_connectCount > 1 && paused && _pendingLineCard) {
+      setTimeout(() => {
+        if (_pendingLineCard) {
+          _pendingLineCard = null
+          paused = false
+          drainPendingBalls()
+        }
+      }, 3000)
+    }
   })
   socket.on('disconnect', () => {
     liveDot.className = 'live-dot off'
@@ -1269,6 +1283,7 @@ function connectSocket() {
       return
     }
     // phase === 'drawing'
+    const prevLineWon = lineWon
     lineWon  = lpa ?? false
     bingoWon = bpa ?? false
     loadCardsForDraw(drawId)
@@ -1276,6 +1291,17 @@ function connectSocket() {
       if (annType) { announcer.setType(annType); updateStageScale() }
       // Always enter a running draw — no reason to block someone returning to the room
       _enterMidDraw(called.length, annType)
+      // If we just learned a line was won but hadn't seen the ceremony (missed prize-awarded
+      // during a brief disconnect), show a brief non-blocking banner so no device is left dark.
+      if (!prevLineWon && lineWon) {
+        setTimeout(() => {
+          showWin('LINE!', 'line')
+          setTimeout(() => {
+            winBannerEl?.classList.add('hidden')
+            if (winBannerEl) winBannerEl.style.opacity = ''
+          }, 2500)
+        }, 600)
+      }
       return
     }
     if (calledSet.size > 0) callCard.restore(Array.from(calledSet))
@@ -1460,8 +1486,12 @@ function connectSocket() {
         // This client didn't detect a line locally — just show the observer ceremony
         lineWon = true
         runRemoteWinCeremony('line', amount)
+      } else {
+        // lineWon=true but _pendingLineCard=null: this client detected the line locally
+        // but _pendingLineCard was cleared by the 7s safety timeout before prize-awarded
+        // arrived (slow network). The ceremony never ran — show it now.
+        runRemoteWinCeremony('line', amount)
       }
-      // if lineWon && !_pendingLineCard: we already ran our ceremony, nothing to do
     } else if (type === 'bingo') {
       if (bingoWon) return
       bingoWon = true
