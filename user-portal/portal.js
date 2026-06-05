@@ -240,10 +240,8 @@ function startSchedulePoller() {
       const special  = data.special || [];
       const all = [...regular, ...special];
       // If a draw just went live → redirect immediately
-      if (all.some(d => d.status === 'running')) {
-        window.location.reload();
-        return;
-      }
+      const runningDraw = all.find(d => d.status === 'running');
+      if (runningDraw) { _goToBingoRoom(runningDraw.id); return; }
       // If no countdown is running yet, check whether a new draw was scheduled
       if (!countdownTimer) {
         const now = Date.now();
@@ -262,13 +260,11 @@ function startSchedulePoller() {
 function connectDrawSocket() {
   try {
     const socket = io();
-    // 'state' fires immediately on connect — phase='drawing' means a draw is live right now
-    socket.on('state', ({ phase }) => {
-      if (phase === 'drawing') window.location.reload();
+    socket.on('state', ({ phase, drawId }) => {
+      if (phase === 'drawing') _goToBingoRoom(drawId);
     });
-    // 'game-reset' fires when a new draw starts while we're waiting on the portal
-    socket.on('game-reset', () => {
-      window.location.reload();
+    socket.on('game-reset', ({ drawId }) => {
+      _goToBingoRoom(drawId);
     });
   } catch(e) {
     console.warn('Portal socket failed, falling back to poll', e);
@@ -533,10 +529,8 @@ async function loadDraws() {
 
   // If any draw (regular or special) is live, go straight to the bingo room
   const allCombined = [...allDraws, ...specialDraws];
-  if (allCombined.some(d => d.status === 'running')) {
-    window.location.reload();
-    return;
-  }
+  const runningDraw = allCombined.find(d => d.status === 'running');
+  if (runningDraw) { _goToBingoRoom(runningDraw.id); return; }
 
   // find next scheduled regular draw that hasn't started yet
   const now = Date.now();
