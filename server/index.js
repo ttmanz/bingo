@@ -165,16 +165,21 @@ function expirePastDraws() {
       }
     }
 
-    // On startup any draw still marked 'running' is an orphan (server lost in-memory state).
-    // Only clean up draws that started more than 2 minutes ago — a very recent running draw
-    // means the server crashed/restarted almost instantly and we should leave it alone briefly.
+    // Void orphaned 'running' draws (server lost in-memory state) then reschedule
+    let voidedAny = false
     const running = dbQuery(`SELECT id, title, draw_date, draw_time FROM draws WHERE status = 'running'`)
     for (const d of running) {
       if (now - drawScheduledUtc(d) > 2 * 60 * 1000) {
+        console.log(`[expirePastDraws] voiding stuck running draw ${d.id} "${d.title}"`)
         voidDrawAndRefund(d)
+        voidedAny = true
       }
     }
-  } catch {}
+    // Re-queue the next scheduled draw after clearing any stuck ones
+    if (voidedAny) scheduleNextDraw()
+  } catch (e) {
+    console.error('[expirePastDraws] error:', e.message)
+  }
 }
 setInterval(expirePastDraws, 60_000)
 
