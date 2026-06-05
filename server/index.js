@@ -469,22 +469,35 @@ io.on('connection', (socket) => {
 
   socket.on('bingo', () => {
     if (game.gameOver) {
-      // Draw already ended (all 90 balls drawn before this event arrived).
-      // The end-of-draw checkWins should have run, but if it missed the winner
-      // (e.g. due to a ticket parse error), run it again as a safety net.
+      // Draw already ended — re-run check in case end-of-draw checkWins missed it
       if (!bingoPrizeAwarded && currentDraw) {
         console.log('[bingo] late bingo event — re-running checkWins as safety net')
         checkWins(currentDraw.id, currentDraw)
       }
       return
     }
+
+    // Verify bingo BEFORE stopping the draw.
+    // The client's calledSet can be ahead of game.called (new balls arrive and
+    // update calledSet while a ball animation is playing, so checkWins fires
+    // with more numbers than the server has drawn). If we can't confirm bingo
+    // yet, let the draw continue — the end-of-draw checkWins will catch it.
+    if (!currentDraw) return
+    const confirmed = checkWins(currentDraw.id, currentDraw)
+    console.log(`[bingo] server had ${game.called.size} balls, confirmed=${confirmed}`)
+
+    if (!confirmed) {
+      // Bingo not yet provable at server side — draw keeps running.
+      // When enough balls are drawn the client will either emit bingo again
+      // (and this check will pass) or all 90 balls will end the draw naturally.
+      return
+    }
+
+    // Bingo confirmed — end the draw
     game.gameOver = true
     clearTimeout(drawTimer)
     clearInterval(tickTimer)
-    if (currentDraw) {
-      try { dbRun(`UPDATE draws SET status = 'completed' WHERE id = ?`, [currentDraw.id]) } catch {}
-      checkWins(currentDraw.id, currentDraw)
-    }
+    try { dbRun(`UPDATE draws SET status = 'completed' WHERE id = ?`, [currentDraw.id]) } catch {}
     io.emit('game-over')
     io.emit('draw-results', {
       drawTitle:        currentDraw?.title ?? '',
