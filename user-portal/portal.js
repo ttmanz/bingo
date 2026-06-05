@@ -698,7 +698,7 @@ $('btnBuyConfirm').addEventListener('click', async () => {
     const toastEl = document.getElementById('reg-success');
     const toastMsg = document.getElementById('reg-success-msg');
     if (toastEl && toastMsg) {
-      toastMsg.textContent = purchased + ' ticket' + plural + ' bought! Tap Bingo Room to play.';
+      toastMsg.textContent = purchased + ' ticket' + plural + ' bought!';
       toastEl.classList.remove('hidden');
       toastEl.style.display = 'flex';
       toastEl.style.opacity = '1';
@@ -708,7 +708,15 @@ $('btnBuyConfirm').addEventListener('click', async () => {
         toastEl.style.display = '';
         toastEl.style.opacity = '';
         toastEl.style.zIndex  = '';
-      }, 6000);
+      }, 4000);
+    }
+
+    // Transform the Buy Tickets nav button into a green Enter Bingo Room button
+    const buyNavBtn = document.getElementById('btnBuyNav');
+    if (buyNavBtn) {
+      buyNavBtn.classList.add('sbtn-success');
+      buyNavBtn.textContent = '🎯 Enter Bingo Room';
+      buyNavBtn.onclick = () => { window.location.href = '/bingo-room'; };
     }
   } catch (err) {
     console.error('Buy success block threw:', err);

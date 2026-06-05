@@ -238,6 +238,13 @@ a.pm-item { color: var(--muted); }
   white-space: nowrap;
 }
 .sbtn:hover { background: rgba(124,58,237,.25); border-color: rgba(124,58,237,.5); }
+.sbtn-success {
+  background: var(--success) !important; border-color: var(--success) !important;
+  color: #fff !important; font-size: 16px !important; padding: 18px 12px !important;
+  flex: 1 1 100% !important; max-width: 100% !important;
+  box-shadow: 0 0 20px rgba(16,185,129,.4);
+}
+.sbtn-success:hover { background: #059669 !important; border-color: #059669 !important; }
 /* Full-width button (5th item breaks onto its own row and spans both columns) */
 .sbtn-wide { flex: 1 1 100%; max-width: 100%; }
 
