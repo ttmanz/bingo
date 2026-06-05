@@ -595,6 +595,7 @@ function renderCountdown() {
     if (diff <= 0) {
       ['cd-h','cd-m','cd-s'].forEach(id => $(id).textContent = '00');
       stopCountdown();
+      _goToBingoRoom(nextDraw?.id);
       return;
     }
     const h = Math.floor(diff / 3600000);

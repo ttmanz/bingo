@@ -358,7 +358,7 @@ function startDraw(draw) {
   lineWinnerEmail   = null
   bingoWinnerEmail  = null
   resetGame(game)
-  try { dbRun(`UPDATE draws SET status = 'running' WHERE id = ?`, [draw.id]) } catch {}
+  try { dbRun(`UPDATE draws SET status = 'running' WHERE id = ?`, [draw.id]) } catch (e) { console.error('[startDraw] status→running failed:', e.message) }
   io.emit('game-reset', { drawId: draw.id })
   drawNextBall(intervalMs, draw.id)
 }
@@ -383,7 +383,7 @@ function drawNextBall(intervalMs, drawId) {
     } else {
       // All balls drawn — check wins first so winner emails are set, then broadcast
       game.gameOver = true
-      try { dbRun(`UPDATE draws SET status = 'completed' WHERE id = ?`, [drawId]) } catch {}
+      try { dbRun(`UPDATE draws SET status = 'completed' WHERE id = ?`, [drawId]) } catch (e) { console.error('[drawNextBall] status→completed failed:', e.message) }
       checkWins(drawId, currentDraw)
       io.emit('game-over')
       io.emit('draw-results', {
