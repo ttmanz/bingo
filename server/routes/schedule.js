@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { query, queryOne, run, insert } from '../db.js'
 import { requireAuth } from '../middleware/auth.js'
-import { triggerReschedule } from '../gameBridge.js'
+import { triggerReschedule, getLiveGameState } from '../gameBridge.js'
 
 const router = Router()
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
@@ -122,6 +122,39 @@ router.post('/draws', requireAuth, (req, res) => {
   )
   triggerReschedule()
   res.json({ id })
+})
+
+// GET /api/schedule/today — all draws for today with ticket counts + live state
+router.get('/today', requireAuth, (req, res) => {
+  const draws = query(`
+    SELECT
+      d.id, d.title, d.draw_date, d.draw_time, d.status,
+      d.line_prize, d.full_house_prize, d.ball_interval,
+      COUNT(DISTINCT t.id)                                          AS ticket_count,
+      SUM(CASE WHEN t.status = 'active' THEN 1 ELSE 0 END)         AS active_tickets,
+      (SELECT u.email FROM transactions tx
+         JOIN users u ON u.id = tx.user_id
+         WHERE tx.draw_id = d.id AND tx.type = 'prize'
+           AND tx.description LIKE 'LINE%' LIMIT 1)                AS line_winner,
+      (SELECT u.email FROM transactions tx
+         JOIN users u ON u.id = tx.user_id
+         WHERE tx.draw_id = d.id AND tx.type = 'prize'
+           AND tx.description LIKE 'BINGO%' LIMIT 1)               AS bingo_winner
+    FROM draws d
+    LEFT JOIN tickets t ON t.draw_id = d.id
+    WHERE d.draw_date = DATE('now','localtime')
+    GROUP BY d.id
+    ORDER BY d.draw_time ASC
+  `)
+  // Attach live ball count to the currently running draw
+  const live = getLiveGameState()
+  const result = draws.map(d => {
+    if (live && live.drawId === d.id && d.status === 'running') {
+      return { ...d, balls_called: live.called, balls_total: live.total }
+    }
+    return { ...d, balls_called: null, balls_total: 90 }
+  })
+  res.json(result)
 })
 
 export default router

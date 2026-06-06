@@ -107,7 +107,7 @@ app.use('/api/preset-cards',   presetCardsRoutes)
 
 // ── Auto-expire past scheduled draws ─────────────────────────────────────
 import { query as dbQuery, queryOne as dbQueryOne, run as dbRun, insert as dbInsert } from './db.js'
-import { setRescheduleCallback, setManualWinCallback } from './gameBridge.js'
+import { setRescheduleCallback, setManualWinCallback, setGameStateGetter } from './gameBridge.js'
 
 const TZ_EXPIRE = 'Asia/Nicosia'
 
@@ -540,6 +540,12 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3001
 
 setRescheduleCallback(scheduleNextDraw)
+setGameStateGetter(() => ({
+  drawId:  currentDraw?.id   ?? null,
+  phase:   gamePhase,
+  called:  game.called.size,
+  total:   90,
+}))
 
 // ── Manual win callback (used by POST /api/system-tickets/give-win) ───────
 setManualWinCallback(({ drawId, userId, ticketId, linePrize, bingoPrize, winType }) => {

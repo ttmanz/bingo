@@ -41,6 +41,7 @@
       <span>Administration</span>
     </div>
     <div class="sidebar-nav">
+      <div class="nav-item" data-panel="today"><span class="icon">🗓</span> Today</div>
       <div class="nav-item active" data-panel="draws"><span class="icon">📅</span> Daily Draws</div>
       <div class="nav-item" data-panel="tickets"><span class="icon">🎟</span> Winning Tickets</div>
       <div class="nav-item" data-panel="jackpot"><span class="icon">💰</span> Jackpot</div>
@@ -75,6 +76,22 @@
       </div>
     </div>
     <div id="content">
+
+      <!-- ── TODAY ─────────────────────────────────────────────────── -->
+      <div class="panel" id="panel-today">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+          <div>
+            <h2 style="font-size:1.2rem;margin-bottom:4px">Today's Draws</h2>
+            <p class="text-muted" id="today-date-label"></p>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span id="today-live-badge" style="display:none" class="badge badge-danger" style="animation:pulse 1s infinite">🔴 LIVE</span>
+            <button class="btn btn-ghost btn-sm" id="today-refresh-btn" title="Refresh">↻ Refresh</button>
+          </div>
+        </div>
+        <div class="stat-grid" id="today-summary-row" style="margin-bottom:24px"></div>
+        <div id="today-draws-list"></div>
+      </div>
 
       <!-- ── DRAWS ──────────────────────────────────────────────────── -->
       <div class="panel active" id="panel-draws">
