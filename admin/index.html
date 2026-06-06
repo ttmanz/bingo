@@ -252,17 +252,29 @@
           <button class="btn btn-success" id="pay-prize-btn">✓ Pay Prize</button>
         </div>
 
+        <!-- Today snapshot stats (shown only when Today tab active) -->
+        <div id="today-summary" style="display:none;margin-bottom:16px">
+          <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:8px">📊 Today's Snapshot</div>
+          <div class="stat-grid" id="today-stats"></div>
+        </div>
+
         <div class="table-wrap">
-          <div class="table-header">
+          <div class="table-header" style="flex-wrap:wrap;gap:10px">
             <h4>Transaction History</h4>
-            <select id="txn-type-filter" style="padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.82rem">
-              <option value="">All types</option>
-              <option value="deposit">Deposits</option>
-              <option value="withdrawal">Withdrawals</option>
-              <option value="prize_win">Prize Wins</option>
-              <option value="commission">Commission</option>
-              <option value="ticket_purchase">Ticket Purchase</option>
-            </select>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <div class="period-tabs" id="txn-period-tabs">
+                <button class="period-tab active" data-period="today">Today</button>
+                <button class="period-tab" data-period="all">All Time</button>
+              </div>
+              <select id="txn-type-filter" style="padding:6px 10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.82rem">
+                <option value="">All types</option>
+                <option value="deposit">Deposits</option>
+                <option value="withdrawal">Withdrawals</option>
+                <option value="prize">Prize</option>
+                <option value="ticket_purchase">Ticket Purchase</option>
+                <option value="commission">Commission</option>
+              </select>
+            </div>
           </div>
           <table>
             <thead>

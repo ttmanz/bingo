@@ -4,13 +4,14 @@ import { requireAuth } from '../middleware/auth.js'
 
 const router = Router()
 
-// GET /api/payouts — transaction history
+// GET /api/payouts — transaction history  (?date=today filters to today)
 router.get('/', requireAuth, (req, res) => {
-  const { type, user_id, limit = 100 } = req.query
+  const { type, user_id, limit = 200, date } = req.query
   const conditions = []
   const params = []
-  if (type)    { conditions.push('t.type = ?');    params.push(type) }
-  if (user_id) { conditions.push('t.user_id = ?'); params.push(user_id) }
+  if (type)           { conditions.push('t.type = ?');    params.push(type) }
+  if (user_id)        { conditions.push('t.user_id = ?'); params.push(user_id) }
+  if (date === 'today') conditions.push("DATE(t.created_at) = DATE('now','localtime')")
   const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : ''
   params.push(Number(limit))
   const rows = query(
@@ -20,6 +21,34 @@ router.get('/', requireAuth, (req, res) => {
     params
   )
   res.json(rows)
+})
+
+// GET /api/payouts/summary-today — today's stats snapshot
+router.get('/summary-today', requireAuth, (req, res) => {
+  const today = "DATE(t.created_at) = DATE('now','localtime')"
+  const draws = queryOne(
+    `SELECT COUNT(DISTINCT t.draw_id) as draws, COUNT(*) as tickets, SUM(ABS(t.amount)) as revenue
+     FROM transactions t WHERE t.type = 'ticket_purchase' AND ${today}`
+  )
+  const prizes = queryOne(
+    `SELECT COUNT(*) as count, SUM(t.amount) as total
+     FROM transactions t WHERE t.type = 'prize' AND ${today}`
+  )
+  const deposits = queryOne(
+    `SELECT COUNT(*) as count, SUM(t.amount) as total
+     FROM transactions t WHERE t.type IN ('deposit','points_received') AND ${today}`
+  )
+  const withdrawals = queryOne(
+    `SELECT COUNT(*) as count, SUM(ABS(t.amount)) as total
+     FROM transactions t WHERE t.type = 'withdrawal' AND ${today}`
+  )
+  res.json({
+    draws:       draws?.draws        ?? 0,
+    ticketsSold: { count: draws?.tickets    ?? 0, total: draws?.revenue  ?? 0 },
+    prizes:      { count: prizes?.count     ?? 0, total: prizes?.total   ?? 0 },
+    deposits:    { count: deposits?.count   ?? 0, total: deposits?.total  ?? 0 },
+    withdrawals: { count: withdrawals?.count ?? 0, total: withdrawals?.total ?? 0 },
+  })
 })
 
 // GET /api/payouts/summary — balance and totals (players + agents)

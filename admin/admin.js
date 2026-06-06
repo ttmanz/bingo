@@ -801,10 +801,71 @@ document.getElementById('alloc-modal-save').addEventListener('click', async () =
 // ══════════════════════════════════════════════════════════════════════════
 // PAYOUTS PANEL
 // ══════════════════════════════════════════════════════════════════════════
+let _txnPeriod = 'today'   // 'today' | 'all'
+
+// Reload transaction table with current period + type filters
+async function refreshTxnTable() {
+  const type = document.getElementById('txn-type-filter').value
+  const params = []
+  if (type)                  params.push(`type=${encodeURIComponent(type)}`)
+  if (_txnPeriod === 'today') params.push('date=today')
+  const txns = await GET('/api/payouts' + (params.length ? '?' + params.join('&') : ''))
+  const tbody = document.getElementById('txn-tbody')
+  if (!txns || !txns.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">No transactions${_txnPeriod === 'today' ? ' today' : ' yet'}</td></tr>`
+    return
+  }
+  tbody.innerHTML = txns.map(t => `
+    <tr>
+      <td>#${t.id}</td>
+      <td>${t.user_name}</td>
+      <td><span class="badge ${txnBadge(t.type)}">${t.type}</span></td>
+      <td class="${t.amount >= 0 ? 'text-success' : 'text-danger'}">${Math.round(Math.abs(t.amount))} Pts</td>
+      <td>${Math.round(t.balance_after)} Pts</td>
+      <td class="text-muted">${t.description || '—'}</td>
+      <td class="text-muted" style="font-size:.78rem">${t.created_at?.slice(0,16).replace('T',' ') || ''}</td>
+    </tr>
+  `).join('')
+}
+
+// Load today's snapshot stats
+async function loadTodaySummary() {
+  const data = await GET('/api/payouts/summary-today')
+  const el = document.getElementById('today-summary')
+  if (!data || !el) return
+  el.style.display = ''
+  document.getElementById('today-stats').innerHTML = `
+    <div class="card">
+      <div class="card-title">Draws Run</div>
+      <div class="card-value">${data.draws}</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Tickets Sold</div>
+      <div class="card-value">${data.ticketsSold.count}</div>
+      <div class="card-sub text-muted" style="font-size:.82rem;margin-top:2px">${Math.round(data.ticketsSold.total || 0)} pts revenue</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Prizes Paid</div>
+      <div class="card-value text-warning">${data.prizes.count}</div>
+      <div class="card-sub text-muted" style="font-size:.82rem;margin-top:2px">${Math.round(data.prizes.total || 0)} pts</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Deposits In</div>
+      <div class="card-value text-success">${data.deposits.count}</div>
+      <div class="card-sub text-muted" style="font-size:.82rem;margin-top:2px">${Math.round(data.deposits.total || 0)} pts</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Withdrawals</div>
+      <div class="card-value text-danger">${data.withdrawals.count}</div>
+      <div class="card-sub text-muted" style="font-size:.82rem;margin-top:2px">${Math.round(data.withdrawals.total || 0)} pts</div>
+    </div>
+  `
+}
+
 async function loadPayouts() {
   const [summary, txns] = await Promise.all([
     GET('/api/payouts/summary'),
-    GET('/api/payouts?limit=100'),
+    GET('/api/payouts?date=today&limit=200'),
   ])
   if (!summary || !txns) return
 
@@ -828,48 +889,40 @@ async function loadPayouts() {
     <div class="card"><div class="card-title">Total Prizes Paid</div><div class="card-value">${Number(summary.agentPrizes || 0).toLocaleString()} pts</div></div>
   `
 
-  // Transactions
-  const tbody = document.getElementById('txn-tbody')
-  if (!txns.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">No transactions yet</td></tr>'; return }
-  tbody.innerHTML = txns.map(t => `
-    <tr>
-      <td>#${t.id}</td>
-      <td>${t.user_name}</td>
-      <td><span class="badge ${txnBadge(t.type)}">${t.type}</span></td>
-      <td class="${t.amount >= 0 ? 'text-success' : 'text-danger'}">${Math.round(Math.abs(t.amount))} Pts</td>
-      <td>${Math.round(t.balance_after)} Pts</td>
-      <td class="text-muted">${t.description || '—'}</td>
-      <td class="text-muted" style="font-size:.78rem">${t.created_at?.slice(0,16).replace('T',' ') || ''}</td>
-    </tr>
-  `).join('')
+  // Transactions — use shared renderer (defaults to today on first load)
+  await refreshTxnTable()
+  await loadTodaySummary()
 }
 
 function txnBadge(type) {
   if (type === 'deposit')          return 'badge-success'
-  if (type === 'prize_win')        return 'badge-warning'
+  if (type === 'prize' || type === 'prize_win') return 'badge-warning'
   if (type === 'withdrawal')       return 'badge-danger'
   if (type === 'commission')       return 'badge-purple'
   if (type === 'ticket_purchase')  return 'badge-info'
   return 'badge-info'
 }
 
-document.getElementById('txn-type-filter').addEventListener('change', async function() {
-  const params = this.value ? `?type=${this.value}` : ''
-  const txns = await GET('/api/payouts' + params)
-  if (!txns) return
-  const tbody = document.getElementById('txn-tbody')
-  if (!txns.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">No transactions</td></tr>'; return }
-  tbody.innerHTML = txns.map(t => `
-    <tr>
-      <td>#${t.id}</td><td>${t.user_name}</td>
-      <td><span class="badge ${txnBadge(t.type)}">${t.type}</span></td>
-      <td class="${t.amount >= 0 ? 'text-success' : 'text-danger'}">${Math.round(Math.abs(t.amount))} Pts</td>
-      <td>${Math.round(t.balance_after)} Pts</td>
-      <td class="text-muted">${t.description || '—'}</td>
-      <td class="text-muted" style="font-size:.78rem">${t.created_at?.slice(0,16).replace('T',' ') || ''}</td>
-    </tr>
-  `).join('')
+// ── Period tabs (Today / All Time) ───────────────────────────────────────
+document.getElementById('txn-period-tabs').addEventListener('click', async (e) => {
+  const tab = e.target.closest('.period-tab')
+  if (!tab) return
+  document.querySelectorAll('#txn-period-tabs .period-tab').forEach(t => t.classList.remove('active'))
+  tab.classList.add('active')
+  _txnPeriod = tab.dataset.period
+  await refreshTxnTable()
+  if (_txnPeriod === 'today') {
+    await loadTodaySummary()
+  } else {
+    document.getElementById('today-summary').style.display = 'none'
+  }
 })
+
+// ── Type filter ───────────────────────────────────────────────────────────
+document.getElementById('txn-type-filter').addEventListener('change', async function() {
+  await refreshTxnTable()
+})
+
 
 // ══════════════════════════════════════════════════════════════════════════
 // SYSTEM TICKETS (password-locked)
