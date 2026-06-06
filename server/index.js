@@ -378,9 +378,31 @@ function drawNextBall(intervalMs, drawId) {
     const number = drawNumber(game)
     if (number !== null) {
       io.emit('number-drawn', { number, called: [...game.called] })
+
+      // ── Server-side win check after every ball ────────────────────────────
+      // This handles ALL tickets (including offline players) so prizes are
+      // awarded the moment the winning ball drops, not only when all 90 are drawn.
+      // Line wins: prize awarded and draw CONTINUES (rule: line → keep going to bingo).
+      // Bingo wins: prize awarded and draw ENDS immediately.
+      const bingoFound = checkWins(drawId, currentDraw)
+      if (bingoFound) {
+        game.gameOver = true
+        try { dbRun(`UPDATE draws SET status = 'completed' WHERE id = ?`, [drawId]) } catch (e) { console.error('[drawNextBall] status→completed failed:', e.message) }
+        io.emit('game-over')
+        io.emit('draw-results', {
+          drawTitle:        currentDraw?.title ?? '',
+          lineWinner:       lineWinnerEmail,
+          bingoWinner:      bingoWinnerEmail,
+          linePrizeAwarded,
+          bingoPrizeAwarded,
+        })
+        setTimeout(scheduleNextDraw, 5_000)
+        return
+      }
+
       drawNextBall(intervalMs, drawId)
     } else {
-      // All balls drawn — check wins first so winner emails are set, then broadcast
+      // All 90 balls drawn with no bingo found — end the draw
       game.gameOver = true
       try { dbRun(`UPDATE draws SET status = 'completed' WHERE id = ?`, [drawId]) } catch (e) { console.error('[drawNextBall] status→completed failed:', e.message) }
       checkWins(drawId, currentDraw)
