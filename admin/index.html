@@ -79,18 +79,18 @@
 
       <!-- ── TODAY ─────────────────────────────────────────────────── -->
       <div class="panel" id="panel-today">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-          <div>
-            <h2 style="font-size:1.2rem;margin-bottom:4px">Today's Draws</h2>
-            <p class="text-muted" id="today-date-label"></p>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <span id="today-live-badge" style="display:none" class="badge badge-danger" style="animation:pulse 1s infinite">🔴 LIVE</span>
-            <button class="btn btn-ghost btn-sm" id="today-refresh-btn" title="Refresh">↻ Refresh</button>
-          </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+          <h2 style="font-size:1.2rem">Today's Draws</h2>
+          <span id="today-last-updated" class="text-muted" style="font-size:.8rem"></span>
         </div>
-        <div class="stat-grid" id="today-summary-row" style="margin-bottom:24px"></div>
-        <div id="today-draws-list"></div>
+        <div class="table-wrap">
+          <table id="today-table">
+            <thead>
+              <tr><th>#</th><th>Draw</th><th>Status</th><th style="text-align:right">Tickets Sold (pts)</th></tr>
+            </thead>
+            <tbody id="today-tbody"></tbody>
+          </table>
+        </div>
       </div>
 
       <!-- ── DRAWS ──────────────────────────────────────────────────── -->

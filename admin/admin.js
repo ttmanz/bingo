@@ -171,7 +171,7 @@ document.querySelectorAll('.nav-item').forEach(item => {
 // DRAWS PANEL
 // ══════════════════════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════════════════
-// TODAY PANEL
+// TODAY PANEL  — draw name + tickets sold in pts, live row refreshes every 10s
 // ══════════════════════════════════════════════════════════════════════════
 let _todayTimer = null
 
@@ -180,111 +180,41 @@ function _stopTodayRefresh() {
 }
 
 async function loadToday() {
-  // Set date label
-  const dateEl = document.getElementById('today-date-label')
-  if (dateEl) dateEl.textContent = new Date().toLocaleDateString(undefined, { weekday:'long', year:'numeric', month:'long', day:'numeric' })
-
   await _renderToday()
-
-  // Auto-refresh every 10 seconds while panel is open
   _stopTodayRefresh()
   _todayTimer = setInterval(_renderToday, 10_000)
-
-  document.getElementById('today-refresh-btn').onclick = _renderToday
 }
 
 async function _renderToday() {
   const draws = await GET('/api/schedule/today')
   if (!draws) return
 
-  const list   = document.getElementById('today-draws-list')
-  const sumRow = document.getElementById('today-summary-row')
-  const badge  = document.getElementById('today-live-badge')
-
-  const total      = draws.length
-  const completed  = draws.filter(d => d.status === 'completed').length
-  const running    = draws.filter(d => d.status === 'running').length
-  const scheduled  = draws.filter(d => d.status === 'scheduled').length
-  const totalTix   = draws.reduce((s, d) => s + (d.ticket_count || 0), 0)
-
-  if (badge) badge.style.display = running ? '' : 'none'
-
-  sumRow.innerHTML = `
-    <div class="card"><div class="card-title">Total Draws</div><div class="card-value">${total}</div></div>
-    <div class="card"><div class="card-title">Completed</div><div class="card-value text-success">${completed}</div></div>
-    <div class="card"><div class="card-title">Live Now</div><div class="card-value text-danger">${running}</div></div>
-    <div class="card"><div class="card-title">Pending</div><div class="card-value text-warning">${scheduled}</div></div>
-    <div class="card"><div class="card-title">Tickets Sold</div><div class="card-value">${totalTix}</div></div>
-  `
+  const tbody = document.getElementById('today-tbody')
+  const updated = document.getElementById('today-last-updated')
+  if (updated) updated.textContent = 'Updated ' + new Date().toLocaleTimeString()
 
   if (!draws.length) {
-    list.innerHTML = '<p class="text-muted" style="padding:24px 0">No draws scheduled for today.</p>'
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:24px">No draws today</td></tr>'
     return
   }
 
-  const now = Date.now()
-  list.innerHTML = draws.map(d => {
-    const timeStr  = d.draw_time?.slice(0, 5) || ''
-    const drawUtc  = new Date(`${d.draw_date}T${d.draw_time || '00:00'}+03:00`).getTime()
-    const diffMs   = drawUtc - now
-    const diffMins = Math.ceil(diffMs / 60000)
+  tbody.innerHTML = draws.map((d, i) => {
+    let statusBadge
+    if      (d.status === 'completed') statusBadge = '<span class="badge badge-success">Completed</span>'
+    else if (d.is_live)                statusBadge = '<span class="badge badge-danger">🔴 Live</span>'
+    else if (d.status === 'running')   statusBadge = '<span class="badge badge-danger">🔴 Live</span>'
+    else if (d.status === 'scheduled') statusBadge = '<span class="badge badge-warning">Pending</span>'
+    else                               statusBadge = `<span class="badge badge-info">${d.status}</span>`
 
-    let statusBadge, statusExtra = ''
-    if (d.status === 'completed') {
-      statusBadge = `<span class="badge badge-success">✅ Completed</span>`
-      if (d.line_winner || d.bingo_winner) {
-        statusExtra = `
-          <div style="margin-top:10px;display:flex;gap:12px;flex-wrap:wrap">
-            ${d.line_winner  ? `<div><span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Line Winner</span><br><strong style="font-size:.9rem">${d.line_winner}</strong></div>` : ''}
-            ${d.bingo_winner ? `<div><span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">Bingo Winner</span><br><strong style="font-size:.9rem">${d.bingo_winner}</strong></div>` : ''}
-          </div>`
-      } else {
-        statusExtra = `<p class="text-muted" style="margin-top:8px;font-size:.85rem">No winners recorded</p>`
-      }
-    } else if (d.status === 'running') {
-      const pct = d.balls_called != null ? Math.round((d.balls_called / 90) * 100) : 0
-      statusBadge = `<span class="badge badge-danger" style="animation:pulse 1.5s infinite">🔴 LIVE</span>`
-      statusExtra = `
-        <div style="margin-top:10px">
-          <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:4px">
-            <span class="text-muted">Balls Called</span>
-            <strong>${d.balls_called ?? '—'} / 90</strong>
-          </div>
-          <div style="background:var(--border);border-radius:4px;height:6px;overflow:hidden">
-            <div style="background:var(--danger);height:100%;width:${pct}%;transition:width .5s"></div>
-          </div>
-          ${d.line_winner ? `<p style="margin-top:6px;font-size:.83rem">🏅 Line won — <strong>${d.line_winner}</strong></p>` : ''}
-        </div>`
-    } else if (d.status === 'scheduled') {
-      statusBadge = `<span class="badge badge-warning">⏰ Scheduled</span>`
-      if (diffMs > 0) {
-        const h = Math.floor(diffMins / 60), m = diffMins % 60
-        const countdown = h > 0 ? `${h}h ${m}m` : `${m}m`
-        statusExtra = `<p class="text-muted" style="margin-top:6px;font-size:.85rem">Starting in <strong>${countdown}</strong></p>`
-      } else {
-        statusExtra = `<p class="text-muted" style="margin-top:6px;font-size:.85rem">Starting soon…</p>`
-      }
-    } else {
-      statusBadge = `<span class="badge badge-info">${d.status}</span>`
-    }
+    const pts = Number(d.revenue_pts || 0).toLocaleString()
+    const rowStyle = d.is_live ? 'background:rgba(239,68,68,.06);' : ''
 
-    return `
-      <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:12px;${d.status === 'running' ? 'border-color:var(--danger);box-shadow:0 0 0 2px rgba(239,68,68,.15)' : ''}">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-          <div style="display:flex;align-items:center;gap:10px">
-            ${statusBadge}
-            <div>
-              <div style="font-weight:700;font-size:1rem">${d.title || 'Draw'}</div>
-              <div class="text-muted" style="font-size:.8rem">${timeStr}</div>
-            </div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-size:1.4rem;font-weight:800">${d.ticket_count || 0}</div>
-            <div class="text-muted" style="font-size:.72rem;text-transform:uppercase;letter-spacing:.05em">Tickets Sold</div>
-          </div>
-        </div>
-        ${statusExtra}
-      </div>`
+    return `<tr style="${rowStyle}">
+      <td>${i + 1}</td>
+      <td><strong>${d.title || 'Draw'}</strong><span class="text-muted" style="font-size:.78rem;margin-left:6px">${d.draw_time || ''}</span></td>
+      <td>${statusBadge}</td>
+      <td style="text-align:right;font-weight:700">${pts} pts</td>
+    </tr>`
   }).join('')
 }
 
