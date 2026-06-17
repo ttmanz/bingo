@@ -555,7 +555,7 @@ function openUserModal(user = null) {
   document.getElementById('um-email').value   = user?.email   ?? ''
   document.getElementById('um-phone').value   = user?.phone   ?? ''
   document.getElementById('um-role').value    = user?.role    ?? 'player'
-  document.getElementById('um-balance').value = user?.balance ?? 0
+  document.getElementById('um-balance').value = user?.points ?? 0
   document.getElementById('um-status').value  = user?.status  ?? 'active'
   document.getElementById('user-modal').classList.add('open')
 }
@@ -1366,7 +1366,7 @@ async function deleteSpecialDraw(id) {
 // Payout modal (deposit / withdraw)
 async function openPayoutModal(type) {
   const users = await GET('/api/users?limit=500')
-  document.getElementById('pm-user').innerHTML = (users || []).map(u => `<option value="${u.id}">${u.name} — ${Math.round(u.balance||0)} Pts</option>`).join('')
+  document.getElementById('pm-user').innerHTML = (users || []).map(u => `<option value="${u.id}">${u.name} — ${Math.round(u.points||0)} Pts</option>`).join('')
   document.getElementById('payout-type').value = type
   document.getElementById('payout-modal-title').textContent = type === 'deposit' ? 'Deposit Funds' : 'Withdraw Funds'
   document.getElementById('pm-amount').value = ''

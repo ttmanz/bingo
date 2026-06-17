@@ -117,51 +117,52 @@ router.get('/summary', requireAuth, (req, res) => {
   })
 })
 
-// POST /api/payouts/deposit — add balance to user
+// POST /api/payouts/deposit — buy-in: credit points (money → points, 1:1)
 router.post('/deposit', requireAuth, (req, res) => {
   const { user_id, amount, description } = req.body
+  const amt = Number(amount)
+  if (!amt || amt <= 0) return res.status(400).json({ error: 'Amount must be greater than 0' })
   const user = queryOne('SELECT * FROM users WHERE id = ?', [user_id])
   if (!user) return res.status(404).json({ error: 'User not found' })
-  const newBalance = (user.balance ?? 0) + Number(amount)
-  run('UPDATE users SET balance = ? WHERE id = ?', [newBalance, user_id])
+  const newPoints = (user.points ?? 0) + amt
+  run('UPDATE users SET points = ? WHERE id = ?', [newPoints, user_id])
   insert(
     'INSERT INTO transactions (user_id, type, amount, balance_after, description) VALUES (?,?,?,?,?)',
-    [user_id, 'deposit', amount, newBalance, description ?? 'Manual deposit']
+    [user_id, 'deposit', amt, newPoints, description ?? 'Points purchased (buy-in)']
   )
-  res.json({ ok: true, balance: newBalance })
+  res.json({ ok: true, points: newPoints })
 })
 
-// POST /api/payouts/withdraw — deduct balance from user
+// POST /api/payouts/withdraw — redemption: deduct points (points → money, 1:1)
 router.post('/withdraw', requireAuth, (req, res) => {
   const { user_id, amount, description } = req.body
+  const amt = Number(amount)
+  if (!amt || amt <= 0) return res.status(400).json({ error: 'Amount must be greater than 0' })
   const user = queryOne('SELECT * FROM users WHERE id = ?', [user_id])
   if (!user) return res.status(404).json({ error: 'User not found' })
-  const newBalance = (user.balance ?? 0) - Number(amount)
-  run('UPDATE users SET balance = ? WHERE id = ?', [newBalance, user_id])
+  if ((user.points ?? 0) < amt) {
+    return res.status(400).json({ error: `Insufficient points — user has ${user.points ?? 0}` })
+  }
+  const newPoints = (user.points ?? 0) - amt
+  run('UPDATE users SET points = ? WHERE id = ?', [newPoints, user_id])
   insert(
     'INSERT INTO transactions (user_id, type, amount, balance_after, description) VALUES (?,?,?,?,?)',
-    [user_id, 'withdrawal', -amount, newBalance, description ?? 'Manual withdrawal']
+    [user_id, 'withdrawal', -amt, newPoints, description ?? 'Points redeemed for cash']
   )
-  res.json({ ok: true, balance: newBalance })
+  res.json({ ok: true, points: newPoints })
 })
 
-// POST /api/payouts/prize — pay out a winning ticket
+// POST /api/payouts/prize — mark a winning ticket as collected.
+// The prize was already credited to the winner's points when the game awarded
+// it, so this only flags the ticket as settled (no second credit). Winners cash
+// out their points via the normal redemption (withdraw) flow.
 router.post('/prize', requireAuth, (req, res) => {
   const { ticket_id } = req.body
-  const ticket = queryOne(
-    'SELECT t.*, u.balance FROM tickets t JOIN users u ON u.id = t.user_id WHERE t.id = ?',
-    [ticket_id]
-  )
+  const ticket = queryOne('SELECT * FROM tickets WHERE id = ?', [ticket_id])
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' })
-  if (ticket.paid_out) return res.status(400).json({ error: 'Already paid out' })
-  const newBalance = (ticket.balance ?? 0) + ticket.prize_amount
-  run('UPDATE users SET balance = ? WHERE id = ?', [newBalance, ticket.user_id])
+  if (ticket.paid_out) return res.status(400).json({ error: 'Already marked as paid' })
   run('UPDATE tickets SET paid_out = 1 WHERE id = ?', [ticket_id])
-  insert(
-    'INSERT INTO transactions (user_id, type, amount, balance_after, description, draw_id) VALUES (?,?,?,?,?,?)',
-    [ticket.user_id, 'prize_win', ticket.prize_amount, newBalance, `Prize for ticket #${ticket_id}`, ticket.draw_id]
-  )
-  res.json({ ok: true, balance: newBalance })
+  res.json({ ok: true })
 })
 
 export default router
