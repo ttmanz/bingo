@@ -15,7 +15,3 @@ export function animateBallDrop(ballEl, color) {
     { y: 0, opacity: 1, scale: 1, duration: 0.65, ease: 'bounce.out' }
   )
 }
-
-export function animateChipAppear(chipEl) {
-  gsap.from(chipEl, { opacity: 0, scale: 0, duration: 0.3, ease: 'back.out(1.7)' })
-}

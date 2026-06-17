@@ -300,24 +300,6 @@ export class Announcer {
     speechSynthesis.speak(utt)
   }
 
-  // ── Public: freeze video at a "standing still" frame ─────────────────────
-  freezeVideo(seekTime = 4.0) {
-    if (!this._video) return
-    this._video.loop = false
-    this._video.currentTime = seekTime
-    this._video.addEventListener('seeked', () => {
-      this._video?.pause()
-    }, { once: true })
-  }
-
-  // ── Public: unfreeze — restart video from beginning ───────────────────────
-  unfreezeVideo() {
-    if (!this._video) return
-    this._video.loop = true
-    this._video.currentTime = 0
-    this._video.play().catch(() => {})
-  }
-
   reset() {
     speechSynthesis.cancel()
     this._speaking = false

@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { readFileSync } from 'fs'
 import { requireAuth } from '../middleware/auth.js'
-import { queryOne, run, transaction } from '../db.js'
+import { queryOne, transaction } from '../db.js'
 
 const router = Router()
 

@@ -22,12 +22,3 @@ export function getColumn(number) {
   if (number <= 79) return 8
   return 9
 }
-
-export function drawNumber(called) {
-  const available = []
-  for (let i = 1; i <= 90; i++) {
-    if (!called.has(i)) available.push(i)
-  }
-  if (!available.length) return null
-  return available[Math.floor(Math.random() * available.length)]
-}

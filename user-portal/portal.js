@@ -126,12 +126,7 @@ $('btnRegSubmit').addEventListener('click', async () => {
     return;
   }
 
-  // Auto-login after registration
-  const login = await apiFetch('/api/user-auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password })
-  });
-
+  // Registration returns a token — use it to log straight in
   token = data.token;
   localStorage.setItem('bp_token', token);
   hideModal('screen-register');
@@ -561,7 +556,6 @@ function drawCard(d, showBuy) {
 // ── Buy confirm modal ─────────────────────────────────────────────────────
 
 let activeBuyDrawId    = null;
-let activeBuyDrawTitle = '';
 let activeBuyPrice     = 1;
 let buyQty = 1;
 
@@ -570,7 +564,6 @@ function openBuyModal(drawId) {
   if (!draw) return;
 
   activeBuyDrawId    = drawId;
-  activeBuyDrawTitle = draw.name || draw.title || 'Draw';
   activeBuyPrice     = draw.ticket_price ?? draw.price ?? 1;
   buyQty = 1;
 
@@ -793,7 +786,7 @@ $('closePointsOk').addEventListener('click', () => hideModal('modal-points'));
   $('ibInstall').addEventListener('click', async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
+    await deferredPrompt.userChoice;
     deferredPrompt = null;
     dismissBanner();
   });

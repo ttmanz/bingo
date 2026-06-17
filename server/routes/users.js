@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { query, queryOne, run, insert } from '../db.js'
+import { query, run, insert } from '../db.js'
 import { requireAuth } from '../middleware/auth.js'
 
 const router = Router()

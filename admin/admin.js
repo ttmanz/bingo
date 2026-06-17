@@ -3,8 +3,6 @@ const API = ''  // same origin
 let TOKEN = localStorage.getItem('admin_token') || ''
 let ADMIN_NAME = localStorage.getItem('admin_name') || ''
 
-const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
-
 // ── API helper ────────────────────────────────────────────────────────────
 async function api(method, path, body) {
   const res = await fetch(API + path, {

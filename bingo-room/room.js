@@ -104,33 +104,6 @@ function _applyWaiting({ drawId, nextDrawTime, nextDrawTitle, annType }) {
   showWaitingPanel(nextDrawTime, nextDrawTitle)
 }
 
-function showDrawInProgress(nextDrawTime, nextDrawTitle) {
-  // Cover the room with the curtain — user arrived mid-draw, show next draw info
-  const blocked = document.getElementById('room-blocked')
-  if (blocked) {
-    const inner = blocked.querySelector('.room-blocked-inner')
-    if (inner) {
-      const nextTime = nextDrawTime
-        ? new Date(nextDrawTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        : null
-      inner.innerHTML = `
-        <img src="/bingo-room/bm.png" alt="" style="width:120px;height:auto;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;">
-        <h2 class="room-blocked-title">Draw in Progress</h2>
-        <p class="room-blocked-msg">This draw is underway.<br>Please wait for the next one.</p>
-        ${nextDrawTitle || nextTime ? `<div class="room-blocked-next"><span class="rbn-label">${nextDrawTitle || 'Next draw'}</span><span class="rbn-time">${nextTime || '—'}</span></div>` : ''}
-        <a href="/user-portal" class="room-blocked-btn" style="margin-top:16px">← Back to Portal</a>
-      `
-    }
-    blocked.style.opacity = '1'
-    blocked.classList.remove('hidden')
-  }
-  // CRITICAL: mark curtain as "intentionally shown for mid-draw block".
-  // Without this, the ball-interval countdown handler (remaining <= 0) would
-  // immediately lift the curtain because _curtainFaded is false on fresh page load.
-  _curtainFaded = true
-  renderPlayerCard()
-}
-
 function hideWaitingBanner() {
   const banner = document.getElementById('room-waiting-banner')
   if (banner) banner.classList.add('hidden')
@@ -544,9 +517,7 @@ function renderPlayerCard() {
   }
   noTicketEl.classList.add('hidden')
   cardDrawEl.textContent = playerCards.drawTitle ?? ''
-  cardGridEl.innerHTML = playerCards.cards.map((card, i) => {
-    return buildCardTable(card)
-  }).join('')
+  cardGridEl.innerHTML = playerCards.cards.map(card => buildCardTable(card)).join('')
 }
 
 function buildCardTable(card) {
@@ -1071,48 +1042,6 @@ async function runRemoteWinCeremony(type, amount) {
     // Apply any 'waiting' event that was deferred during the ceremony
     if (_pendingWaiting) { const pw = _pendingWaiting; _pendingWaiting = null; _applyWaiting(pw) }
     tryShowDrawResults(_ownDrawId)
-  }
-}
-
-function showNextDrawCountdown(seconds) {
-  const el = document.createElement('div')
-  el.id = 'bingo-next-draw'
-  el.innerHTML = `
-    <div class="bnd-label">NEXT DRAW IN</div>
-    <div class="bnd-num" id="bnd-num">${seconds}</div>
-    <div class="bnd-sublabel">seconds</div>
-  `
-  document.body.appendChild(el)
-  gsap.fromTo(el, { opacity: 0, scale: 0.85 }, { opacity: 1, scale: 1, duration: 0.55, ease: 'back.out(1.4)' })
-
-  let remaining = seconds
-  const tick = setInterval(() => {
-    remaining--
-    const numEl = document.getElementById('bnd-num')
-    if (numEl) {
-      numEl.textContent = remaining
-      gsap.fromTo(numEl, { scale: 1.25, color: '#c4b5fd' }, { scale: 1, color: '#a78bfa', duration: 0.35, ease: 'back.out' })
-    }
-    if (remaining <= 0) {
-      clearInterval(tick)
-      gsap.to(el, { opacity: 0, scale: 0.9, duration: 0.5, onComplete: () => {
-        el.remove()
-        _socket?.emit('reset')
-      }})
-    }
-  }, 1000)
-}
-
-function highlightRow(card, rowIdx, cls) {
-  const tables = document.querySelectorAll('.room-card-grid-table')
-  const cardIdx = playerCards.cards.indexOf(card)
-  const table = tables[cardIdx]
-  if (!table) return
-  const rows = table.querySelectorAll('tr')
-  if (rowIdx === -1) {
-    rows.forEach(r => r.querySelectorAll('td').forEach(td => { if (!td.classList.contains('blank')) td.className = cls }))
-  } else {
-    rows[rowIdx]?.querySelectorAll('td').forEach(td => { if (!td.classList.contains('blank')) td.className = cls })
   }
 }
 
