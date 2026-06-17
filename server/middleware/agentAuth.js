@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken'
 
-export const AGENT_JWT_SECRET = process.env.AGENT_JWT_SECRET || 'themis-agent-portal-2026'
+export const AGENT_JWT_SECRET = process.env.AGENT_JWT_SECRET
+if (!AGENT_JWT_SECRET) throw new Error('AGENT_JWT_SECRET is not set — add it to .env (see .env.example)')
 
 export function requireAgentAuth(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1]

@@ -6,6 +6,7 @@ process.on('unhandledRejection', (reason) => {
   console.error('[FATAL] unhandledRejection:', reason)
 })
 
+import './env.js'   // must be first — loads .env before any secret is read
 import express from 'express'
 import compression from 'compression'
 import { createServer } from 'http'

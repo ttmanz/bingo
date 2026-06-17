@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken'
 
-export const USER_JWT_SECRET = process.env.USER_JWT_SECRET || 'themis-user-portal-2026'
+export const USER_JWT_SECRET = process.env.USER_JWT_SECRET
+if (!USER_JWT_SECRET) throw new Error('USER_JWT_SECRET is not set — add it to .env (see .env.example)')
 
 export function requireUserAuth(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1]

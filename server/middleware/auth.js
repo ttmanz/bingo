@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken'
 
-export const JWT_SECRET = process.env.JWT_SECRET || 'themis-bingo-secret-2026'
+export const JWT_SECRET = process.env.JWT_SECRET
+if (!JWT_SECRET) throw new Error('JWT_SECRET is not set — add it to .env (see .env.example)')
 
 export function requireAuth(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1]
