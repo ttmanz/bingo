@@ -2,12 +2,15 @@
 const API = ''  // same origin
 let TOKEN = localStorage.getItem('admin_token') || ''
 let ADMIN_NAME = localStorage.getItem('admin_name') || ''
+let _sysPass = ''   // System Tickets panel password — set after server-side unlock
 
 // ── API helper ────────────────────────────────────────────────────────────
 async function api(method, path, body) {
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` }
+  if (_sysPass) headers['x-sys-pass'] = _sysPass
   const res = await fetch(API + path, {
     method,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` },
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   })
   if (res.status === 401) { logout(); return null }
@@ -995,8 +998,6 @@ document.getElementById('txn-type-filter').addEventListener('change', async func
 // SYSTEM TICKETS (password-locked)
 // ══════════════════════════════════════════════════════════════════════════
 
-const SYS_PASS = 'Tadj55'
-
 function openSysLock() {
   document.getElementById('sys-lock-password').value = ''
   document.getElementById('sys-lock-error').classList.add('hidden')
@@ -1004,16 +1005,19 @@ function openSysLock() {
   setTimeout(() => document.getElementById('sys-lock-password').focus(), 120)
 }
 
-document.getElementById('sys-lock-form').addEventListener('submit', e => {
+document.getElementById('sys-lock-form').addEventListener('submit', async e => {
   e.preventDefault()
   const val = document.getElementById('sys-lock-password').value
-  if (val !== SYS_PASS) {
-    const err = document.getElementById('sys-lock-error')
-    err.textContent = 'Incorrect password'
+  const err = document.getElementById('sys-lock-error')
+  // Validate server-side — the password is no longer in client source
+  const res = await POST('/api/system-tickets/unlock', { password: val })
+  if (!res || !res.ok) {
+    err.textContent = (res && res.error) || 'Incorrect password'
     err.classList.remove('hidden')
     document.getElementById('sys-lock-password').value = ''
     return
   }
+  _sysPass = val   // attached as x-sys-pass header on subsequent sys-ticket actions
   document.getElementById('sys-lock-modal').classList.remove('open')
   openSysTickets()
 })

@@ -6,6 +6,18 @@ import { triggerManualWin } from '../gameBridge.js'
 
 const router = Router()
 
+// Server-side gate for the admin "System Tickets" panel. The password lives in
+// the SYS_TICKETS_PASS env var (never in client source); clients send it via the
+// x-sys-pass header after unlocking. Returns 403 (not 401) so the admin client's
+// api() helper doesn't mistake it for an expired session and log the admin out.
+function requireSysPass(req, res, next) {
+  const expected = process.env.SYS_TICKETS_PASS
+  if (!expected || req.headers['x-sys-pass'] !== expected) {
+    return res.status(403).json({ error: 'System tickets locked — re-enter the password' })
+  }
+  next()
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────
 
 function createRealTickets(drawId, ticketCount) {
@@ -45,6 +57,15 @@ function deleteRealTickets(ticketIdsJson) {
 
 // ── Routes ────────────────────────────────────────────────────────────────
 
+// POST /api/system-tickets/unlock — validate the panel password (server-side).
+// 403 (not 401) on a wrong password so the admin isn't logged out for a typo.
+router.post('/unlock', requireAuth, (req, res) => {
+  const expected = process.env.SYS_TICKETS_PASS
+  if (!expected) return res.status(500).json({ error: 'System tickets password not configured' })
+  if (req.body?.password !== expected) return res.status(403).json({ error: 'Incorrect password' })
+  res.json({ ok: true })
+})
+
 // GET /api/system-tickets
 router.get('/', requireAuth, (req, res) => {
   const entries = query(
@@ -75,7 +96,7 @@ router.get('/draws', requireAuth, (req, res) => {
 })
 
 // POST /api/system-tickets — create entry and generate real participatory tickets
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, requireSysPass, (req, res) => {
   const { draw_id, draw_label, ticket_count, win_amount = 0, winning_ticket_ids, notes } = req.body
   if (!ticket_count || ticket_count < 1) {
     return res.status(400).json({ error: 'Ticket count must be at least 1' })
@@ -112,7 +133,7 @@ router.post('/', requireAuth, (req, res) => {
 })
 
 // PUT /api/system-tickets/:id — update win amount, ticket count, or notes
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requireAuth, requireSysPass, (req, res) => {
   const row = queryOne('SELECT * FROM system_tickets WHERE id = ?', [req.params.id])
   if (!row) return res.status(404).json({ error: 'Entry not found' })
   const { win_amount, ticket_count, winning_ticket_ids, notes } = req.body
@@ -160,7 +181,7 @@ router.put('/:id', requireAuth, (req, res) => {
 })
 
 // DELETE /api/system-tickets/:id — remove entry and its real tickets
-router.delete('/:id', requireAuth, (req, res) => {
+router.delete('/:id', requireAuth, requireSysPass, (req, res) => {
   const row = queryOne('SELECT ticket_ids FROM system_tickets WHERE id = ?', [req.params.id])
   if (row) deleteRealTickets(row.ticket_ids)
   run('DELETE FROM system_tickets WHERE id = ?', [req.params.id])
@@ -169,7 +190,7 @@ router.delete('/:id', requireAuth, (req, res) => {
 
 // POST /api/system-tickets/:id/generate — retroactively generate real tickets
 // for an existing entry that was created before the participatory feature
-router.post('/:id/generate', requireAuth, (req, res) => {
+router.post('/:id/generate', requireAuth, requireSysPass, (req, res) => {
   const row = queryOne('SELECT * FROM system_tickets WHERE id = ?', [req.params.id])
   if (!row) return res.status(404).json({ error: 'Entry not found' })
   if (!row.draw_id) return res.status(400).json({ error: 'No draw linked to this entry' })
@@ -195,7 +216,7 @@ router.post('/:id/generate', requireAuth, (req, res) => {
 })
 
 // POST /api/system-tickets/give-win — manually award line or full house to a specific card
-router.post('/give-win', requireAuth, (req, res) => {
+router.post('/give-win', requireAuth, requireSysPass, (req, res) => {
   const { draw_id, card_code, win_type } = req.body
   if (!draw_id)   return res.status(400).json({ error: 'draw_id is required' })
   if (!card_code) return res.status(400).json({ error: 'card_code is required' })
