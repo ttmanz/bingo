@@ -44,9 +44,9 @@ function setToken(t) { localStorage.setItem(TOKEN_KEY, t) }
 function clearToken() { localStorage.removeItem(TOKEN_KEY) }
 
 async function validateToken(token) {
-  // Verify the token is still valid (agent portal login endpoint returns profile)
+  // Verify the token is still valid — /me returns the agent profile
   try {
-    const r = await fetch('/api/agent-portal/overview', {
+    const r = await fetch('/api/agent-portal/me', {
       headers: { Authorization: `Bearer ${token}` }
     })
     return r.ok

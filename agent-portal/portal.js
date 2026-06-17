@@ -81,6 +81,7 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
 
 /* ── Big Screen Display ───────────────────────────────────────────────── */
 document.getElementById('bigScreenBtn').addEventListener('click', () => {
+  if (TOKEN) localStorage.setItem('display-agent-token', TOKEN)
   window.open('/display', '_blank', 'noopener')
 })
 
@@ -134,12 +135,6 @@ function renderOverview() {
   document.getElementById('statPlayerCount').textContent = ai.player_count ?? 0
   document.getElementById('statCommission').textContent  = ai.commission_rate ?? 0
   document.getElementById('statSubIcon').textContent   = meta.icon
-
-  if (ai.agent_type === 'agent') {
-    document.getElementById('statSubLabel').textContent = 'Sub-Agents'
-  } else {
-    document.getElementById('statSubLabel').textContent = 'Sub-Agents'
-  }
 
   document.getElementById('profName').textContent   = ai.name
   document.getElementById('profEmail').textContent  = ai.email || '–'
