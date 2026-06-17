@@ -132,9 +132,26 @@ document.getElementById('pmSaveBtn').addEventListener('click', async () => {
   const nw  = document.getElementById('pmNewPass').value
   const msg = document.getElementById('pmMsg')
   if (!cur || !nw) { msg.className='pm-msg err'; msg.textContent='Fill in both fields.'; return }
-  const res = await apiFetch('/api/auth/change-password', { method:'POST', body: JSON.stringify({ currentPassword: cur, newPassword: nw }) })
-  if (res) { msg.className='pm-msg ok'; msg.textContent='Password updated.'; document.getElementById('pmCurPass').value=''; document.getElementById('pmNewPass').value='' }
-  else { msg.className='pm-msg err'; msg.textContent='Incorrect current password.' }
+  // Direct fetch (not the api() helper) so a wrong-password 401 shows an inline
+  // error instead of triggering the global auto-logout on any 401.
+  let res, data
+  try {
+    res = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` },
+      body: JSON.stringify({ currentPassword: cur, newPassword: nw }),
+    })
+    data = await res.json().catch(() => ({}))
+  } catch {
+    msg.className='pm-msg err'; msg.textContent='Network error — please try again.'; return
+  }
+  if (res.ok) {
+    msg.className='pm-msg ok'; msg.textContent='Password updated.'
+    document.getElementById('pmCurPass').value=''
+    document.getElementById('pmNewPass').value=''
+  } else {
+    msg.className='pm-msg err'; msg.textContent = data.error || 'Could not update password.'
+  }
 })
 
 // Settings modal
