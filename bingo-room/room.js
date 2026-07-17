@@ -706,7 +706,7 @@ function buildBingoOverlayTable(card) {
   return `<table class="room-card-grid-table overlay-card-table">${trs}</table>`
 }
 
-async function runBingoCheck(card) {
+async function runBingoCheck(card, amount = 0) {
   _ceremonyActive = true   // block the 'waiting' curtain during this ceremony
   const _ownDrawId = _currentDrawId  // capture now — 'waiting' event may update it during ceremony
   paused = true
@@ -747,7 +747,7 @@ async function runBingoCheck(card) {
   const overlay = document.createElement('div')
   overlay.id = 'line-check-overlay'
   overlay.classList.add('bingo-overlay')
-  overlay.innerHTML = `<div class="lco-title">Full house — checking card…</div>` + buildBingoOverlayTable(card)
+  overlay.innerHTML = `<div class="lco-title">Full house — checking ${card ? '' : "winner's "}card…</div>` + (card ? buildBingoOverlayTable(card) : '')
   document.body.appendChild(overlay)
 
   await new Promise(r =>
@@ -758,62 +758,71 @@ async function runBingoCheck(card) {
   )
   await new Promise(r => setTimeout(r, 300))
 
-  // ── Step 3: Check all 3 rows cell by cell (silent — no speech during check) ─
-  const cardIdx   = playerCards.cards.indexOf(card)
-  const origTable = document.querySelectorAll('.room-card-grid-table')[cardIdx]
-  const overlayRows = overlay.querySelectorAll('.overlay-card-table tr')
-
   // Ensure call card column is visible and any waiting panel is hidden
   calledEl.style.display = ''
   document.getElementById('room-next-draw')?.classList.add('hidden')
 
-  // Build per-row td arrays including blank cells so column index stays aligned.
-  // Card-code-cell (rowspan=3 at end) is excluded; blank cells are kept for alignment.
-  const allORows = []
-  const allRRows = []
-  for (let ri = 0; ri < 3; ri++) {
-    allORows.push([...overlayRows[ri].querySelectorAll('td')]
-      .filter(td => !td.classList.contains('card-code-cell')))
-    allRRows.push(origTable
-      ? [...origTable.querySelectorAll('tr')[ri].querySelectorAll('td')]
-          .filter(td => !td.classList.contains('card-code-cell'))
-      : [])
-  }
-  const numCols = allORows[0].length  // 9 columns on a 90-ball card
+  if (card) {
+    // ── Step 3: Check all 3 rows cell by cell (silent — no speech during check) ─
+    // playerCards may be null (ticketless observer), and the server-sent winner
+    // card is never in the local list — origTable is then null and only the
+    // overlay + call card animate.
+    const cardIdx   = playerCards?.cards?.indexOf(card) ?? -1
+    const origTable = cardIdx >= 0 ? document.querySelectorAll('.room-card-grid-table')[cardIdx] : null
+    const overlayRows = overlay.querySelectorAll('.overlay-card-table tr')
 
-  // Column-major sweep: column 0 top→bottom, column 1 top→bottom, …
-  for (let ci = 0; ci < numCols; ci++) {
+    // Build per-row td arrays including blank cells so column index stays aligned.
+    // Card-code-cell (rowspan=3 at end) is excluded; blank cells are kept for alignment.
+    const allORows = []
+    const allRRows = []
     for (let ri = 0; ri < 3; ri++) {
-      const oTd = allORows[ri][ci]
-      const rTd = allRRows[ri]?.[ci]
-      if (!oTd || oTd.classList.contains('blank')) continue   // blank cell — skip
+      allORows.push([...overlayRows[ri].querySelectorAll('td')]
+        .filter(td => !td.classList.contains('card-code-cell')))
+      allRRows.push(origTable
+        ? [...origTable.querySelectorAll('tr')[ri].querySelectorAll('td')]
+            .filter(td => !td.classList.contains('card-code-cell'))
+        : [])
+    }
+    const numCols = allORows[0].length  // 9 columns on a 90-ball card
 
-      const num = Number(oTd.dataset.n)
-      const ccCell = num ? document.querySelector(`.cc-cell[data-n="${num}"]`) : null
+    // Column-major sweep: column 0 top→bottom, column 1 top→bottom, …
+    for (let ci = 0; ci < numCols; ci++) {
+      for (let ri = 0; ri < 3; ri++) {
+        const oTd = allORows[ri][ci]
+        const rTd = allRRows[ri]?.[ci]
+        if (!oTd || oTd.classList.contains('blank')) continue   // blank cell — skip
 
-      calledEl.style.display = ''   // keep call card visible throughout
+        const num = Number(oTd.dataset.n)
+        const ccCell = num ? document.querySelector(`.cc-cell[data-n="${num}"]`) : null
 
-      oTd.classList.add('checking')
-      if (ccCell) {
-        ccCell.classList.remove('cc-bingo-checked')
-        ccCell.classList.add('cc-bingo-highlight')
-      }
+        calledEl.style.display = ''   // keep call card visible throughout
 
-      await new Promise(r => setTimeout(r, 600))
+        oTd.classList.add('checking')
+        if (ccCell) {
+          ccCell.classList.remove('cc-bingo-checked')
+          ccCell.classList.add('cc-bingo-highlight')
+        }
 
-      oTd.classList.remove('checking')
-      oTd.className = 'bingo-win'
-      if (rTd && !rTd.classList.contains('blank')) rTd.className = 'bingo-win'
-      if (ccCell) {
-        ccCell.classList.remove('cc-bingo-highlight')
-        ccCell.classList.add('cc-bingo-checked')
+        await new Promise(r => setTimeout(r, 600))
+
+        oTd.classList.remove('checking')
+        oTd.className = 'bingo-win'
+        if (rTd && !rTd.classList.contains('blank')) rTd.className = 'bingo-win'
+        if (ccCell) {
+          ccCell.classList.remove('cc-bingo-highlight')
+          ccCell.classList.add('cc-bingo-checked')
+        }
       }
     }
+  } else {
+    // No card data (manual/admin-awarded win) — hold the overlay for the same
+    // duration as the cell check so all screens stay in sync.
+    await new Promise(r => setTimeout(r, 9000))   // 15 cells × 600 ms
   }
 
   // ── Step 4: Show BINGO! banner — hold 5 s with ALL overlays still visible ─
   await new Promise(r => setTimeout(r, 350))
-  showWin('BINGO!', 'bingo')
+  showWin(amount > 0 ? `BINGO! +${amount} pts` : 'BINGO!', 'bingo')
   await new Promise(r => setTimeout(r, 5000))
 
   // ── Step 5: Fade out overlay AND banner together — clean simultaneous exit ─
@@ -940,18 +949,16 @@ function tryShowDrawResults(completedDrawId) {
   }
 }
 
-// Played on every client that did NOT win — shows the flash + checking overlay
-async function runRemoteWinCeremony(type, amount) {
-  // _ceremonyActive is already set in the prize-awarded handler before this is called (bingo).
-  // Keep the guard here as a safety net for line wins (which don't need it but it's harmless).
-  const _ownDrawId = _currentDrawId  // capture now — 'waiting' event may update it during ceremony
+// Played on every client that did NOT win the line — flash + brief text overlay,
+// then resume. Bingo observers instead run runBingoCheck() with the server-sent
+// winning card, so everyone sees the same card-check ceremony.
+async function runRemoteLineCeremony(amount) {
   paused = true
   gsap.to(announcer._el, { opacity: 0, duration: 0.25 })  // hide announcer so it doesn't show over overlay
 
   const flash = document.createElement('div')
   flash.id = 'line-flash'
-  if (type === 'bingo') flash.classList.add('bingo-flash')
-  flash.textContent = type === 'bingo' ? 'BINGO!' : 'LINE!'
+  flash.textContent = 'LINE!'
   document.body.appendChild(flash)
 
   await new Promise(r =>
@@ -960,7 +967,7 @@ async function runRemoteWinCeremony(type, amount) {
       { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(1.6)', onComplete: r }
     )
   )
-  announcer.sayText(type === 'bingo' ? 'BINGO!' : 'LINE!')
+  announcer.sayText('LINE!')
   await new Promise(r => setTimeout(r, 1800))
   await new Promise(r =>
     gsap.to(flash, { opacity: 0, scale: 1.25, duration: 0.3, ease: 'power2.in',
@@ -970,79 +977,21 @@ async function runRemoteWinCeremony(type, amount) {
   const prizeText = amount > 0 ? ` — ${amount} pts` : ''
   const overlay = document.createElement('div')
   overlay.id = 'line-check-overlay'
-  if (type === 'bingo') overlay.classList.add('bingo-overlay')
-  overlay.innerHTML = `<div class="lco-title">${type === 'bingo' ? 'Full house' : 'Line won'}${prizeText}<br>Checking winner's card…</div>`
+  overlay.innerHTML = `<div class="lco-title">Line won${prizeText}<br>Checking winner's card…</div>`
   document.body.appendChild(overlay)
 
   gsap.fromTo(overlay, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' })
 
-  if (type === 'line') {
-    // ── Line: short hold, banner, fade overlay, resume ───────────────────────
-    await new Promise(r => setTimeout(r, 3500))
-    showWin(amount > 0 ? `LINE! +${amount} pts` : 'LINE!', 'line')
-    await new Promise(r => setTimeout(r, 1200))
-    await new Promise(r =>
-      gsap.to(overlay, { opacity: 0, y: -30, duration: 0.5, ease: 'power2.in',
-        onComplete: () => { overlay.remove(); r() } })
-    )
-    gsap.to(announcer._el, { opacity: 1, duration: 0.4, ease: 'power2.out' })
-    announcer.sayText('Continuing.', () => { paused = false; drainPendingBalls() })
-
-  } else {
-    // ── Bingo observer ceremony — mirrors runBingoCheck timing exactly ──────
-    // Winner's check: 15 non-blank cells × 600 ms = 9 000 ms
-    // Then 5 000 ms banner hold, then overlay+banner fade simultaneously,
-    // then announcer + congratulations.
-    // We replicate those durations so ALL screens clear at the same moment.
-    const CHECK_MS = 9000   // matches 15 cells × 600 ms in runBingoCheck
-    const HOLD_MS  = 5000
-
-    try {
-      // Hold the "Checking winner's card…" overlay for the full check duration
-      await new Promise(r => setTimeout(r, CHECK_MS))
-
-      // Win banner appears — same moment winner's check ends and their banner shows
-      showWin(amount > 0 ? `BINGO! +${amount} pts` : 'BINGO!', 'bingo')
-      await new Promise(r => setTimeout(r, HOLD_MS))   // 5 s hold — banner + overlay both visible
-
-      // Fade overlay AND banner simultaneously (mirrors runBingoCheck step 5)
-      gsap.to(winBannerEl, { opacity: 0, duration: 0.5, ease: 'power2.in',
-        onComplete: () => { winBannerEl.classList.add('hidden'); winBannerEl.style.opacity = '' }
-      })
-      await new Promise(r =>
-        gsap.to(overlay, { opacity: 0, y: -30, duration: 0.5, ease: 'power2.in',
-          onComplete: () => { overlay.remove(); r() }
-        })
-      )
-      await new Promise(r => setTimeout(r, 300))   // brief clear pause — screen is clean
-
-      // Announcer appears + congratulations (mirrors runBingoCheck step 6)
-      paused = false
-      drainPendingBalls()
-      await new Promise(r =>
-        gsap.to(announcer._el, { opacity: 1, duration: 0.5, ease: 'power2.out', onComplete: r })
-      )
-      _zoomAnnouncerOut()
-      await new Promise(r => setTimeout(r, 400))
-
-      await new Promise(resolve => announcer.sayText('Congratulations to all the winners!', resolve))
-      await new Promise(r => setTimeout(r, 500))
-
-      await new Promise(r =>
-        gsap.to(announcer._el, { opacity: 0, duration: 0.8, ease: 'power2.in', onComplete: r })
-      )
-    } catch (err) {
-      console.error('[bingo] runRemoteWinCeremony error — recovering', err)
-      // Clean up any leftover overlay elements so they don't block the UI
-      document.getElementById('line-check-overlay')?.remove()
-      if (winBannerEl) { winBannerEl.classList.add('hidden'); winBannerEl.style.opacity = '' }
-      paused = false
-    }
-    _ceremonyActive = false
-    // Apply any 'waiting' event that was deferred during the ceremony
-    if (_pendingWaiting) { const pw = _pendingWaiting; _pendingWaiting = null; _applyWaiting(pw) }
-    tryShowDrawResults(_ownDrawId)
-  }
+  // Short hold, banner, fade overlay, resume
+  await new Promise(r => setTimeout(r, 3500))
+  showWin(amount > 0 ? `LINE! +${amount} pts` : 'LINE!', 'line')
+  await new Promise(r => setTimeout(r, 1200))
+  await new Promise(r =>
+    gsap.to(overlay, { opacity: 0, y: -30, duration: 0.5, ease: 'power2.in',
+      onComplete: () => { overlay.remove(); r() } })
+  )
+  gsap.to(announcer._el, { opacity: 1, duration: 0.4, ease: 'power2.out' })
+  announcer.sayText('Continuing.', () => { paused = false; drainPendingBalls() })
 }
 
 function showWin(text, type) {
@@ -1413,7 +1362,7 @@ function connectSocket() {
   })
 
   // Broadcast prize announcements to ALL connected clients
-  socket.on('prize-awarded', ({ type, amount, user_id }) => {
+  socket.on('prize-awarded', ({ type, amount, user_id, card }) => {
     if (type === 'line') {
       if (_pendingLineCard) {
         // This client detected a line and is waiting for server confirmation.
@@ -1423,23 +1372,25 @@ function connectSocket() {
         if (iWon) {
           runLineCheck(card, rowIdx)   // personal winner ceremony
         } else {
-          runRemoteWinCeremony('line', amount)  // someone else won; show observer ceremony
+          runRemoteLineCeremony(amount)  // someone else won; show observer ceremony
         }
       } else if (!lineWon) {
         // This client didn't detect a line locally — just show the observer ceremony
         lineWon = true
-        runRemoteWinCeremony('line', amount)
+        runRemoteLineCeremony(amount)
       } else {
         // lineWon=true but _pendingLineCard=null: this client detected the line locally
         // but _pendingLineCard was cleared by the 7s safety timeout before prize-awarded
         // arrived (slow network). The ceremony never ran — show it now.
-        runRemoteWinCeremony('line', amount)
+        runRemoteLineCeremony(amount)
       }
     } else if (type === 'bingo') {
       if (bingoWon) return
       bingoWon = true
-      _ceremonyActive = true   // set synchronously so any 'waiting' arriving after this is suppressed
-      runRemoteWinCeremony('bingo', amount)
+      // Everyone runs the same ceremony with the server-sent winning card.
+      // card is null only for manual/admin wins — runBingoCheck degrades to a
+      // text-only overlay with matching timing in that case.
+      runBingoCheck(card ?? null, amount)
     }
   })
 

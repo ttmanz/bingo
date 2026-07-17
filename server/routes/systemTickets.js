@@ -235,12 +235,17 @@ router.post('/give-win', requireAuth, requireSysPass, (req, res) => {
   )
 
   let foundTicket = null
+  let winCard     = null
   const code = String(card_code).trim().toUpperCase()
   for (const t of tickets) {
     try {
       const cards = JSON.parse(t.numbers)
-      if (Array.isArray(cards) && cards.some(c => String(c.code).toUpperCase() === code)) {
+      const match = Array.isArray(cards)
+        ? cards.find(c => String(c.code).toUpperCase() === code)
+        : null
+      if (match) {
         foundTicket = t
+        winCard     = { row1: match.row1, row2: match.row2, row3: match.row3, code: match.code }
         break
       }
     } catch {}
@@ -257,6 +262,7 @@ router.post('/give-win', requireAuth, requireSysPass, (req, res) => {
     linePrize: draw.line_prize    ?? 0,
     bingoPrize: draw.full_house_prize ?? 0,
     winType:   win_type,
+    card:      winCard,
   })
 
   if (result?.error) return res.status(400).json({ error: result.error })

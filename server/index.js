@@ -284,7 +284,7 @@ function checkWins(drawId, draw) {
               if (prize > 0) awardPrize(ticket.user_id, drawId, ticket.id, prize, 'BINGO win')
               const bu = dbQueryOne('SELECT email FROM users WHERE id = ?', [ticket.user_id])
               bingoWinnerEmail = (ticket.user_id === getHouseUserId()) ? null : (bu?.email ?? null)
-              io.emit('prize-awarded', { type: 'bingo', user_id: ticket.user_id, amount: prize })
+              io.emit('prize-awarded', { type: 'bingo', user_id: ticket.user_id, amount: prize, card: { row1: card.row1, row2: card.row2, row3: card.row3, code: card.code } })
               console.log(`BINGO win — user ${ticket.user_id}, prize ${prize}`)
               bingoTriggered = true
             } else if (missingFromCalled.length <= 3) {
@@ -549,7 +549,7 @@ setGameStateGetter(() => ({
 }))
 
 // ── Manual win callback (used by POST /api/system-tickets/give-win) ───────
-setManualWinCallback(({ drawId, userId, ticketId, linePrize, bingoPrize, winType }) => {
+setManualWinCallback(({ drawId, userId, ticketId, linePrize, bingoPrize, winType, card }) => {
   if (!currentDraw || currentDraw.id !== drawId) {
     return { error: 'This draw is not currently running' }
   }
@@ -571,7 +571,7 @@ setManualWinCallback(({ drawId, userId, ticketId, linePrize, bingoPrize, winType
     if (bingoPrize > 0) awardPrize(userId, drawId, ticketId, bingoPrize, 'BINGO win (manual)')
     const bu = dbQueryOne('SELECT email FROM users WHERE id = ?', [userId])
     bingoWinnerEmail = (userId === getHouseUserId()) ? null : (bu?.email ?? null)
-    io.emit('prize-awarded', { type: 'bingo', user_id: userId, amount: bingoPrize })
+    io.emit('prize-awarded', { type: 'bingo', user_id: userId, amount: bingoPrize, card: card ?? null })
     results.push('bingo')
   } else if (winType === 'bingo' && bingoPrizeAwarded) {
     return { error: 'Full house prize has already been awarded for this draw' }
