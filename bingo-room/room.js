@@ -54,12 +54,6 @@ let _gameOverAt     = 0               // timestamp of last game-over — used to
 const _token = localStorage.getItem('bp_token') || ''
 const _previewMode = new URLSearchParams(location.search).has('preview')
 
-// Decode user_id from the JWT payload (no signature verify needed — server owns that)
-function _decodeJwtPayload(token) {
-  try { return JSON.parse(atob(token.split('.')[1])) } catch { return null }
-}
-const _myUserId = _token ? (_decodeJwtPayload(_token)?.user_id ?? null) : null
-
 async function fetchNextDrawTime() {
   try {
     const headers = _token ? { 'Authorization': 'Bearer ' + _token } : {}
@@ -596,7 +590,7 @@ function buildOverlayTable(card, winRowIdx) {
   return `<table class="room-card-grid-table overlay-card-table">${trs}</table>`
 }
 
-async function runLineCheck(card, rowIdx) {
+async function runLineCheck(card, rowIdx, amount = 0) {
   paused = true
   // Safety: no matter what crashes inside, always unfreeze after 30s
   const _safetyTimer = setTimeout(() => {
@@ -632,9 +626,9 @@ async function runLineCheck(card, rowIdx) {
   // ── Step 2: Slide card overlay up over the drum ───────────────────────────
   const overlay = document.createElement('div')
   overlay.id = 'line-check-overlay'
-  overlay.innerHTML =
-    `<div class="lco-title">Checking your card…</div>` +
-    buildOverlayTable(card, rowIdx)
+  overlay.innerHTML = card
+    ? `<div class="lco-title">Checking the winning card…</div>` + buildOverlayTable(card, rowIdx)
+    : `<div class="lco-title">Line won — checking winner's card…</div>`
   document.body.appendChild(overlay)
 
   gsap.fromTo(overlay,
@@ -644,30 +638,39 @@ async function runLineCheck(card, rowIdx) {
 
   await new Promise(r => setTimeout(r, 300))
 
-  // ── Animate winning row cells in overlay ─────────────────────────────────
-  const overlayRows  = overlay.querySelectorAll('.overlay-card-table tr')
-  const overlayWinTds = [...overlayRows[rowIdx].querySelectorAll('td')]
-    .filter(td => !td.classList.contains('blank') && !td.classList.contains('card-code-cell'))
+  if (card) {
+    // ── Animate winning row cells in overlay ────────────────────────────────
+    const overlayRows  = overlay.querySelectorAll('.overlay-card-table tr')
+    const overlayWinTds = [...overlayRows[rowIdx].querySelectorAll('td')]
+      .filter(td => !td.classList.contains('blank') && !td.classList.contains('card-code-cell'))
 
-  // Also mark the original right-panel cells
-  const tables  = document.querySelectorAll('.room-card-grid-table')
-  const cardIdx = playerCards.cards.indexOf(card)
-  const origTds = tables[cardIdx]
-    ? [...tables[cardIdx].querySelectorAll('tr')[rowIdx].querySelectorAll('td')]
-        .filter(td => !td.classList.contains('blank'))
-    : []
+    // Also mark the original right-panel cells if this card is one of ours.
+    // Match by code — the card usually arrives from the server, so object
+    // identity never matches; playerCards may be null (ticketless observer).
+    const tables  = document.querySelectorAll('.room-card-grid-table')
+    const cardIdx = playerCards?.cards?.findIndex(c =>
+      c === card || (card.code != null && c.code === card.code)) ?? -1
+    const origTds = cardIdx >= 0 && tables[cardIdx]
+      ? [...tables[cardIdx].querySelectorAll('tr')[rowIdx].querySelectorAll('td')]
+          .filter(td => !td.classList.contains('blank'))
+      : []
 
-  for (let i = 0; i < overlayWinTds.length; i++) {
-    overlayWinTds[i].classList.add('checking')
-    await new Promise(r => setTimeout(r, 430))
-    overlayWinTds[i].classList.remove('checking')
-    overlayWinTds[i].className = 'line-win'
-    if (origTds[i]) { origTds[i].classList.remove('checking'); origTds[i].className = 'line-win' }
+    for (let i = 0; i < overlayWinTds.length; i++) {
+      overlayWinTds[i].classList.add('checking')
+      await new Promise(r => setTimeout(r, 430))
+      overlayWinTds[i].classList.remove('checking')
+      overlayWinTds[i].className = 'line-win'
+      if (origTds[i]) { origTds[i].classList.remove('checking'); origTds[i].className = 'line-win' }
+    }
+  } else {
+    // No card data — hold the text overlay for the same duration as the
+    // 5-cell check (5 × 430 ms) so all screens stay roughly in sync.
+    await new Promise(r => setTimeout(r, 2150))
   }
 
   // ── Show LINE! banner, then fade overlay out ─────────────────────────────
   await new Promise(r => setTimeout(r, 350))
-  showWin('LINE!', 'line')
+  showWin(amount > 0 ? `LINE! +${amount} pts` : 'LINE!', 'line')
 
   await new Promise(r => setTimeout(r, 900))
   await new Promise(r =>
@@ -764,10 +767,11 @@ async function runBingoCheck(card, amount = 0) {
 
   if (card) {
     // ── Step 3: Check all 3 rows cell by cell (silent — no speech during check) ─
-    // playerCards may be null (ticketless observer), and the server-sent winner
-    // card is never in the local list — origTable is then null and only the
-    // overlay + call card animate.
-    const cardIdx   = playerCards?.cards?.indexOf(card) ?? -1
+    // playerCards may be null (ticketless observer). Match by code — the card
+    // usually arrives from the server, so object identity never matches; when
+    // it isn't ours, origTable is null and only the overlay + call card animate.
+    const cardIdx = playerCards?.cards?.findIndex(c =>
+      c === card || (card.code != null && c.code === card.code)) ?? -1
     const origTable = cardIdx >= 0 ? document.querySelectorAll('.room-card-grid-table')[cardIdx] : null
     const overlayRows = overlay.querySelectorAll('.overlay-card-table tr')
 
@@ -947,51 +951,6 @@ function tryShowDrawResults(completedDrawId) {
     showDrawResultsCard(_drawResults, completedDrawId ?? _currentDrawId)
     _drawResults = null
   }
-}
-
-// Played on every client that did NOT win the line — flash + brief text overlay,
-// then resume. Bingo observers instead run runBingoCheck() with the server-sent
-// winning card, so everyone sees the same card-check ceremony.
-async function runRemoteLineCeremony(amount) {
-  paused = true
-  gsap.to(announcer._el, { opacity: 0, duration: 0.25 })  // hide announcer so it doesn't show over overlay
-
-  const flash = document.createElement('div')
-  flash.id = 'line-flash'
-  flash.textContent = 'LINE!'
-  document.body.appendChild(flash)
-
-  await new Promise(r =>
-    gsap.fromTo(flash,
-      { opacity: 0, scale: 0.5 },
-      { opacity: 1, scale: 1, duration: 0.4, ease: 'back.out(1.6)', onComplete: r }
-    )
-  )
-  announcer.sayText('LINE!')
-  await new Promise(r => setTimeout(r, 1800))
-  await new Promise(r =>
-    gsap.to(flash, { opacity: 0, scale: 1.25, duration: 0.3, ease: 'power2.in',
-      onComplete: () => { flash.remove(); r() } })
-  )
-
-  const prizeText = amount > 0 ? ` — ${amount} pts` : ''
-  const overlay = document.createElement('div')
-  overlay.id = 'line-check-overlay'
-  overlay.innerHTML = `<div class="lco-title">Line won${prizeText}<br>Checking winner's card…</div>`
-  document.body.appendChild(overlay)
-
-  gsap.fromTo(overlay, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power3.out' })
-
-  // Short hold, banner, fade overlay, resume
-  await new Promise(r => setTimeout(r, 3500))
-  showWin(amount > 0 ? `LINE! +${amount} pts` : 'LINE!', 'line')
-  await new Promise(r => setTimeout(r, 1200))
-  await new Promise(r =>
-    gsap.to(overlay, { opacity: 0, y: -30, duration: 0.5, ease: 'power2.in',
-      onComplete: () => { overlay.remove(); r() } })
-  )
-  gsap.to(announcer._el, { opacity: 1, duration: 0.4, ease: 'power2.out' })
-  announcer.sayText('Continuing.', () => { paused = false; drainPendingBalls() })
 }
 
 function showWin(text, type) {
@@ -1362,28 +1321,15 @@ function connectSocket() {
   })
 
   // Broadcast prize announcements to ALL connected clients
-  socket.on('prize-awarded', ({ type, amount, user_id, card }) => {
+  socket.on('prize-awarded', ({ type, amount, user_id, card, row }) => {
     if (type === 'line') {
-      if (_pendingLineCard) {
-        // This client detected a line and is waiting for server confirmation.
-        const { card, rowIdx } = _pendingLineCard
-        _pendingLineCard = null
-        const iWon = _myUserId && String(user_id) === String(_myUserId)
-        if (iWon) {
-          runLineCheck(card, rowIdx)   // personal winner ceremony
-        } else {
-          runRemoteLineCeremony(amount)  // someone else won; show observer ceremony
-        }
-      } else if (!lineWon) {
-        // This client didn't detect a line locally — just show the observer ceremony
-        lineWon = true
-        runRemoteLineCeremony(amount)
-      } else {
-        // lineWon=true but _pendingLineCard=null: this client detected the line locally
-        // but _pendingLineCard was cleared by the 7s safety timeout before prize-awarded
-        // arrived (slow network). The ceremony never ran — show it now.
-        runRemoteLineCeremony(amount)
-      }
+      // Server confirmed the line and sent the winning card + row. Everyone —
+      // winner, ticket-holding observers, ticketless watchers — runs the same
+      // card-check ceremony. Clearing _pendingLineCard defuses the 7s safety
+      // timeout on the client that detected the line locally.
+      _pendingLineCard = null
+      lineWon = true
+      runLineCheck(card ?? null, row ?? 0, amount)
     } else if (type === 'bingo') {
       if (bingoWon) return
       bingoWon = true

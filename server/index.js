@@ -261,15 +261,15 @@ function checkWins(drawId, draw) {
 
           // LINE: any row fully called — house tickets are never eligible for the line prize
           if (!linePrizeAwarded && ticket.user_id !== getHouseUserId()) {
-            for (const row of rows) {
-              const nums = row.filter(n => n !== null)
+            for (let ri = 0; ri < rows.length; ri++) {
+              const nums = rows[ri].filter(n => n !== null)
               if (nums.length && nums.every(n => called.has(n))) {
                 linePrizeAwarded = true
                 const prize = draw.line_prize ?? 0
                 if (prize > 0) awardPrize(ticket.user_id, drawId, ticket.id, prize, 'LINE win')
                 const lu = dbQueryOne('SELECT email FROM users WHERE id = ?', [ticket.user_id])
                 lineWinnerEmail = lu?.email ?? null
-                io.emit('prize-awarded', { type: 'line', user_id: ticket.user_id, amount: prize })
+                io.emit('prize-awarded', { type: 'line', user_id: ticket.user_id, amount: prize, card: { row1: card.row1, row2: card.row2, row3: card.row3, code: card.code }, row: ri })
                 console.log(`LINE win — user ${ticket.user_id}, prize ${prize}`)
                 break
               }
@@ -470,15 +470,15 @@ io.on('connection', (socket) => {
         const cards = JSON.parse(ticket.numbers)
         for (const card of cards) {
           const rows = [card.row1, card.row2, card.row3]
-          for (const row of rows) {
-            const nums = row.filter(n => n !== null)
+          for (let ri = 0; ri < rows.length; ri++) {
+            const nums = rows[ri].filter(n => n !== null)
             if (nums.length && nums.every(n => called.has(n))) {
               linePrizeAwarded = true
               const prize = draw.line_prize ?? 0
               if (prize > 0) awardPrize(ticket.user_id, drawId, ticket.id, prize, 'LINE win')
               const lu2 = dbQueryOne('SELECT email FROM users WHERE id = ?', [ticket.user_id])
               lineWinnerEmail = (ticket.user_id === getHouseUserId()) ? null : (lu2?.email ?? null)
-              io.emit('prize-awarded', { type: 'line', user_id: ticket.user_id, amount: prize })
+              io.emit('prize-awarded', { type: 'line', user_id: ticket.user_id, amount: prize, card: { row1: card.row1, row2: card.row2, row3: card.row3, code: card.code }, row: ri })
               console.log(`LINE win — user ${ticket.user_id}, prize ${prize}`)
               return
             }
@@ -560,7 +560,14 @@ setManualWinCallback(({ drawId, userId, ticketId, linePrize, bingoPrize, winType
     if (linePrize > 0) awardPrize(userId, drawId, ticketId, linePrize, 'LINE win (manual)')
     const lu = dbQueryOne('SELECT email FROM users WHERE id = ?', [userId])
     lineWinnerEmail = (userId === getHouseUserId()) ? null : (lu?.email ?? null)
-    io.emit('prize-awarded', { type: 'line', user_id: userId, amount: linePrize })
+    // Manual wins have no true winning row — present the row with most called numbers
+    let lineRow = 0
+    if (card) {
+      const counts = [card.row1, card.row2, card.row3]
+        .map(r => r.filter(n => n !== null && game.called.has(n)).length)
+      lineRow = counts.indexOf(Math.max(...counts))
+    }
+    io.emit('prize-awarded', { type: 'line', user_id: userId, amount: linePrize, card: card ?? null, row: lineRow })
     results.push('line')
   } else if (winType === 'line' && linePrizeAwarded) {
     return { error: 'Line prize has already been awarded for this draw' }
