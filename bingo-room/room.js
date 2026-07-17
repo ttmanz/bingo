@@ -2,14 +2,12 @@ import { gsap }          from 'gsap'
 import { DrumPhysics3D } from '/bingo-room/DrumPhysics3D.js'
 import { CallCard }      from '/bingo-room/CallCard.js'
 import { Announcer }     from '/bingo-room/Announcer.js?v=7'
-import { COL_COLORS }    from '/bingo-room/bingoLogic.js'
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const drumEl        = document.getElementById('drum')
 const machineEl     = document.getElementById('lottery-machine')
 const ballEl        = document.getElementById('current-ball')
 const calledEl      = document.getElementById('called-numbers')
-const timerBarEl    = document.getElementById('drum-timer-bar')
 const countdownFill = document.getElementById('room-countdown-fill')
 const statusTextEl  = document.getElementById('status-text')
 const liveDot       = document.getElementById('live-dot')
@@ -33,17 +31,10 @@ let _socket       = null
 let _cdTimer      = null   // next-draw countdown interval
 let _drawResults  = null   // stored until ceremony ends
 let _pendingBalls = []     // balls received while paused — drained on resume
-let _pendingLineCard = null // set when client detects a line; cleared by prize-awarded
+let _awaitingLineResult = false // client detected a line, waiting for prize-awarded confirmation
 let _introPlayed   = false  // prevents intro replaying within same draw cycle
 let _nextDrawTitle = ''     // stored from 'waiting'/'state' for intro speech
 let _curtainFaded  = false  // guards the 00:00 curtain lift — reset each waiting cycle
-let _wasWatchingDrawId = sessionStorage.getItem('bingo_watching_draw') || null  // survives page nav within session
-function _setWatchingDraw(id) {
-  _wasWatchingDrawId = id ? String(id) : null
-  if (id) sessionStorage.setItem('bingo_watching_draw', String(id))
-  else     sessionStorage.removeItem('bingo_watching_draw')
-}
-let _lateEntry = false  // true when user is blocked (late, no ticket) — suppresses curtain-lift logic
 let _ceremonyActive = false // true while a bingo check ceremony is running; blocks waiting curtain
 let _firstBallCalled = false  // gates the walk-in zoom — fires once per draw
 let _announcerZoomed = false  // true while announcer is at zoom scale
@@ -54,34 +45,10 @@ let _gameOverAt     = 0               // timestamp of last game-over — used to
 const _token = localStorage.getItem('bp_token') || ''
 const _previewMode = new URLSearchParams(location.search).has('preview')
 
-async function fetchNextDrawTime() {
-  try {
-    const headers = _token ? { 'Authorization': 'Bearer ' + _token } : {}
-    const res  = await fetch('/api/user-portal/available-draws', { headers })
-    if (!res.ok) return null
-    const data = await res.json()
-    const draws = Array.isArray(data) ? data : (data.regular || [])
-    const next  = draws
-      .filter(d => d.status === 'scheduled')
-      .sort((a, b) => {
-        const ta = a.scheduled_utc ? new Date(a.scheduled_utc) : a.draw_date ? new Date(a.draw_date + 'T' + a.draw_time + '+03:00') : new Date(a.scheduled_time)
-        const tb = b.scheduled_utc ? new Date(b.scheduled_utc) : b.draw_date ? new Date(b.draw_date + 'T' + b.draw_time + '+03:00') : new Date(b.scheduled_time)
-        return ta - tb
-      })[0]
-    if (!next) return null
-    return next.scheduled_utc ? new Date(next.scheduled_utc)
-      : next.draw_date
-      ? new Date(next.draw_date + 'T' + next.draw_time + '+03:00')
-      : next.scheduled_time ? new Date(next.scheduled_time) : null
-  } catch { return null }
-}
-
 // Apply a deferred 'waiting' payload — called either directly from the socket handler
 // (no ceremony running) or by ceremony-end code after _pendingWaiting was stored.
 function _applyWaiting({ drawId, nextDrawTime, nextDrawTitle, annType }) {
   _nextDrawTitle      = nextDrawTitle || 'this draw'
-  _setWatchingDraw(drawId)       // mark that this user is in the room for this draw's start
-  _lateEntry          = false    // new draw waiting phase — reset late-entry flag
   _introPlayed        = false
   _curtainFaded       = false
   _firstBallCalled    = false
@@ -545,18 +512,18 @@ function checkWins() {
   for (const card of playerCards.cards) {
     if (!lineWon) {
       const rows = [card.row1, card.row2, card.row3]
-      for (let ri = 0; ri < rows.length; ri++) {
-        const nums = rows[ri].filter(n => n !== null)
+      for (const row of rows) {
+        const nums = row.filter(n => n !== null)
         if (nums.every(n => calledSet.has(n))) {
           lineWon = true
           paused = true   // pause immediately; ceremony starts once prize-awarded confirms winner
           _socket?.emit('line')
-          _pendingLineCard = { card, rowIdx: ri }  // ceremony deferred — see prize-awarded handler
+          _awaitingLineResult = true  // ceremony deferred — see prize-awarded handler
           // Safety: if prize-awarded never arrives (server race / no response), unfreeze after 7s
           setTimeout(() => {
-            if (_pendingLineCard) {
+            if (_awaitingLineResult) {
               console.warn('[bingo] prize-awarded timeout — resuming draw')
-              _pendingLineCard = null
+              _awaitingLineResult = false
               paused = false
               drainPendingBalls()
             }
@@ -575,13 +542,16 @@ function checkWins() {
   }
 }
 
-function buildOverlayTable(card, winRowIdx) {
+// Shared by line and bingo ceremonies. Rows about to be checked render
+// unmarked ('num') so the cell animation reveals them; for line that's only
+// the winning row (winRowIdx), for bingo (winRowIdx null) it's every row.
+function buildOverlayTable(card, winRowIdx = null) {
   const rows = [card.row1, card.row2, card.row3]
   const trs = rows.map((row, ri) => {
     const tds = row.map(n => {
       if (n === null) return `<td class="blank"></td>`
-      if (ri === winRowIdx) return `<td class="num" data-n="${n}">${n}</td>`
-      const cls = calledSet.has(n) ? 'called' : 'num'
+      const unmarked = winRowIdx === null || ri === winRowIdx
+      const cls = unmarked ? 'num' : (calledSet.has(n) ? 'called' : 'num')
       return `<td class="${cls}" data-n="${n}">${n}</td>`
     }).join('')
     const codeCell = ri === 0 ? `<td class="card-code-cell" rowspan="3">${card.code ?? ''}</td>` : ''
@@ -696,19 +666,6 @@ async function runLineCheck(card, rowIdx, amount = 0) {
 
 // ── Bingo check ceremony ──────────────────────────────────────────────────
 
-function buildBingoOverlayTable(card) {
-  const rows = [card.row1, card.row2, card.row3]
-  const trs = rows.map((row, ri) => {
-    const tds = row.map(n => {
-      if (n === null) return `<td class="blank"></td>`
-      return `<td class="num" data-n="${n}">${n}</td>`
-    }).join('')
-    const codeCell = ri === 0 ? `<td class="card-code-cell" rowspan="3">${card.code ?? ''}</td>` : ''
-    return `<tr>${tds}${codeCell}</tr>`
-  }).join('')
-  return `<table class="room-card-grid-table overlay-card-table">${trs}</table>`
-}
-
 async function runBingoCheck(card, amount = 0) {
   _ceremonyActive = true   // block the 'waiting' curtain during this ceremony
   const _ownDrawId = _currentDrawId  // capture now — 'waiting' event may update it during ceremony
@@ -750,7 +707,7 @@ async function runBingoCheck(card, amount = 0) {
   const overlay = document.createElement('div')
   overlay.id = 'line-check-overlay'
   overlay.classList.add('bingo-overlay')
-  overlay.innerHTML = `<div class="lco-title">Full house — checking ${card ? '' : "winner's "}card…</div>` + (card ? buildBingoOverlayTable(card) : '')
+  overlay.innerHTML = `<div class="lco-title">Full house — checking ${card ? '' : "winner's "}card…</div>` + (card ? buildOverlayTable(card) : '')
   document.body.appendChild(overlay)
 
   await new Promise(r =>
@@ -976,7 +933,6 @@ function _enterMidDraw(calledCount, annType) {
 
   _curtainFaded = true   // no curtain to fade
   _introPlayed  = true   // suppress the T-3s paused=true / curtain-lift path for this draw
-  _lateEntry    = false  // entering live draw — no longer blocked
   paused        = false
   drawing       = false  // drum is idle — next number-drawn event must not be skipped
 
@@ -1046,8 +1002,8 @@ document.addEventListener('visibilitychange', () => {
 
 // When the browser restores the page from bfcache (back/forward navigation)
 // show a "Please Refresh" overlay rather than trusting the frozen JS state.
-// After the forced reload, sessionStorage restores _wasWatchingDrawId so the
-// user correctly rejoins the live draw (or sees the right curtain).
+// After the forced reload the socket 'state' event rejoins the live draw
+// (or shows the right curtain).
 ;(function () {
   const overlay     = document.getElementById('refresh-overlay')
   const refreshBtn  = document.getElementById('refresh-btn')
@@ -1101,13 +1057,13 @@ function connectSocket() {
     _connectCount++
     liveDot.className = 'live-dot on'
     statusTextEl.textContent = 'Live'
-    // On reconnect: if we were mid-ceremony (paused, _pendingLineCard set) but missed
-    // prize-awarded, the safety timeout handles it — but if it already fired and the draw
+    // On reconnect: if we were awaiting line confirmation but missed prize-awarded,
+    // the safety timeout handles it — but if it already fired and the draw
     // is stuck paused, unstick after a short grace period.
-    if (_connectCount > 1 && paused && _pendingLineCard) {
+    if (_connectCount > 1 && paused && _awaitingLineResult) {
       setTimeout(() => {
-        if (_pendingLineCard) {
-          _pendingLineCard = null
+        if (_awaitingLineResult) {
+          _awaitingLineResult = false
           paused = false
           drainPendingBalls()
         }
@@ -1124,7 +1080,6 @@ function connectSocket() {
     calledSet = new Set(called)
     if (phase === 'waiting') {
       _nextDrawTitle     = nextDrawTitle || 'this draw'
-      _setWatchingDraw(drawId)       // user is in room before draw start — allow ticket-less watching
       if (annType) { announcer.setType(annType); updateStageScale() }
       loadCardsForDraw(drawId)
       renderPlayerCard()
@@ -1170,7 +1125,7 @@ function connectSocket() {
     const msSinceGameOver = _gameOverAt ? (Date.now() - _gameOverAt) : Infinity
     if (_ceremonyActive || (bingoWon && msSinceGameOver < 35000)) {
       _pendingWaiting = { drawId, nextDrawTime, nextDrawTitle, annType }
-      return   // applied by _applyPendingWaiting() when ceremony ends
+      return   // applied via _applyWaiting() when the ceremony ends
     }
     _applyWaiting({ drawId, nextDrawTime, nextDrawTitle, annType })
   })
@@ -1241,10 +1196,6 @@ function connectSocket() {
 
   // A number is drawn — animate ball
   socket.on('number-drawn', ({ number, called }) => {
-    // Guard: late-entry user is blocked by the next-draw curtain — they are not
-    // watching this draw. Silently update calledSet and do nothing else.
-    if (_lateEntry) { calledSet = new Set(called); return }
-
     // Safety: first ball arrives before countdown reaches remaining=0 (server timer
     // race) — the curtain is still up. Lift it and play the intro speech so the
     // announcer always introduces herself at draw start.
@@ -1306,7 +1257,6 @@ function connectSocket() {
     statusTextEl.textContent = 'Draw complete'
     if (countdownFill) countdownFill.style.width = '0'
     _gameOverAt = Date.now()   // timestamp used to suppress 'waiting' curtain during ceremony
-    _setWatchingDraw(null)     // clear watching draw — next draw's waiting phase sets a fresh one
   })
 
   socket.on('draw-results', (data) => {
@@ -1325,9 +1275,9 @@ function connectSocket() {
     if (type === 'line') {
       // Server confirmed the line and sent the winning card + row. Everyone —
       // winner, ticket-holding observers, ticketless watchers — runs the same
-      // card-check ceremony. Clearing _pendingLineCard defuses the 7s safety
+      // card-check ceremony. Clearing _awaitingLineResult defuses the 7s safety
       // timeout on the client that detected the line locally.
-      _pendingLineCard = null
+      _awaitingLineResult = false
       lineWon = true
       runLineCheck(card ?? null, row ?? 0, amount)
     } else if (type === 'bingo') {
@@ -1348,8 +1298,8 @@ function connectSocket() {
     paused     = false
     _drawResults    = null
     _pendingBalls   = []
-    _pendingLineCard  = null   // clear any deferred line ceremony
-    _pendingWaiting   = null   // clear any deferred 'waiting' payload
+    _awaitingLineResult = false // clear any deferred line ceremony
+    _pendingWaiting     = null  // clear any deferred 'waiting' payload
     _gameOverAt       = 0      // reset game-over timestamp
     _introPlayed    = false   // new draw cycle — allow intro at T-3s
     _curtainFaded   = false   // allow curtain to lift for the new draw
