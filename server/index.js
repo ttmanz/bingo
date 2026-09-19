@@ -206,7 +206,7 @@ function drawLocalToUtcMs(draw_date, draw_time) {
 function getNextScheduledDraw() {
   try {
     return dbQuery(
-      `SELECT id, title, draw_date, draw_time, ball_interval, line_prize, full_house_prize, announcer FROM draws
+      `SELECT id, title, draw_date, draw_time, ball_interval, line_prize, full_house_prize, announcer, call_set FROM draws
        WHERE status = 'scheduled'
        ORDER BY draw_date ASC, draw_time ASC LIMIT 1`
     )[0] ?? null
@@ -337,6 +337,7 @@ function scheduleNextDraw() {
     nextDrawTime:    new Date(startMs).toISOString(),
     nextDrawTitle:   next.title,
     announcer:       next.announcer ?? null,
+    callSet:         next.call_set ?? 'traditional',
     line_prize:      next.line_prize ?? 0,
     full_house_prize: next.full_house_prize ?? 0,
   })
@@ -429,6 +430,7 @@ io.on('connection', (socket) => {
       nextDrawTime:    new Date(startMs).toISOString(),
       nextDrawTitle:   currentDraw.title,
       announcer:       currentDraw.announcer ?? null,
+      callSet:         currentDraw.call_set ?? 'traditional',
       line_prize:      currentDraw.line_prize ?? 0,
       full_house_prize: currentDraw.full_house_prize ?? 0,
     })
@@ -444,6 +446,7 @@ io.on('connection', (socket) => {
       drawId:            currentDraw?.id ?? null,
       drawTitle:         currentDraw?.title ?? '',
       announcer:         currentDraw?.announcer ?? null,
+      callSet:           currentDraw?.call_set ?? 'traditional',
       linePrizeAwarded:  linePrizeAwarded,
       bingoPrizeAwarded: bingoPrizeAwarded,
       nextDrawTime:      afterCurrent

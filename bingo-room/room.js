@@ -31,6 +31,7 @@ let _socket       = null
 let _cdTimer      = null   // next-draw countdown interval
 let _drawResults  = null   // stored until ceremony ends
 let _pendingBalls = []     // balls received while paused — drained on resume
+let _ballBacklog  = []     // balls that arrived mid-animation — played in order, never dropped
 let _awaitingLineResult = false // client detected a line, waiting for prize-awarded confirmation
 let _introPlayed   = false  // prevents intro replaying within same draw cycle
 let _nextDrawTitle = ''     // stored from 'waiting'/'state' for intro speech
@@ -47,7 +48,9 @@ const _previewMode = new URLSearchParams(location.search).has('preview')
 
 // Apply a deferred 'waiting' payload — called either directly from the socket handler
 // (no ceremony running) or by ceremony-end code after _pendingWaiting was stored.
-function _applyWaiting({ drawId, nextDrawTime, nextDrawTitle, annType }) {
+function _applyWaiting({ drawId, nextDrawTime, nextDrawTitle, annType, callSet }) {
+  announcer.setCallSet(callSet)
+  _ballBacklog        = []
   _nextDrawTitle      = nextDrawTitle || 'this draw'
   _introPlayed        = false
   _curtainFaded       = false
@@ -282,7 +285,9 @@ if (_previewMode) {
   document.getElementById('room-nodraw-overlay')?.classList.add('hidden')
   document.querySelector('.room-layout')?.style.setProperty('display', '')
   announcer._el.style.setProperty('opacity', '1', 'important')
-  announcer.setType(new URLSearchParams(location.search).get('ann') || localStorage.getItem('bp_ann_type') || 'a')
+  const _previewQs = new URLSearchParams(location.search)
+  announcer.setType(_previewQs.get('ann') || localStorage.getItem('bp_ann_type') || 'a')
+  announcer.setCallSet(_previewQs.get('calls'))
   updateStageScale()
   // Seek the announcer video to the idle-pose frame (mic down, standing)
   // so the keying loop has a visible frame to display rather than black.
@@ -833,22 +838,52 @@ function drainPendingBalls() {
   refreshCardMarks()
   _pendingBalls = []
   // Play the last missed ball with full tube animation + audio
+  _playBall(last.number)
+}
+
+// Send one ball down the tube: reveal at the peak, settle in the tray. Returns
+// straight away — the next queued ball starts from the settle callback.
+function _playBall(number) {
   drawing = true
-  drum.exitBall(
-    last.number,
+  const sent = drum.exitBall(
+    number,
     (num, group, color) => {
       callCard.display(num)
-      announcer.announce(num)
-      if (!_firstBallCalled) { _firstBallCalled = true; _zoomAnnouncerIn() }
+      if (!paused) {
+        announcer.announce(num)
+        if (!_firstBallCalled) { _firstBallCalled = true; _zoomAnnouncerIn() }
+      }
       gsap.fromTo(ballEl,
         { scale: 1.4, filter: `drop-shadow(0 0 28px ${color})` },
         { scale: 1,   filter: 'none', duration: 0.55, ease: 'elastic.out(1,0.5)' })
     },
     () => {
+      refreshCardMarks()
+      if (!paused) checkWins()
       drawing = false
-      checkWins()
+      _playBacklog()
     }
   )
+  // The drum had no ball to send (empty after a desync) — mark it anyway rather
+  // than leaving 'drawing' latched, which would silently stall every later ball.
+  if (sent == null) {
+    drawing = false
+    callCard.display(number)
+    refreshCardMarks()
+    _playBacklog()
+  }
+}
+
+// Play the next ball that arrived while the drum was busy. If a slow device has
+// fallen several balls behind, jump to the newest and resync the grid so it can
+// never show fewer marked cells than the counter claims.
+function _playBacklog() {
+  if (!_ballBacklog.length) return
+  if (_ballBacklog.length > 2) {
+    _ballBacklog = _ballBacklog.slice(-1)
+    callCard.restore(Array.from(calledSet))
+  }
+  _playBall(_ballBacklog.shift())
 }
 
 // ── Draw results card ─────────────────────────────────────────────────────
@@ -993,6 +1028,7 @@ setTimeout(() => {
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && calledSet.size > 0) {
     drawing = false  // animations may have been throttled while hidden — unblock the pipeline
+    _ballBacklog = []  // whatever queued up while hidden is stale; restore() covers it
     callCard.restore(Array.from(calledSet))
     refreshCardMarks()
   }
@@ -1076,8 +1112,9 @@ function connectSocket() {
   })
 
   // Initial state on connect
-  socket.on('state', ({ called, gameOver, phase, drawId, nextDrawTime, nextDrawTitle, announcer: annType, linePrizeAwarded: lpa, bingoPrizeAwarded: bpa }) => {
+  socket.on('state', ({ called, gameOver, phase, drawId, nextDrawTime, nextDrawTitle, announcer: annType, callSet, linePrizeAwarded: lpa, bingoPrizeAwarded: bpa }) => {
     calledSet = new Set(called)
+    announcer.setCallSet(callSet)
     if (phase === 'waiting') {
       _nextDrawTitle     = nextDrawTitle || 'this draw'
       if (annType) { announcer.setType(annType); updateStageScale() }
@@ -1116,7 +1153,7 @@ function connectSocket() {
   })
 
   // Server signals waiting for next draw
-  socket.on('waiting', ({ drawId, nextDrawTime, nextDrawTitle, announcer: annType }) => {
+  socket.on('waiting', ({ drawId, nextDrawTime, nextDrawTitle, announcer: annType, callSet }) => {
     // Guard: if a bingo ceremony is running on ANY client (winner or observer), suppress
     // the curtain entirely — it would abruptly interrupt the ceremony overlay.
     // Also suppress for 35 s after game-over when bingo was won, because the observer
@@ -1124,14 +1161,15 @@ function connectSocket() {
     // ceremony (runBingoCheck) is still running on another device.
     const msSinceGameOver = _gameOverAt ? (Date.now() - _gameOverAt) : Infinity
     if (_ceremonyActive || (bingoWon && msSinceGameOver < 35000)) {
-      _pendingWaiting = { drawId, nextDrawTime, nextDrawTitle, annType }
+      _pendingWaiting = { drawId, nextDrawTime, nextDrawTitle, annType, callSet }
       return   // applied via _applyWaiting() when the ceremony ends
     }
-    _applyWaiting({ drawId, nextDrawTime, nextDrawTitle, annType })
+    _applyWaiting({ drawId, nextDrawTime, nextDrawTitle, annType, callSet })
   })
 
   // Countdown tick — update fill bar; at T-3 fade in announcer; at T=0 lift curtain
   socket.on('countdown', ({ remaining, total }) => {
+    drum.setPace(total)   // 'total' is the draw's ball interval in seconds
     const pct = remaining / total
     if (countdownFill) countdownFill.style.width = (pct * 100) + '%'
 
@@ -1226,31 +1264,12 @@ function connectSocket() {
     if (paused) { _pendingBalls.push({ number, called }); return }
     calledSet = new Set(called)
     callCard.setCount(called.length)   // sync count immediately — same moment on every device
-    if (drawing) return
-    drawing = true
     if (lastNumEl) lastNumEl.textContent = number
     if (countdownFill) countdownFill.style.width = '100%'
-
-    drum.exitBall(
-      number,
-      // onReveal — ball reaches tube peak
-      (num, group, color) => {
-        callCard.display(num)
-        if (!paused) {
-          announcer.announce(num)
-          if (!_firstBallCalled) { _firstBallCalled = true; _zoomAnnouncerIn() }
-        }
-        gsap.fromTo(ballEl,
-          { scale: 1.4, filter: `drop-shadow(0 0 28px ${color})` },
-          { scale: 1,   filter: 'none', duration: 0.55, ease: 'elastic.out(1,0.5)' })
-      },
-      // onSettle — ball at rest
-      () => {
-        refreshCardMarks()
-        if (!paused) checkWins()
-        drawing = false
-      }
-    )
+    // Still animating the previous ball — queue this one rather than discarding
+    // it, which used to lose its grid cell, recent-calls chip and announcer call.
+    if (drawing) { _ballBacklog.push(number); return }
+    _playBall(number)
   })
 
   socket.on('game-over', () => {
@@ -1298,6 +1317,7 @@ function connectSocket() {
     paused     = false
     _drawResults    = null
     _pendingBalls   = []
+    _ballBacklog    = []
     _awaitingLineResult = false // clear any deferred line ceremony
     _pendingWaiting     = null  // clear any deferred 'waiting' payload
     _gameOverAt       = 0      // reset game-over timestamp

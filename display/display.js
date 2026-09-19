@@ -10,7 +10,16 @@ const CALLS = {
   22:'Two little ducks — twenty two!',88:'Two fat ladies — eighty eight!',
   90:'Top of the shop — ninety!',
 }
-const callPhrase = n => CALLS[n] || `Number ${n}!`
+// Number-call sound sets — must match Announcer.js so the big screen shows
+// exactly what the announcer is saying in the room.
+const CALL_SETS = {
+  traditional: n => CALLS[n] || `Number ${n}!`,
+  numbers:     n => `Number ${n}!`,
+  plain:       n => `${n}!`,
+}
+let _callSet = 'traditional'
+const setCallSet = name => { if (name && CALL_SETS[name]) _callSet = name }
+const callPhrase = n => CALL_SETS[_callSet](n)
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const loginOverlay  = document.getElementById('loginOverlay')
@@ -208,6 +217,7 @@ function connectSocket() {
   socket = io({ transports: ['websocket'] })
 
   socket.on('state', data => {
+    setCallSet(data.callSet)
     if (data.phase === 'waiting') {
       dsDrawTitle.textContent = data.nextDrawTitle || 'Bingo24-7'
       dsNextTime.textContent  = formatTime(data.nextDrawTime)
@@ -228,6 +238,7 @@ function connectSocket() {
   })
 
   socket.on('waiting', data => {
+    setCallSet(data.callSet)
     dsDrawTitle.textContent = data.nextDrawTitle || 'Bingo24-7'
     dsNextTime.textContent  = formatTime(data.nextDrawTime)
     setPrizes(data.line_prize, data.full_house_prize)

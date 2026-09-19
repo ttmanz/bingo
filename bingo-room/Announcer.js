@@ -10,7 +10,18 @@ const CALLS = {
   22:'Two little ducks — twenty two!', 88:'Two fat ladies — eighty eight!',
   90:'Top of the shop — ninety!',
 }
-const say = n => CALLS[n] || `Number ${n}!`
+
+// ── Number-call sound sets ─────────────────────────────────────────────────
+// traditional : the full bingo-hall call — 'One fat lady — number eight!'
+// numbers     : nicknames dropped, 'number' kept — 'Number 8!'
+// plain       : nicknames and 'number' dropped — '8!'
+// The digits are spoken as words by the speech engine ('54!' → "fifty-four").
+export const CALL_SETS = {
+  traditional: n => CALLS[n] || `Number ${n}!`,
+  numbers:     n => `Number ${n}!`,
+  plain:       n => `${n}!`,
+}
+export const DEFAULT_CALL_SET = 'traditional'
 
 // ── Video announcers ───────────────────────────────────────────────────────
 const VIDEO_SRC = {
@@ -55,6 +66,7 @@ function pickVoice() {
 export class Announcer {
   constructor() {
     this._type      = 'a'
+    this._callSet   = DEFAULT_CALL_SET
     this._voice     = null
     this._speaking  = false
     this._unlocked  = false
@@ -91,6 +103,11 @@ export class Announcer {
     this._el.classList.add(`announcer-${this._type}`)
     this._applyVideoTiming(type)
     this._buildVideoContent(type)
+  }
+
+  // ── Switch number-call sound set (traditional | numbers | plain) ──────────
+  setCallSet(name) {
+    if (name && CALL_SETS[name]) this._callSet = name
   }
 
   // ── Private: apply per-type timing config ────────────────────────────────
@@ -223,7 +240,7 @@ export class Announcer {
   announce(number) {
     if (this._speaking) speechSynthesis.cancel()
     this._speaking = true
-    this._speak(say(number), () => {
+    this._speak(CALL_SETS[this._callSet](number), () => {
       this._speaking = false
     })
   }

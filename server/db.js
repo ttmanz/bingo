@@ -239,6 +239,9 @@ function runMigrations() {
   if (!drawCols.includes('announcer')) {
     db.run("ALTER TABLE draws ADD COLUMN announcer TEXT")
   }
+  if (!drawCols.includes('call_set')) {
+    db.run("ALTER TABLE draws ADD COLUMN call_set TEXT DEFAULT 'traditional'")
+  }
 
   // draw_schedule: add timezone, announcer
   const schCols = db.exec("PRAGMA table_info(draw_schedule)")[0]?.values?.map(r => r[1]) ?? []
@@ -247,6 +250,9 @@ function runMigrations() {
   }
   if (!schCols.includes('announcer')) {
     db.run("ALTER TABLE draw_schedule ADD COLUMN announcer TEXT")
+  }
+  if (!schCols.includes('call_set')) {
+    db.run("ALTER TABLE draw_schedule ADD COLUMN call_set TEXT DEFAULT 'traditional'")
   }
 
   // tickets: add ticket_number for per-draw pool tracking

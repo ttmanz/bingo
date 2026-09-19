@@ -56,6 +56,9 @@ const REST_SLOTS = (() => {
 const CX = 145   // drum physics centre x (290/2)
 const CY = 145   // drum physics centre y
 
+// Breathing room left between a ball settling and the next one leaving the drum
+const EXIT_GAP_SEC = 0.25
+
 export class DrumPhysics3D {
   constructor(drumEl, machineEl) {
     this.drumEl    = drumEl
@@ -67,12 +70,22 @@ export class DrumPhysics3D {
     this._kickTimer = null
     this._lastTs    = null
     this._warmup    = false
+    this._maxExitSec = 0   // 0 = play the tube animation at its natural speed
 
     this._initPhysics()
     this._initThree()
   }
 
   // ── Public API ─────────────────────────────────────────────────────────
+
+  // Cap how long a ball may take to travel the tube, so the draw runs at the
+  // pace the admin configured. The tube run is a fixed 0.7–3.0 s depending on
+  // how far along the tray the ball has to travel, so without this cap an
+  // interval shorter than ~3 s can't actually speed the draw up.
+  setPace(intervalSec) {
+    if (!(intervalSec > 0)) return
+    this._maxExitSec = Math.max(0.6, intervalSec - EXIT_GAP_SEC)
+  }
 
   init(numbers) {
     numbers.forEach(n => this._spawn(n))
@@ -252,6 +265,14 @@ export class DrumPhysics3D {
     } else {
       tl.to(clone, { top: slot.top, rotation: `+=${rot(vDist)}`,
                      duration: Math.max(0.15, vDist / 600), ease: 'power2.in' })
+    }
+
+    // Speed the whole run up if it wouldn't finish inside the ball interval.
+    // Slower intervals leave it untouched, so the default 5 s draw looks exactly
+    // as it always has.
+    const natural = tl.duration()
+    if (this._maxExitSec > 0 && natural > this._maxExitSec) {
+      tl.timeScale(natural / this._maxExitSec)
     }
 
     return e.number

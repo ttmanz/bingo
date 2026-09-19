@@ -36,7 +36,7 @@ router.post('/', requireAuth, (req, res) => {
     title, description, draw_date, draw_time, timezone = 'UTC',
     ticket_price = 1, full_house_prize = 500, line_prize = 50,
     ball_interval = 5, jackpot_enabled = 0, jackpot_amount = 0,
-    announcer = null
+    announcer = null, call_set = 'traditional'
   } = req.body
 
   if (!title || !draw_date || !draw_time) {
@@ -47,11 +47,11 @@ router.post('/', requireAuth, (req, res) => {
     `INSERT INTO draws
        (title, description, draw_date, draw_time, timezone, ticket_price,
         full_house_prize, line_prize, ball_interval,
-        jackpot_enabled, jackpot_amount, announcer, status, type)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'scheduled','special')`,
+        jackpot_enabled, jackpot_amount, announcer, call_set, status, type)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'scheduled','special')`,
     [title, description ?? null, draw_date, draw_time, timezone,
      ticket_price, full_house_prize, line_prize, ball_interval,
-     jackpot_enabled ? 1 : 0, jackpot_amount, announcer ?? null]
+     jackpot_enabled ? 1 : 0, jackpot_amount, announcer ?? null, call_set || 'traditional']
   )
   res.json({ ok: true, id })
 })
@@ -64,14 +64,14 @@ router.put('/:id', requireAuth, (req, res) => {
   const {
     title, description, draw_date, draw_time, timezone, ticket_price,
     full_house_prize, line_prize, ball_interval,
-    jackpot_enabled, jackpot_amount, status, announcer
+    jackpot_enabled, jackpot_amount, status, announcer, call_set
   } = req.body
 
   run(
     `UPDATE draws SET
        title=?, description=?, draw_date=?, draw_time=?, timezone=?,
        ticket_price=?, full_house_prize=?, line_prize=?,
-       ball_interval=?, jackpot_enabled=?, jackpot_amount=?, status=?, announcer=?
+       ball_interval=?, jackpot_enabled=?, jackpot_amount=?, status=?, announcer=?, call_set=?
      WHERE id=?`,
     [
       title ?? draw.title,
@@ -87,6 +87,7 @@ router.put('/:id', requireAuth, (req, res) => {
       jackpot_amount ?? draw.jackpot_amount,
       status ?? draw.status,
       announcer !== undefined ? (announcer || null) : draw.announcer,
+      call_set !== undefined ? (call_set || 'traditional') : (draw.call_set ?? 'traditional'),
       req.params.id,
     ]
   )

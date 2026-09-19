@@ -299,6 +299,7 @@ function openDrawModal(day, draw = null) {
   document.getElementById('dm-fh-prize').value     = draw?.full_house_prize ?? 100
   document.getElementById('dm-line-prize').value   = draw?.line_prize ?? 10
   document.getElementById('dm-announcer').value    = draw?.announcer ?? ''
+  document.getElementById('dm-call-set').value     = draw?.call_set || 'traditional'
   document.getElementById('draw-modal').classList.add('open')
 }
 
@@ -317,6 +318,7 @@ document.getElementById('draw-modal-save').addEventListener('click', async () =>
     full_house_prize: Number(document.getElementById('dm-fh-prize').value),
     line_prize:       Number(document.getElementById('dm-line-prize').value),
     announcer:        document.getElementById('dm-announcer').value || null,
+    call_set:         document.getElementById('dm-call-set').value,
   }
   if (!body.title) { toast('Title is required', 'error'); return }
   if (_drawEditId) {
@@ -1303,6 +1305,7 @@ document.getElementById('add-special-btn').addEventListener('click', () => {
   document.getElementById('sp-line-prize').value    = 500
   document.getElementById('sp-status').value        = 'scheduled'
   document.getElementById('sp-announcer').value     = ''
+  document.getElementById('sp-call-set').value      = 'traditional'
   document.getElementById('special-modal').classList.add('open')
 })
 
@@ -1320,6 +1323,7 @@ function openSpecialEditModal(d) {
   document.getElementById('sp-line-prize').value         = d.line_prize
   document.getElementById('sp-status').value             = d.status
   document.getElementById('sp-announcer').value          = d.announcer ?? ''
+  document.getElementById('sp-call-set').value           = d.call_set || 'traditional'
   document.getElementById('special-modal').classList.add('open')
 }
 
@@ -1343,6 +1347,7 @@ document.getElementById('special-modal-save').addEventListener('click', async ()
     line_prize:       Number(document.getElementById('sp-line-prize').value),
     status:           document.getElementById('sp-status').value,
     announcer:        document.getElementById('sp-announcer').value || null,
+    call_set:         document.getElementById('sp-call-set').value,
   }
 
   const res = editId
