@@ -70,6 +70,7 @@ router.post('/generate-today', requireAuth, (req, res) => {
   const days = Math.min(Math.max(parseInt(req.body.days) || 1, 1), 30)
   const jackpot = queryOne('SELECT * FROM jackpot WHERE id = 1')
   let created = 0
+  let scheduleEntries = 0   // enabled weekly entries found across the days scanned
   const skipped = []
 
   for (let offset = 0; offset < days; offset++) {
@@ -78,9 +79,13 @@ router.post('/generate-today', requireAuth, (req, res) => {
     const dow = row.dow
 
     const schedules = query('SELECT * FROM draw_schedule WHERE day_of_week = ? AND enabled = 1', [dow])
+    scheduleEntries += schedules.length
     for (const s of schedules) {
+      // A voided draw never ran, so its slot is free to regenerate. Without this
+      // one voided draw permanently blocks its schedule entry for the rest of the
+      // day and the button reports "all draws already exist" with nothing to show.
       const existing = queryOne(
-        "SELECT id FROM draws WHERE schedule_id = ? AND draw_date = ? AND type = 'regular'",
+        "SELECT id FROM draws WHERE schedule_id = ? AND draw_date = ? AND type = 'regular' AND status != 'voided'",
         [s.id, dateStr]
       )
       if (existing) { skipped.push(`${s.title} (${dateStr})`); continue }
@@ -101,7 +106,12 @@ router.post('/generate-today', requireAuth, (req, res) => {
   }
 
   if (created > 0) triggerReschedule()
-  res.json({ ok: true, created, skipped })
+  // Nothing to generate and nothing skipped means the weekly schedule is empty
+  // for these days — say so rather than "all draws already exist".
+  const message = (created === 0 && scheduleEntries === 0)
+    ? `No draws in the weekly schedule for ${days === 1 ? 'today' : `the next ${days} days`} — add one first`
+    : undefined
+  res.json({ ok: true, created, skipped, scheduleEntries, message })
 })
 
 // DELETE /api/schedule/draws/:id — delete a draw instance
