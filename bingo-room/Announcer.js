@@ -40,8 +40,14 @@ const VIDEO_SRC = {
 // segEnd    : end of lower gesture (mic fully back down)
 // bkThresh  : pixels with max(R,G,B) below this are fully transparent
 // bkEdge    : soft anti-alias ramp from bkThresh → bkEdge
+// srcCrop   : fraction of the source frame height to draw (1 = whole frame).
+//             Used to cut a generator watermark off the bottom of a clip.
 const VIDEO_TIMING = {
-  a: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh: 25, bkEdge: 55 },  // blue dress, blonde
+  // Talks to camera on a headset — the mouth moves for real, so there is no
+  // mic-raise gesture: segStart→segEnd is simply the most articulate stretch.
+  // Tight key because the headset is black; the background is pure black (0),
+  // so even this low threshold clears it completely.
+  a: { idleSeek: 3.2, segStart: 0.4, segEnd: 2.4, bkThresh: 8, bkEdge: 22, srcCrop: 0.921 },
   b: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  5, bkEdge: 13 },  // dark plaid skirt — tight key so skirt stays opaque
   c: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  4, bkEdge: 10 },  // dark hair/shoes — very tight so only true-black bg is keyed
   d: { idleSeek: 0.0, segStart: 2.0, segEnd: 4.4, bkThresh: 22, bkEdge: 50 },  // rose/pink sequin dress, blonde
@@ -81,6 +87,7 @@ export class Announcer {
     this._segWatcher     = null   // timeupdate handler ref for cleanup
     this._bkThresh       = 25     // black-key threshold (per type)
     this._bkEdge         = 55     // black-key soft ramp edge
+    this._srcCrop        = 1      // fraction of source frame height to draw
 
     speechSynthesis.onvoiceschanged = () => { this._voice = pickVoice() }
     this._voice = pickVoice()
@@ -119,6 +126,7 @@ export class Announcer {
     this._speakSegEnd   = t.segEnd
     this._bkThresh      = t.bkThresh ?? 25
     this._bkEdge        = t.bkEdge   ?? 55
+    this._srcCrop       = t.srcCrop  ?? 1
   }
 
   // ── Private: speech unlock ────────────────────────────────────────────────
@@ -194,7 +202,13 @@ export class Announcer {
       if (!this._videoKeyActive) return
       const v = this._video, ctx = this._ctx
       if (v && v.readyState >= 2 && ctx) {
-        ctx.drawImage(v, 0, 0, 400, 680)
+        // Draw the full frame unless this type crops it (watermark removal).
+        const sw = v.videoWidth, sh = v.videoHeight
+        if (this._srcCrop < 1 && sw && sh) {
+          ctx.drawImage(v, 0, 0, sw, Math.round(sh * this._srcCrop), 0, 0, 400, 680)
+        } else {
+          ctx.drawImage(v, 0, 0, 400, 680)
+        }
         const imgData = ctx.getImageData(0, 0, 400, 680)
         const d = imgData.data
         const thresh = this._bkThresh, edge = this._bkEdge

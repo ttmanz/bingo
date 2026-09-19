@@ -1,7 +1,7 @@
 import { gsap }          from 'gsap'
 import { DrumPhysics3D } from '/bingo-room/DrumPhysics3D.js'
 import { CallCard }      from '/bingo-room/CallCard.js'
-import { Announcer }     from '/bingo-room/Announcer.js?v=7'
+import { Announcer }     from '/bingo-room/Announcer.js?v=8'
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const drumEl        = document.getElementById('drum')
