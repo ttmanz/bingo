@@ -32,28 +32,39 @@ const VIDEO_SRC = {
   e: '/bingo-room/announcer-e.mp4',
   f: '/bingo-room/announcer-f.mp4',
   g: '/bingo-room/announcer-g.mp4',
+  h: '/bingo-room/announcer-h.mp4',
 }
 
 // Per-type timing + keying config.
-// idleSeek  : frame to park on when silent (mic lowered, natural stance)
-// segStart  : start of raise gesture (she turns & lifts mic)
-// segEnd    : end of lower gesture (mic fully back down)
+// Every announcer is a headset presenter who genuinely articulates, so there is
+// no mic-raise gesture to choreograph: segStart→segEnd is simply the stretch
+// where the mouth is most active, and each clip is generated to finish with the
+// mouth closed so idleSeek parks near the end.
+// idleSeek  : frame to park on when silent (mouth closed, near the end)
+// segStart  : start of the talking stretch played while a number is called
+// segEnd    : end of that stretch
 // bkThresh  : pixels with max(R,G,B) below this are fully transparent
 // bkEdge    : soft anti-alias ramp from bkThresh → bkEdge
-// srcCrop   : fraction of the source frame height to draw (1 = whole frame).
-//             Used to cut a generator watermark off the bottom of a clip.
+// wmMask    : optional [x, y, w, h] as fractions of the frame, cleared before
+//             keying to erase a generator watermark. Used where the watermark
+//             shares rows with the subject, so it cannot simply be cropped off.
+//
+// All eight clips key at 8/22: their backgrounds are pure black (measured max
+// brightness 0) so a low threshold clears them completely, while anything
+// higher eats the black headsets.
+const KEY = { bkThresh: 8, bkEdge: 22 }
+const TALK = { idleSeek: 4.85, segStart: 0.4, segEnd: 2.4 }
 const VIDEO_TIMING = {
-  // Talks to camera on a headset — the mouth moves for real, so there is no
-  // mic-raise gesture: segStart→segEnd is simply the most articulate stretch.
-  // Tight key because the headset is black; the background is pure black (0),
-  // so even this low threshold clears it completely.
-  a: { idleSeek: 3.2, segStart: 0.4, segEnd: 2.4, bkThresh: 8, bkEdge: 22, srcCrop: 0.921 },
-  b: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  5, bkEdge: 13 },  // dark plaid skirt — tight key so skirt stays opaque
-  c: { idleSeek: 4.5, segStart: 2.4, segEnd: 4.4, bkThresh:  4, bkEdge: 10 },  // dark hair/shoes — very tight so only true-black bg is keyed
-  d: { idleSeek: 0.0, segStart: 2.0, segEnd: 4.4, bkThresh: 22, bkEdge: 50 },  // rose/pink sequin dress, blonde
-  e: { idleSeek: 4.7, segStart: 2.1, segEnd: 4.1, bkThresh: 28, bkEdge: 58 },  // new video: mic up 2.1→4.1s; idle standing 4.7s
-  f: { idleSeek: 2.4, segStart: 3.2, segEnd: 4.8, bkThresh:  6, bkEdge: 16 },  // dark charcoal skirt, dark hair
-  g: { idleSeek: 0.4, segStart: 2.8, segEnd: 5.0, bkThresh: 18, bkEdge: 40 },  // gold champagne dress
+  a: { ...TALK, ...KEY },
+  b: { ...TALK, ...KEY },
+  c: { ...TALK, ...KEY },
+  // Watermark sits beside her feet (x681-1037, y1786-1887 of 1080x1920) — it
+  // overlaps her rows but not her columns, so mask it rather than crop.
+  d: { ...TALK, ...KEY, wmMask: [0.615, 0.920, 0.385, 0.080] },
+  e: { ...TALK, ...KEY },
+  f: { ...TALK, ...KEY },
+  g: { ...TALK, ...KEY },
+  h: { ...TALK, ...KEY },
 }
 
 function pickVoice() {
@@ -87,7 +98,7 @@ export class Announcer {
     this._segWatcher     = null   // timeupdate handler ref for cleanup
     this._bkThresh       = 25     // black-key threshold (per type)
     this._bkEdge         = 55     // black-key soft ramp edge
-    this._srcCrop        = 1      // fraction of source frame height to draw
+    this._wmMask         = null   // [x,y,w,h] fractions cleared before keying
 
     speechSynthesis.onvoiceschanged = () => { this._voice = pickVoice() }
     this._voice = pickVoice()
@@ -102,9 +113,9 @@ export class Announcer {
     this._unlock()
   }
 
-  // ── Switch announcer type (a–g) ───────────────────────────────────────────
+  // ── Switch announcer type (a–h) ───────────────────────────────────────────
   setType(type) {
-    if (!type || !['a','b','c','d','e','f','g'].includes(type)) return
+    if (!type || !['a','b','c','d','e','f','g','h'].includes(type)) return
     this._el.classList.remove(`announcer-${this._type}`)
     this._type = type
     this._el.classList.add(`announcer-${this._type}`)
@@ -126,7 +137,7 @@ export class Announcer {
     this._speakSegEnd   = t.segEnd
     this._bkThresh      = t.bkThresh ?? 25
     this._bkEdge        = t.bkEdge   ?? 55
-    this._srcCrop       = t.srcCrop  ?? 1
+    this._wmMask        = t.wmMask   ?? null
   }
 
   // ── Private: speech unlock ────────────────────────────────────────────────
@@ -202,13 +213,11 @@ export class Announcer {
       if (!this._videoKeyActive) return
       const v = this._video, ctx = this._ctx
       if (v && v.readyState >= 2 && ctx) {
-        // Draw the full frame unless this type crops it (watermark removal).
-        const sw = v.videoWidth, sh = v.videoHeight
-        if (this._srcCrop < 1 && sw && sh) {
-          ctx.drawImage(v, 0, 0, sw, Math.round(sh * this._srcCrop), 0, 0, 400, 680)
-        } else {
-          ctx.drawImage(v, 0, 0, 400, 680)
-        }
+        ctx.drawImage(v, 0, 0, 400, 680)
+        // Erase a burnt-in watermark before keying, so it never reaches the ramp
+        const m = this._wmMask
+        if (m) ctx.clearRect(Math.floor(m[0]*400), Math.floor(m[1]*680),
+                             Math.ceil(m[2]*400), Math.ceil(m[3]*680))
         const imgData = ctx.getImageData(0, 0, 400, 680)
         const d = imgData.data
         const thresh = this._bkThresh, edge = this._bkEdge

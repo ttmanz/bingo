@@ -1,7 +1,7 @@
 import { gsap }          from 'gsap'
 import { DrumPhysics3D } from '/bingo-room/DrumPhysics3D.js'
 import { CallCard }      from '/bingo-room/CallCard.js'
-import { Announcer }     from '/bingo-room/Announcer.js?v=8'
+import { Announcer }     from '/bingo-room/Announcer.js?v=9'
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const drumEl        = document.getElementById('drum')
@@ -176,14 +176,18 @@ function _announcerNaturalPos() {
   // Per-type natural position/size. ox/oy are offsets from the machine bounding rect.
   // side: 'right' → pinned to drum-col right edge (avoids call-card overlap)
   //       'left'  → ox from machine left edge
+  // Width is set from each clip's own aspect so nobody is stretched: the canvas
+  // squeezes any source into 400x680, and displaying it at the source's real
+  // aspect undoes that. a-c and e-h are 1176x1764 (0.667), d is 1080x1920.
   const POS = {
-    a: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
-    b: { side: 'right', ox: 836, oy:  90, w: 170, h: 289, dx:   0, ms: 1.00 },  // compact size, same on mobile+desktop
-    c: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0 },
-    d: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx: -20 },
-    e: { side: 'right', ox: 836, oy: 110, w: 200, h: 340, dx:   0, ms: 0.80 },  // raised 40px
-    f: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0, ms: 0.80 },
-    g: { side: 'right', ox: 836, oy: 150, w: 200, h: 340, dx:   0, ms: 0.80 },
+    a: { side: 'right', ox: 836, oy: 150, w: 227, h: 340, dx: 0 },
+    b: { side: 'right', ox: 836, oy: 150, w: 227, h: 340, dx: 0 },
+    c: { side: 'right', ox: 836, oy: 150, w: 227, h: 340, dx: 0 },
+    d: { side: 'right', ox: 836, oy: 150, w: 191, h: 340, dx: 0 },
+    e: { side: 'right', ox: 836, oy: 150, w: 227, h: 340, dx: 0 },
+    f: { side: 'right', ox: 836, oy: 150, w: 227, h: 340, dx: 0 },
+    g: { side: 'right', ox: 836, oy: 150, w: 227, h: 340, dx: 0 },
+    h: { side: 'right', ox: 836, oy: 150, w: 227, h: 340, dx: 0 },
   }
   return POS[announcer._type] ?? POS.a
 }
