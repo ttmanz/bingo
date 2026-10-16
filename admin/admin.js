@@ -292,7 +292,7 @@ function openDrawModal(day, draw = null) {
     const maxNum   = dayDraws.reduce((m, d) => Math.max(m, d.draw_number ?? 0), 0)
     document.getElementById('dm-number').value = maxNum + 1
   }
-  document.getElementById('dm-time').value         = draw?.draw_time ?? '19:00'
+  document.getElementById('dm-time').value         = (draw?.draw_time ?? '19:00').slice(0,5)
   document.getElementById('dm-interval').value     = draw?.ball_interval ?? 5
   document.getElementById('dm-title').value        = draw?.title ?? ''
   document.getElementById('dm-ticket-price').value = draw?.ticket_price ?? 1
@@ -303,6 +303,21 @@ function openDrawModal(day, draw = null) {
   document.getElementById('draw-modal').classList.add('open')
 }
 
+// Time fields are text inputs: native type=time gives no keyboard on tablets
+function normTime(v) {
+  const m = /^(\d{1,2})[:.]?(\d{2})$/.exec(String(v).trim())
+  if (!m || +m[1] > 23 || +m[2] > 59) return null
+  return `${m[1].padStart(2, '0')}:${m[2]}`
+}
+;['dm-time', 'sp-time'].forEach(id => {
+  const el = document.getElementById(id)
+  el.addEventListener('input', () => {
+    const d = el.value.replace(/\D/g, '').slice(0, 4)
+    el.value = d.length > 2 ? `${d.slice(0, 2)}:${d.slice(2)}` : d
+  })
+  el.addEventListener('focus', () => el.select())
+})
+
 document.getElementById('draw-modal-cancel').addEventListener('click', () => {
   document.getElementById('draw-modal').classList.remove('open')
 })
@@ -311,7 +326,7 @@ document.getElementById('draw-modal-save').addEventListener('click', async () =>
   const body = {
     day_of_week:      Number(document.getElementById('dm-day').value),
     draw_number:      Number(document.getElementById('dm-number').value),
-    draw_time:        document.getElementById('dm-time').value,
+    draw_time:        normTime(document.getElementById('dm-time').value),
     ball_interval:    Number(document.getElementById('dm-interval').value),
     title:            document.getElementById('dm-title').value.trim(),
     ticket_price:     Number(document.getElementById('dm-ticket-price').value),
@@ -321,6 +336,7 @@ document.getElementById('draw-modal-save').addEventListener('click', async () =>
     call_set:         document.getElementById('dm-call-set').value,
   }
   if (!body.title) { toast('Title is required', 'error'); return }
+  if (!body.draw_time) { toast('Enter a valid time, e.g. 19:30', 'error'); return }
   if (_drawEditId) {
     await PUT(`/api/schedule/${_drawEditId}`, body)
   } else {
@@ -1316,7 +1332,7 @@ function openSpecialEditModal(d) {
   document.getElementById('sp-title').value              = d.title
   document.getElementById('sp-desc').value               = d.description || ''
   document.getElementById('sp-date').value               = d.draw_date
-  document.getElementById('sp-time').value               = d.draw_time
+  document.getElementById('sp-time').value               = (d.draw_time || '').slice(0,5)
   document.getElementById('sp-ticket-price').value       = d.ticket_price
   document.getElementById('sp-ball-interval').value      = d.ball_interval
   document.getElementById('sp-fh-prize').value           = d.full_house_prize
@@ -1335,12 +1351,13 @@ document.getElementById('special-modal-save').addEventListener('click', async ()
   const editId = document.getElementById('special-edit-id').value
   const title  = document.getElementById('sp-title').value.trim()
   if (!title) { toast('Title is required', 'error'); return }
+  if (!normTime(document.getElementById('sp-time').value)) { toast('Enter a valid time, e.g. 20:00', 'error'); return }
 
   const body = {
     title,
     description:      document.getElementById('sp-desc').value.trim() || null,
     draw_date:        document.getElementById('sp-date').value,
-    draw_time:        document.getElementById('sp-time').value,
+    draw_time:        normTime(document.getElementById('sp-time').value),
     ticket_price:     Number(document.getElementById('sp-ticket-price').value),
     ball_interval:    Number(document.getElementById('sp-ball-interval').value),
     full_house_prize: Number(document.getElementById('sp-fh-prize').value),
